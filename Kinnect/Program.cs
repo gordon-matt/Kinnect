@@ -161,12 +161,9 @@ var services = scope.ServiceProvider;
 try
 {
     var context = services.GetRequiredService<ApplicationDbContext>();
+    await context.Database.MigrateAsync();
 
-    if (useKeycloak)
-    {
-        await context.Database.MigrateAsync();
-    }
-    else
+    if (!useKeycloak)
     {
         var configuration = services.GetRequiredService<IConfiguration>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();

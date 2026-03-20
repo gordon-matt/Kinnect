@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
   <Project Path="Kinnect.Core/Kinnect.Core.csproj" />
   <Project Path="Kinnect.Data/Kinnect.Data.csproj" />
   <Project Path="Kinnect.Models/Kinnect.Models.csproj" />
