@@ -1,8 +1,79 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start">
+                    <div class="flex-grow-1">
+                        <textarea class="form-control" rows="3" placeholder="What's on your mind?"
+                                  data-bind="value: newPostContent"></textarea>
+                    </div>
+                </div>
+                <div class="mt-2 text-end">
+                    <button class="btn btn-primary" data-bind="click: createPost, enable: newPostContent()">
+                        <i class="bi bi-send"></i> Post
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div data-bind="visible: loading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <div data-bind="foreach: feedItems, visible: !loading()">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div data-bind="if: authorProfileImage">
+                            <img data-bind="attr: { src: '/uploads/' + authorProfileImage() }" class="rounded-circle me-2" width="40" height="40" alt="" />
+                        </div>
+                        <div data-bind="ifnot: authorProfileImage">
+                            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style="width:40px;height:40px;">
+                                <i class="bi bi-person"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <a data-bind="text: authorName, attr: { href: '/Profile/View/' + authorPersonId() }" class="fw-bold text-decoration-none"></a>
+                            <div class="text-muted small" data-bind="text: timeAgo"></div>
+                        </div>
+                    </div>
+
+                    <!-- ko if: type() === 'post' -->
+                    <p class="card-text" data-bind="text: content"></p>
+                    <!-- /ko -->
+
+                    <!-- ko if: type() === 'photo' -->
+                    <p class="card-text fw-semibold" data-bind="text: title"></p>
+                    <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt="" />
+                    <!-- /ko -->
+
+                    <!-- ko if: type() === 'video' -->
+                    <p class="card-text fw-semibold" data-bind="text: title"></p>
+                    <!-- ko if: thumbnailPath -->
+                    <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt="" />
+                    <!-- /ko -->
+                    <!-- /ko -->
+                </div>
+            </div>
+        </div>
+
+        <div data-bind="visible: !loading() && feedItems().length === 0" class="text-center text-muted py-4">
+            <i class="bi bi-chat-text" style="font-size: 3rem;"></i>
+            <p class="mt-2">No updates yet. Be the first to post!</p>
+        </div>
+
+        <div data-bind="visible: hasMore" class="text-center mb-4">
+            <button class="btn btn-outline-primary" data-bind="click: loadMore">Load More</button>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/home.js" asp-append-version="true"></script>
+}

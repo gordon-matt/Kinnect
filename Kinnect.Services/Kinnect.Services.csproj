@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -15,6 +15,10 @@
     <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
     <ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
     <ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

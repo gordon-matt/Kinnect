@@ -144,15 +144,6 @@
       ]
     },
     {
-      "library": "sortablejs@1.15.7",
-      "destination": "wwwroot/lib/sortablejs/",
-      "files": [
-        "LICENSE",
-        "Sortable.js",
-        "Sortable.min.js"
-      ]
-    },
-    {
       "library": "@yaireo/tagify@4.36.0",
       "destination": "wwwroot/lib/yaireo/tagify/",
       "files": [
@@ -161,26 +152,6 @@
         "dist/tagify.min.css",
         "dist/tagify.min.js",
         "dist/tagify.css"
-      ]
-    },
-    {
-      "library": "video.js@8.23.8",
-      "destination": "wwwroot/lib/video.js/",
-      "files": [
-        "LICENSE",
-        "dist/video-js.css",
-        "dist/video-js.min.css",
-        "dist/video.js",
-        "dist/video.min.js"
-      ]
-    },
-    {
-      "library": "videojs-playlist@5.2.0",
-      "destination": "wwwroot/lib/videojs-playlist/",
-      "files": [
-        "dist/videojs-playlist.js",
-        "dist/videojs-playlist.min.js",
-        "LICENSE"
       ]
     },
     {

@@ -1,0 +1,205 @@
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div data-bind="visible: loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <div data-bind="visible: !loading()">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="position-relative me-3">
+                            <div data-bind="if: profileImagePath">
+                                <img data-bind="attr: { src: '/uploads/' + profileImagePath() }" class="rounded-circle" width="100" height="100" alt="Profile" style="object-fit: cover;" />
+                            </div>
+                            <div data-bind="ifnot: profileImagePath">
+                                <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:100px;height:100px;font-size:2.5rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                            </div>
+                            <label class="position-absolute bottom-0 end-0 btn btn-sm btn-primary rounded-circle" style="width:32px;height:32px;padding:0;line-height:32px;">
+                                <i class="bi bi-camera"></i>
+                                <input type="file" accept="image/*" class="d-none" data-bind="event: { change: uploadProfileImage }" />
+                            </label>
+                        </div>
+                        <div>
+                            <h3 data-bind="text: fullName" class="mb-0"></h3>
+                            <small class="text-muted" data-bind="text: locationText"></small>
+                        </div>
+                    </div>
+
+                    <form data-bind="submit: saveProfile">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Given Names</label>
+                                <input type="text" class="form-control" data-bind="value: givenNames" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Family Name</label>
+                                <input type="text" class="form-control" data-bind="value: familyName" />
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Year of Birth</label>
+                                <input type="number" class="form-control" data-bind="value: yearOfBirth" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Month</label>
+                                <input type="number" class="form-control" min="1" max="12" data-bind="value: monthOfBirth" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Day</label>
+                                <input type="number" class="form-control" min="1" max="31" data-bind="value: dayOfBirth" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" rows="3" data-bind="value: bio"></textarea>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Place of Birth</label>
+                                <input type="text" class="form-control" data-bind="value: placeOfBirth" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Gender</label>
+                                <select class="form-select" data-bind="value: isMaleStr">
+                                    <option value="true">Male</option>
+                                    <option value="false">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Latitude</label>
+                                <input type="number" step="any" class="form-control" data-bind="value: latitude" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Longitude</label>
+                                <input type="number" step="any" class="form-control" data-bind="value: longitude" />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#postsTab">Posts</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#photosTab">Photos</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#videosTab">Videos</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documentsTab">Documents</button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="postsTab">
+                    <div data-bind="foreach: posts">
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <p data-bind="text: content"></p>
+                                <small class="text-muted" data-bind="text: new Date(createdAtUtc).toLocaleDateString()"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="photosTab">
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload">
+                            <i class="bi bi-upload"></i> Upload Photo
+                        </button>
+                    </div>
+                    <div data-bind="visible: isUploadingPhoto" class="card mb-3">
+                        <div class="card-body">
+                            <input type="file" accept="image/*" class="form-control mb-2" id="photoFile" />
+                            <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: photoTitle" />
+                            <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: photoDescription" />
+                            <input id="photoTags" class="form-control mb-2" placeholder="Tags" />
+                            <button class="btn btn-primary btn-sm" data-bind="click: uploadPhoto">Upload</button>
+                            <button class="btn btn-secondary btn-sm" data-bind="click: cancelPhotoUpload">Cancel</button>
+                        </div>
+                    </div>
+                    <div class="row" data-bind="foreach: photos">
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <img data-bind="attr: { src: '/uploads/' + filePath }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
+                                <div class="card-body p-2">
+                                    <small class="fw-semibold" data-bind="text: title"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="videosTab">
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showVideoUpload">
+                            <i class="bi bi-upload"></i> Upload Video
+                        </button>
+                    </div>
+                    <div data-bind="visible: isUploadingVideo" class="card mb-3">
+                        <div class="card-body">
+                            <input type="file" accept="video/*" class="form-control mb-2" id="videoFile" />
+                            <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: videoTitle" />
+                            <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: videoDescription" />
+                            <input id="videoTags" class="form-control mb-2" placeholder="Tags" />
+                            <button class="btn btn-primary btn-sm" data-bind="click: uploadVideo">Upload</button>
+                            <button class="btn btn-secondary btn-sm" data-bind="click: cancelVideoUpload">Cancel</button>
+                        </div>
+                    </div>
+                    <div data-bind="foreach: videos">
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <i class="bi bi-film"></i> <span data-bind="text: title"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="documentsTab">
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showDocumentUpload">
+                            <i class="bi bi-upload"></i> Upload Document
+                        </button>
+                    </div>
+                    <div data-bind="visible: isUploadingDocument" class="card mb-3">
+                        <div class="card-body">
+                            <input type="file" class="form-control mb-2" id="documentFile" />
+                            <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: documentTitle" />
+                            <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: documentDescription" />
+                            <input id="documentTags" class="form-control mb-2" placeholder="Tags" />
+                            <button class="btn btn-primary btn-sm" data-bind="click: uploadDocument">Upload</button>
+                            <button class="btn btn-secondary btn-sm" data-bind="click: cancelDocumentUpload">Cancel</button>
+                        </div>
+                    </div>
+                    <div data-bind="foreach: documents">
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <i class="bi bi-file-earmark"></i> <a data-bind="text: title, attr: { href: '/uploads/' + filePath }" target="_blank"></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/profile.js" asp-append-version="true"></script>
+}

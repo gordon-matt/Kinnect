@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Family Map";
+    var apiKey = ViewData["GoogleMapsApiKey"]?.ToString() ?? "";
+}
+
+<h4 class="mb-3"><i class="bi bi-geo-alt"></i> Family Map</h4>
+
+<div data-bind="visible: loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<div id="familyMap" style="width:100%; height:calc(100vh - 200px); border-radius: 8px;" data-bind="visible: !loading()"></div>
+
+<div data-bind="visible: !loading() && pins().length === 0" class="text-center text-muted py-4">
+    <p>No location data available. Family members can add their location in their profile.</p>
+</div>
+
+@section Scripts {
+    @if (!string.IsNullOrEmpty(apiKey))
+    {
+        <script src="https://maps.googleapis.com/maps/api/js?key=@apiKey&callback=initMap" async defer></script>
+    }
+    <script>
+        const googleMapsApiKey = '@apiKey';
+    </script>
+    <script src="~/js/map.js" asp-append-version="true"></script>
+}

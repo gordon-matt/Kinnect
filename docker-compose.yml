@@ -1,0 +1,68 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Kinnect/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=kinnect;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}"
+      FileStorage__BasePath: /app/data
+      GoogleMaps__ApiKey: "${GOOGLE_MAPS_API_KEY:-}"
+      # SeedAdmin__Email: admin@example.com
+      # SeedAdmin__Password: "${ADMIN_PASSWORD}"
+      # SeedAdmin__FirstName: Admin
+      # SeedAdmin__LastName: User
+      # ── Keycloak (optional) ──────────────────────────────────────────────────
+      # Authentication__Provider: Keycloak
+      # Authentication__Keycloak__Authority: http://host.docker.internal:8081/realms/kinnect
+      # Authentication__Keycloak__ClientId: kinnect
+      # Authentication__Keycloak__ClientSecret: changeme
+      # Authentication__Keycloak__PublicOrigin: ""
+      # Authentication__Keycloak__BackchannelBaseUrl: ""
+    volumes:
+      - D:/_Docker/kinnect/uploads:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: kinnect
+    volumes:
+      - D:/_Docker/kinnect/pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Keycloak (optional) ──────────────────────────────────────────────────────
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:26.5.5
+  #   container_name: keycloak
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  #     KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD:-admin}"
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+  #     KC_DB_USERNAME: postgres
+  #     KC_DB_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+  #   command: start-dev
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 30s

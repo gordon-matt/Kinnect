@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Family Tree";
+    ViewData["FullWidth"] = true;
+    ViewData["BodyClass"] = "family-tree-page";
+}
+
+<div id="FamilyChart" style="width:100%; height:calc(100vh - 56px);"></div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/family-tree.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/lib/family-chart/dist/family-chart.js"></script>
+    <script src="~/js/family-tree.js" asp-append-version="true"></script>
+}

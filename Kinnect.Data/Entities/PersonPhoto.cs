@@ -1,4 +1,4 @@
-﻿using System.Runtime.Serialization;
+using System.Runtime.Serialization;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Kinnect.Data.Entities;
@@ -22,21 +22,16 @@ public class PersonPhotoMap : IEntityTypeConfiguration<PersonPhoto>
     public void Configure(EntityTypeBuilder<PersonPhoto> builder)
     {
         builder.ToTable("PersonPhotos", "app");
-
-        // Composite primary key
         builder.HasKey(m => new { m.PersonId, m.PhotoId });
-        builder.Property(m => m.PersonId).IsRequired();
-        builder.Property(m => m.PhotoId).IsRequired();
 
-        // Relationships
         builder.HasOne(m => m.Person)
             .WithMany(m => m.PersonPhotos)
             .HasForeignKey(m => m.PersonId)
-            .OnDelete(DeleteBehavior.ClientNoAction);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(m => m.Photo)
             .WithMany(m => m.PersonPhotos)
-            .HasForeignKey(m => m.Photo)
-            .OnDelete(DeleteBehavior.ClientNoAction);
+            .HasForeignKey(m => m.PhotoId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -1,21 +1,23 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 
 namespace Kinnect.Data;
 
 public class ApplicationDbContextFactory(IConfiguration configuration) : IDbContextFactory
 {
+    private DbContextOptions<ApplicationDbContext>? _options;
+
     private DbContextOptions<ApplicationDbContext> Options
     {
         get
         {
-            if (field is null)
+            if (_options is null)
             {
                 var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
                 string? connectionString = configuration.GetConnectionString("DefaultConnection");
                 optionsBuilder.UseNpgsql(connectionString);
-                field = optionsBuilder.Options;
+                _options = optionsBuilder.Options;
             }
-            return field;
+            return _options;
         }
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Runtime.Serialization;
+using System.Runtime.Serialization;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Kinnect.Data.Entities;
@@ -22,21 +22,16 @@ public class PhotoTagMap : IEntityTypeConfiguration<PhotoTag>
     public void Configure(EntityTypeBuilder<PhotoTag> builder)
     {
         builder.ToTable("PhotoTags", "app");
-
-        // Composite primary key
         builder.HasKey(m => new { m.PhotoId, m.TagId });
-        builder.Property(m => m.PhotoId).IsRequired();
-        builder.Property(m => m.TagId).IsRequired();
 
-        // Relationships
         builder.HasOne(m => m.Photo)
             .WithMany(m => m.PhotoTags)
             .HasForeignKey(m => m.PhotoId)
-            .OnDelete(DeleteBehavior.ClientNoAction);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(m => m.Tag)
             .WithMany(m => m.PhotoTags)
             .HasForeignKey(m => m.TagId)
-            .OnDelete(DeleteBehavior.ClientNoAction);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

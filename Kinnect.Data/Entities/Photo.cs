@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Kinnect.Data.Entities;
 
@@ -6,17 +6,21 @@ public class Photo : BaseEntity<int>
 {
     public string Title { get; set; } = null!;
 
-    public string Uri { get; set; } = null!;
+    public string FilePath { get; set; } = null!;
 
-    public string ThumbnailUri { get; set; } = null!;
+    public string? ThumbnailPath { get; set; }
 
     public string? Description { get; set; }
 
-    // TODO: Add EXIF metadata properties (e.g. DateTaken, Location, etc.)
+    public int UploadedByPersonId { get; set; }
 
-    public ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
+    public DateTime CreatedAtUtc { get; set; }
 
-    public ICollection<PhotoTag> PhotoTags { get; set; } = [];
+    public virtual Person UploadedBy { get; set; } = null!;
+
+    public virtual ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
+
+    public virtual ICollection<PhotoTag> PhotoTags { get; set; } = [];
 }
 
 public class PhotoMap : IEntityTypeConfiguration<Photo>
@@ -25,8 +29,13 @@ public class PhotoMap : IEntityTypeConfiguration<Photo>
     {
         builder.ToTable("Photos", "app");
         builder.HasKey(m => m.Id);
-        builder.Property(m => m.Title).IsRequired();
-        builder.Property(m => m.Uri).IsRequired();
-        builder.Property(m => m.ThumbnailUri).IsRequired();
+        builder.Property(m => m.Title).IsRequired().HasMaxLength(500);
+        builder.Property(m => m.FilePath).IsRequired().HasMaxLength(1000);
+        builder.Property(m => m.ThumbnailPath).HasMaxLength(1000);
+
+        builder.HasOne(m => m.UploadedBy)
+            .WithMany()
+            .HasForeignKey(m => m.UploadedByPersonId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
