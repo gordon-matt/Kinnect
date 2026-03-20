@@ -4,9 +4,10 @@
     ViewData["BodyClass"] = "family-tree-page";
 }
 
-<div id="FamilyChart" style="width:100%; height:calc(100vh - 56px);"></div>
+<div id="FamilyChart" class="f3" style="width:100%; height:calc(100vh - 56px);"></div>
 
 @section Styles {
+    <link rel="stylesheet" href="~/lib/family-chart/dist/styles/family-chart.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/family-tree.css" asp-append-version="true" />
 }
 

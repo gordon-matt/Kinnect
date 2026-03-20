@@ -1,5 +1,9 @@
 #FamilyChart {
     background: #f8f9fa;
+    /* override library dark-theme defaults */
+    --background-color: #ffffff;
+    --text-color: #212529;
+    overflow: hidden;
 }
 
 #FamilyChart .card-style rect {

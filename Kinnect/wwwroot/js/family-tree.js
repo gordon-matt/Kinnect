@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             { id: 'gender',      label: 'Gender',      type: 'select', options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }] }
         ])
         .setOnSubmit((e, datum, applyChanges, postSubmit) => {
+            e.preventDefault();
             applyChanges();
             savePersonFromDatum(datum).then(postSubmit);
         })
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── Card inner HTML ────────────────────────────────────────────────────────
     function cardInnerHtmlCreator(d) {
-        const data = d.data;
+        const data = d.data.data;
         const isMale = data.gender === 'M';
         const borderColor = isMale ? '#4a90d9' : '#c0436e';
         const genderIcon = isMale ? '♂' : '♀';
@@ -106,10 +107,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             body.dayOfBirth   = parts.length >= 3 ? (parseInt(parts[2]) || null) : null;
         }
 
-        // Resolve parent IDs from the store
-        if (datum.rels && datum.rels.parents) {
-            for (const parentId of datum.rels.parents) {
-                const parent = f3Chart.store.getDatum(parentId);
+        // Resolve parent IDs — library uses rels.parents[] internally
+        if (datum.rels?.parents?.length > 0) {
+            for (const parentChartId of datum.rels.parents) {
+                const parent = f3Chart.store.getDatum(parentChartId);
                 if (!parent) continue;
                 if (parent.data.gender === 'M') body.fatherId = parent.data.personId || null;
                 else body.motherId = parent.data.personId || null;
@@ -118,11 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             if (personId) {
-                await fetch(`/api/people/${personId}`, {
+                const res = await fetch(`/api/people/${personId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
+                if (!res.ok) console.error(`Update person failed: ${res.status}`);
             } else {
                 const res = await fetch('/api/people', {
                     method: 'POST',
@@ -131,11 +133,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 if (res.ok) {
                     const json = await res.json();
-                    datum.data.personId = (json.value || json).id;
+                    const newPersonId = (json.value || json).id;
+                    datum.data.personId = newPersonId;
+
+                    // Link spouse relationship if this person was added as a spouse
+                    if (newPersonId && datum.rels?.spouses?.length > 0) {
+                        for (const spouseChartId of datum.rels.spouses) {
+                            const spouseDatum = f3Chart.store.getDatum(spouseChartId);
+                            if (spouseDatum?.data?.personId) {
+                                await linkSpouseToServer(newPersonId, spouseDatum.data.personId);
+                            }
+                        }
+                    }
+                } else {
+                    console.error(`Create person failed: ${res.status} ${await res.text()}`);
                 }
             }
         } catch (err) {
             console.error('Error saving person:', err);
+        }
+    }
+
+    async function linkSpouseToServer(personId, spouseId) {
+        try {
+            const res = await fetch(`/api/people/${personId}/spouse/${spouseId}`, { method: 'POST' });
+            if (!res.ok) console.error(`Link spouse failed: ${res.status}`);
+        } catch (err) {
+            console.error('Error linking spouse:', err);
         }
     }
 
