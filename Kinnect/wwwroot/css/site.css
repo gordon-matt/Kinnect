@@ -21,10 +21,10 @@ body {
     margin-bottom: 60px;
 }
 
-body.family-tree-page {
-    margin-bottom: 0;
-    overflow: hidden;
-}
+    body.family-tree-page {
+        margin-bottom: 0;
+        overflow: hidden;
+    }
 
 .footer {
     position: absolute;
@@ -45,7 +45,18 @@ body.family-tree-page {
     transition: opacity 0.2s;
 }
 
-.card-profile-link:hover {
-    opacity: 1;
-    color: #2c3e50;
+    .card-profile-link:hover {
+        opacity: 1;
+        color: #2c3e50;
+    }
+
+/* Toasty.js: container ships with z-index:1 and ends up behind content; raise so toasts are visible */
+.toast-container {
+    z-index: 9999 !important;
 }
+
+    /* Bootstrap defines `.toast:not(.show) { display: none; }` which hides Toasty.js messages.
+   Scope the override to Toasty’s container to avoid affecting any Bootstrap toasts. */
+    .toast-container .toast:not(.show) {
+        display: block !important;
+    }

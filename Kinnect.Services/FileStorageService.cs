@@ -1,5 +1,4 @@
 using Kinnect.Services.Abstractions;
-using Microsoft.Extensions.Configuration;
 
 namespace Kinnect.Services;
 

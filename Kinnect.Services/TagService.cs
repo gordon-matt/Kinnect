@@ -1,6 +1,4 @@
 using Ardalis.Result;
-using Extenso.Data.Entity;
-using Kinnect.Data.Entities;
 using Kinnect.Models;
 using Kinnect.Services.Abstractions;
 

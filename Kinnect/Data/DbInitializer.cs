@@ -1,4 +1,3 @@
-using Kinnect.Data;
 using Kinnect.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

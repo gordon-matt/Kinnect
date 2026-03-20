@@ -1,10 +1,7 @@
 using System.Text.Json;
 using Ardalis.Result;
-using Extenso.Data.Entity;
-using Kinnect.Data.Entities;
 using Kinnect.Models;
 using Kinnect.Services.Abstractions;
-using Microsoft.EntityFrameworkCore;
 
 namespace Kinnect.Services;
 
