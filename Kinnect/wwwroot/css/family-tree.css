@@ -6,51 +6,24 @@
     overflow: hidden;
 }
 
-#FamilyChart .card-style rect {
-    fill: #ffffff;
-    stroke: #dee2e6;
-    rx: 8;
-    ry: 8;
-}
-
-#FamilyChart .card-style rect.card-male {
-    stroke: #4a90d9;
-}
-
-#FamilyChart .card-style rect.card-female {
-    stroke: #d94a8c;
-}
-
-#FamilyChart .card-style .card-body-cont {
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    background: white;
-    overflow: hidden;
-}
-
-#FamilyChart .card-style .card-body-cont:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-}
-
-#FamilyChart .card_add_relative {
-    fill: #2c3e50;
-    cursor: pointer;
-}
-
-#FamilyChart .card_add_relative:hover {
-    fill: #18bc9c;
-}
-
-#FamilyChart .card_edit {
-    fill: #2c3e50;
-    cursor: pointer;
-}
-
-#FamilyChart .card_edit:hover {
-    fill: #3498db;
-}
-
-#FamilyChart .link path {
-    stroke: #bdc3c7;
+/* SVG connector lines (family-chart renders links as <path class="link">) */
+#FamilyChart path.link {
+    stroke: #111 !important;
     stroke-width: 2;
+}
+
+/* Add-relative / pencil SVG icons */
+#FamilyChart .card_add_relative {
+    color: #2c3e50;
+    cursor: pointer;
+}
+#FamilyChart .card_add_relative:hover {
+    color: #18bc9c;
+}
+#FamilyChart .card_edit.pencil_icon {
+    color: #2c3e50;
+    cursor: pointer;
+}
+#FamilyChart .card_edit.pencil_icon:hover {
+    color: #3498db;
 }

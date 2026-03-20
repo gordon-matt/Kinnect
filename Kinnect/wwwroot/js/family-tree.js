@@ -15,12 +15,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const f3Chart = f3.createChart('#FamilyChart', data)
         .setCardYSpacing(150)
-        .setCardXSpacing(50);
+        .setCardXSpacing(280);
 
     const f3Card = f3Chart.setCardHtml()
+        .setCardDim({ w: 220, h: 70, height_auto: true })
         .setCardInnerHtmlCreator(cardInnerHtmlCreator)
-        .setMiniTree(true)
-        .setStyle('card-style');
+        .setMiniTree(true);
 
     const f3EditTree = f3Chart.editTree()
         .setFields([
