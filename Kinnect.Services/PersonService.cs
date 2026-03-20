@@ -101,6 +101,34 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         return Result.Success(MapToDto(person));
     }
 
+    public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId)
+    {
+        if (fatherId.HasValue && fatherId == id)
+            return Result.Invalid(new ValidationError("Father cannot be the same person."));
+
+        if (motherId.HasValue && motherId == id)
+            return Result.Invalid(new ValidationError("Mother cannot be the same person."));
+
+        if (fatherId.HasValue && motherId.HasValue && fatherId == motherId)
+            return Result.Invalid(new ValidationError("Father and mother must be different people."));
+
+        var person = await personRepository.FindOneAsync(id);
+        if (person is null)
+            return Result.NotFound("Person not found.");
+
+        if (person.UserId != null && person.UserId != currentUserId)
+            return Result.Forbidden();
+
+        await SaveVersionAsync(person, currentUserId);
+
+        person.FatherId = fatherId;
+        person.MotherId = motherId;
+        person.UpdatedAtUtc = DateTime.UtcNow;
+
+        await personRepository.UpdateAsync(person);
+        return Result.Success();
+    }
+
     public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId)
     {
         var person = await personRepository.FindOneAsync(id);

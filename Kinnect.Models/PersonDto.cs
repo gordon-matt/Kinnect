@@ -79,3 +79,10 @@ public class PersonEditRequest
 
     public int? MotherId { get; set; }
 }
+
+public class PersonParentLinkRequest
+{
+    public int? FatherId { get; set; }
+
+    public int? MotherId { get; set; }
+}

@@ -56,6 +56,17 @@ public class PersonApiController(IPersonService personService, IUserContextServi
     }
 
     [TranslateResultToActionResult]
+    [HttpPut("{id:int}/parents")]
+    public async Task<Result> UpdateParents(int id, [FromBody] PersonParentLinkRequest request)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await personService.UpdateParentsAsync(id, request.FatherId, request.MotherId, userId);
+    }
+
+    [TranslateResultToActionResult]
     [HttpDelete("{id:int}")]
     [Authorize(Roles = Constants.Roles.Administrator)]
     public async Task<Result> Delete(int id)

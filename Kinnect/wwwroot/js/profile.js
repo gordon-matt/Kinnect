@@ -39,6 +39,7 @@ class ProfileViewModel {
         this.documentDescription = ko.observable('');
 
         this._tagifyInstances = {};
+        this._personSnapshot = null;
     }
 
     loadProfile = async () => {
@@ -46,6 +47,7 @@ class ProfileViewModel {
             const response = await fetch('/api/people/me');
             const result = await response.json();
             const person = result.value || result;
+            this._personSnapshot = person;
 
             this.personId(person.id);
             this.givenNames(person.givenNames);
@@ -91,6 +93,7 @@ class ProfileViewModel {
     };
 
     saveProfile = async () => {
+        const snapshot = this._personSnapshot || {};
         const body = {
             givenNames: this.givenNames(),
             familyName: this.familyName(),
@@ -98,10 +101,16 @@ class ProfileViewModel {
             yearOfBirth: this.yearOfBirth() || null,
             monthOfBirth: this.monthOfBirth() || null,
             dayOfBirth: this.dayOfBirth() || null,
+            yearOfDeath: snapshot.yearOfDeath ?? null,
+            monthOfDeath: snapshot.monthOfDeath ?? null,
+            dayOfDeath: snapshot.dayOfDeath ?? null,
             placeOfBirth: this.placeOfBirth() || null,
+            placeOfDeath: snapshot.placeOfDeath ?? null,
             bio: this.bio() || null,
             latitude: this.latitude() || null,
-            longitude: this.longitude() || null
+            longitude: this.longitude() || null,
+            fatherId: snapshot.fatherId ?? null,
+            motherId: snapshot.motherId ?? null
         };
 
         try {
@@ -112,6 +121,7 @@ class ProfileViewModel {
             });
 
             if (response.ok) {
+                this._personSnapshot = { ...snapshot, ...body };
                 toast.success('Profile saved!');
             } else {
                 toast.error('Failed to save profile.');

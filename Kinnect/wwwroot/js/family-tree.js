@@ -149,9 +149,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error(`Create person failed: ${res.status} ${await res.text()}`);
                 }
             }
+
+            // Persist parent links for this person and all linked children.
+            await syncParentsForPerson(datum);
+            if (datum.rels?.children?.length > 0) {
+                for (const childChartId of datum.rels.children) {
+                    const childDatum = f3Chart.store.getDatum(childChartId);
+                    if (childDatum) {
+                        await syncParentsForPerson(childDatum);
+                    }
+                }
+            }
         } catch (err) {
             console.error('Error saving person:', err);
         }
+    }
+
+    async function syncParentsForPerson(datum) {
+        const personId = datum?.data?.personId;
+        if (!personId) return;
+
+        let fatherId = null;
+        let motherId = null;
+        if (datum.rels?.parents?.length > 0) {
+            for (const parentChartId of datum.rels.parents) {
+                const parent = f3Chart.store.getDatum(parentChartId);
+                if (!parent?.data?.personId) continue;
+                if (parent.data.gender === 'M') fatherId = parent.data.personId;
+                else if (parent.data.gender === 'F') motherId = parent.data.personId;
+            }
+        }
+
+        await updateParentsOnServer(personId, fatherId, motherId);
     }
 
     async function linkSpouseToServer(personId, spouseId) {
@@ -160,6 +189,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!res.ok) console.error(`Link spouse failed: ${res.status}`);
         } catch (err) {
             console.error('Error linking spouse:', err);
+        }
+    }
+
+    async function updateParentsOnServer(personId, fatherId, motherId) {
+        try {
+            const res = await fetch(`/api/people/${personId}/parents`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fatherId, motherId })
+            });
+            if (!res.ok) console.error(`Update parents failed: ${res.status}`);
+        } catch (err) {
+            console.error('Error updating parents:', err);
         }
     }
 
