@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "defaultProvider": "jsdelivr",
+  "libraries": [
+    {
+      "library": "bootstrap@5.3.8",
+      "destination": "wwwroot/lib/bootstrap/",
+      "files": [
+        "dist/js/bootstrap.bundle.js",
+        "dist/js/bootstrap.bundle.min.js",
+        "LICENSE",
+        "dist/css/bootstrap.css",
+        "dist/css/bootstrap.min.css"
+      ]
+    },
+    {
+      "library": "bootstrap-icons@1.13.1",
+      "destination": "wwwroot/lib/bootstrap-icons/",
+      "files": [
+        "LICENSE",
+        "font/bootstrap-icons.css",
+        "font/fonts/bootstrap-icons.woff",
+        "font/fonts/bootstrap-icons.woff2",
+        "font/bootstrap-icons.min.css"
+      ]
+    },
+    {
+      "library": "bootstrap-notify@3.1.3",
+      "destination": "wwwroot/lib/bootstrap-notify/",
+      "files": [
+        "LICENSE",
+        "bootstrap-notify.min.js",
+        "bootstrap-notify.js"
+      ]
+    },
+    {
+      "library": "bootswatch@5.3.8",
+      "destination": "wwwroot/lib/bootswatch/",
+      "files": [
+        "LICENSE",
+        "dist/flatly/bootstrap.css",
+        "dist/flatly/bootstrap.min.css",
+        "dist/zephyr/bootstrap.css",
+        "dist/zephyr/bootstrap.min.css",
+        "dist/yeti/bootstrap.css",
+        "dist/yeti/bootstrap.min.css",
+        "dist/vapor/bootstrap.css",
+        "dist/vapor/bootstrap.min.css",
+        "dist/united/bootstrap.css",
+        "dist/united/bootstrap.min.css",
+        "dist/superhero/bootstrap.css",
+        "dist/superhero/bootstrap.min.css",
+        "dist/spacelab/bootstrap.css",
+        "dist/spacelab/bootstrap.min.css",
+        "dist/solar/bootstrap.css",
+        "dist/solar/bootstrap.min.css",
+        "dist/slate/bootstrap.css",
+        "dist/slate/bootstrap.min.css",
+        "dist/sketchy/bootstrap.css",
+        "dist/sketchy/bootstrap.min.css",
+        "dist/simplex/bootstrap.css",
+        "dist/simplex/bootstrap.min.css",
+        "dist/sandstone/bootstrap.css",
+        "dist/sandstone/bootstrap.min.css",
+        "dist/quartz/bootstrap.css",
+        "dist/quartz/bootstrap.min.css",
+        "dist/pulse/bootstrap.css",
+        "dist/pulse/bootstrap.min.css",
+        "dist/morph/bootstrap.min.css",
+        "dist/morph/bootstrap.css",
+        "dist/minty/bootstrap.min.css",
+        "dist/minty/bootstrap.css",
+        "dist/materia/bootstrap.min.css",
+        "dist/materia/bootstrap.css",
+        "dist/lux/bootstrap.min.css",
+        "dist/lux/bootstrap.css",
+        "dist/lumen/bootstrap.min.css",
+        "dist/lumen/bootstrap.css",
+        "dist/litera/bootstrap.min.css",
+        "dist/litera/bootstrap.css",
+        "dist/journal/bootstrap.css",
+        "dist/journal/bootstrap.min.css",
+        "dist/darkly/bootstrap.min.css",
+        "dist/darkly/bootstrap.css",
+        "dist/cyborg/bootstrap.min.css",
+        "dist/cyborg/bootstrap.css",
+        "dist/cosmo/bootstrap.min.css",
+        "dist/cosmo/bootstrap.css",
+        "dist/cerulean/bootstrap.min.css",
+        "dist/cerulean/bootstrap.css",
+        "dist/brite/bootstrap.min.css",
+        "dist/brite/bootstrap.css"
+      ]
+    },
+    {
+      "library": "egalink-toasty.js@1.5.5",
+      "destination": "wwwroot/lib/egalink-toasty.js/",
+      "files": [
+        "README.md",
+        "dist/toasty.css",
+        "dist/toasty.js",
+        "dist/toasty.min.css",
+        "dist/toasty.min.js",
+        "dist/sounds/error/1.mp3",
+        "dist/sounds/info/1.mp3",
+        "dist/sounds/success/1.mp3",
+        "dist/sounds/warning/1.mp3"
+      ]
+    },
+    {
+      "library": "jquery@3.7.1",
+      "destination": "wwwroot/lib/jquery/",
+      "files": [
+        "dist/jquery.js",
+        "dist/jquery.min.js",
+        "LICENSE.txt"
+      ]
+    },
+    {
+      "library": "jquery-validation@1.21.0",
+      "destination": "wwwroot/lib/jquery-validation/",
+      "files": [
+        "LICENSE.md",
+        "dist/jquery.validate.js",
+        "dist/jquery.validate.min.js"
+      ]
+    },
+    {
+      "library": "jquery-validation-unobtrusive@4.0.0",
+      "destination": "wwwroot/lib/jquery-validation-unobtrusive/",
+      "files": [
+        "LICENSE.txt",
+        "dist/jquery.validate.unobtrusive.js",
+        "dist/jquery.validate.unobtrusive.min.js"
+      ]
+    },
+    {
+      "library": "knockout@3.5.1",
+      "destination": "wwwroot/lib/knockout/",
+      "files": [
+        "LICENSE",
+        "build/output/knockout-latest.js",
+        "build/output/knockout-latest.min.js"
+      ]
+    },
+    {
+      "library": "sortablejs@1.15.7",
+      "destination": "wwwroot/lib/sortablejs/",
+      "files": [
+        "LICENSE",
+        "Sortable.js",
+        "Sortable.min.js"
+      ]
+    },
+    {
+      "library": "@yaireo/tagify@4.36.0",
+      "destination": "wwwroot/lib/yaireo/tagify/",
+      "files": [
+        "LICENSE",
+        "dist/tagify.js",
+        "dist/tagify.min.css",
+        "dist/tagify.min.js",
+        "dist/tagify.css"
+      ]
+    },
+    {
+      "library": "video.js@8.23.8",
+      "destination": "wwwroot/lib/video.js/",
+      "files": [
+        "LICENSE",
+        "dist/video-js.css",
+        "dist/video-js.min.css",
+        "dist/video.js",
+        "dist/video.min.js"
+      ]
+    },
+    {
+      "library": "videojs-playlist@5.2.0",
+      "destination": "wwwroot/lib/videojs-playlist/",
+      "files": [
+        "dist/videojs-playlist.js",
+        "dist/videojs-playlist.min.js",
+        "LICENSE"
+      ]
+    },
+    {
+      "library": "family-chart@0.9.0",
+      "destination": "wwwroot/lib/family-chart/"
+    }
+  ]
+}

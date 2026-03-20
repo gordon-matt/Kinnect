@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ardalis.Result" Version="10.1.0" />
+    <PackageReference Include="Keycloak.NETCore.Client" Version="1.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
+    <ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
+    <ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -416,3 +416,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+Kinnect/wwwroot/lib
+
+Sejil-*.sqlite
+Kinnect/Sejil-*.sqlite
+/Kinnect/Kinnect/*.sqlite-journal

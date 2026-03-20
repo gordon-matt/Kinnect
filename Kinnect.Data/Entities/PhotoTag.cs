@@ -1,0 +1,42 @@
+﻿using System.Runtime.Serialization;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Kinnect.Data.Entities;
+
+public class PhotoTag : IEntity
+{
+    public required int PhotoId { get; set; }
+
+    public required int TagId { get; set; }
+
+    public virtual Photo Photo { get; set; } = null!;
+
+    public virtual Tag Tag { get; set; } = null!;
+
+    [IgnoreDataMember]
+    public object[] KeyValues => [PhotoId, TagId];
+}
+
+public class PhotoTagMap : IEntityTypeConfiguration<PhotoTag>
+{
+    public void Configure(EntityTypeBuilder<PhotoTag> builder)
+    {
+        builder.ToTable("PhotoTags", "app");
+
+        // Composite primary key
+        builder.HasKey(m => new { m.PhotoId, m.TagId });
+        builder.Property(m => m.PhotoId).IsRequired();
+        builder.Property(m => m.TagId).IsRequired();
+
+        // Relationships
+        builder.HasOne(m => m.Photo)
+            .WithMany(m => m.PhotoTags)
+            .HasForeignKey(m => m.PhotoId)
+            .OnDelete(DeleteBehavior.ClientNoAction);
+
+        builder.HasOne(m => m.Tag)
+            .WithMany(m => m.PhotoTags)
+            .HasForeignKey(m => m.TagId)
+            .OnDelete(DeleteBehavior.ClientNoAction);
+    }
+}

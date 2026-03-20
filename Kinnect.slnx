@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Kinnect.Core/Kinnect.Core.csproj" />
+  <Project Path="Kinnect.Data/Kinnect.Data.csproj" />
+  <Project Path="Kinnect.Models/Kinnect.Models.csproj" />
+  <Project Path="Kinnect.Services/Kinnect.Services.csproj" />
+  <Project Path="Kinnect.Tests/Kinnect.Tests.csproj" />
+  <Project Path="Kinnect/Kinnect.csproj" />
+</Solution>

@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kinnect</title>
+    <script type="importmap"></script>
+
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/bootswatch/dist/flatly/bootstrap.css" />
+        <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="~/lib/egalink-toasty.js/dist/toasty.css" />
+        <link rel="stylesheet" href="~/lib/yaireo/tagify/dist/tagify.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/bootswatch/dist/flatly/bootstrap.min.css" />
+        <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
+        <link rel="stylesheet" href="~/lib/egalink-toasty.js/dist/toasty.min.css" />
+        <link rel="stylesheet" href="~/lib/yaireo/tagify/dist/tagify.min.css" />
+    </environment>
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Kinnect.styles.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Kinnect</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - Kinnect - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    <environment include="Development">
+        <script src="~/lib/jquery/dist/jquery.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.js"></script>
+        <script src="~/lib/knockout/build/output/knockout-latest.js"></script>
+        <script src="~/lib/yaireo/tagify/dist/tagify.js"></script>
+        <script src="~/lib/egalink-toasty.js/dist/toasty.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/lib/knockout/build/output/knockout-latest.min.js"></script>
+        <script src="~/lib/yaireo/tagify/dist/tagify.min.js"></script>
+        <script src="~/lib/egalink-toasty.js/dist/toasty.min.js"></script>
+    </environment>
+
+    <script type="text/javascript">
+        $.migrateMute = true;
+        $.migrateTrace = false;
+        const toast = new Toasty({
+            enableSounds: true,
+            sounds: {
+                info: "/lib/egalink-toasty.js/dist/sounds/info/1.mp3",
+                success: "/lib/egalink-toasty.js/dist/sounds/success/1.mp3",
+                warning: "/lib/egalink-toasty.js/dist/sounds/warning/1.mp3",
+                error: "/lib/egalink-toasty.js/dist/sounds/error/1.mp3",
+            }
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
