@@ -1,9 +1,17 @@
 @{
-    ViewData["Title"] = "My Profile";
+    ViewData["Title"] = ViewData["EditPersonId"] != null ? "Edit profile" : "My Profile";
+    var editPersonId = ViewData["EditPersonId"] as int?;
 }
 
 <div class="row">
     <div class="col-md-8 mx-auto">
+        @if (editPersonId.HasValue)
+        {
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pencil-square"></i> You are editing another person&rsquo;s profile.</span>
+                <a class="btn btn-sm btn-outline-secondary" href="/Profile/View/@editPersonId.Value">View profile</a>
+            </div>
+        }
         <div data-bind="visible: loading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -219,7 +227,10 @@
                                             <strong data-bind="text: eventTypeLabel"></strong>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-muted small" data-bind="text: dateDisplay || ''"></span>
-                                                <button class="btn btn-sm btn-link p-0 text-danger" data-bind="click: $root.deleteEvent.bind($root, id)" title="Delete">
+                                                <button type="button" class="btn btn-sm btn-link p-0" data-bind="click: $root.startEditEvent" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-danger" data-bind="click: $root.deleteEvent.bind($root, id)" title="Delete">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
@@ -248,6 +259,20 @@
                             <input type="file" accept="image/*" class="form-control mb-2" id="photoFile" />
                             <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: photoTitle" />
                             <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: photoDescription" />
+                            <div class="row g-2 mb-2">
+                                <div class="col-4">
+                                    <label class="form-label form-label-sm mb-0">Year</label>
+                                    <input type="number" class="form-control form-control-sm" placeholder="YYYY" data-bind="value: photoYearTaken" />
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label form-label-sm mb-0">Month</label>
+                                    <input type="number" class="form-control form-control-sm" min="1" max="12" data-bind="value: photoMonthTaken" />
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label form-label-sm mb-0">Day</label>
+                                    <input type="number" class="form-control form-control-sm" min="1" max="31" data-bind="value: photoDayTaken" />
+                                </div>
+                            </div>
                             <input id="photoTags" class="form-control mb-2" placeholder="Tags" />
                             <button class="btn btn-primary btn-sm" data-bind="click: uploadPhoto">Upload</button>
                             <button class="btn btn-secondary btn-sm" data-bind="click: cancelPhotoUpload">Cancel</button>
@@ -256,9 +281,19 @@
                     <div class="row" data-bind="foreach: photos">
                         <div class="col-md-4 mb-3">
                             <div class="card">
-                                <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
+                                <a href="#" class="d-block" data-bind="click: function() { $root.openPhotoLightbox($data); return false; }">
+                                    <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover; cursor:pointer;" role="button" />
+                                </a>
                                 <div class="card-body p-2">
-                                    <small class="fw-semibold" data-bind="text: title"></small>
+                                    <div class="d-flex justify-content-between align-items-start gap-1">
+                                        <div>
+                                            <small class="fw-semibold" data-bind="text: title"></small>
+                                            <div class="text-muted small" data-bind="visible: yearTaken || monthTaken || dayTaken, text: $root.formatPhotoDate($data)"></div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="click: function() { $root.startEditPhoto($data); }">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -319,6 +354,130 @@
     </div>
 </div>
 
+<!-- Photo lightbox -->
+<div class="modal fade" id="photoLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img data-bind="attr: { src: photoLightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit photo -->
+<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" data-bind="value: editPhotoTitle" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" rows="2" data-bind="value: editPhotoDescription"></textarea>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4">
+                        <label class="form-label">Year</label>
+                        <input type="number" class="form-control" placeholder="YYYY" data-bind="value: editPhotoYear" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Month</label>
+                        <input type="number" class="form-control" min="1" max="12" data-bind="value: editPhotoMonth" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Day</label>
+                        <input type="number" class="form-control" min="1" max="31" data-bind="value: editPhotoDay" />
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Tags (comma-separated)</label>
+                    <input type="text" class="form-control" data-bind="value: editPhotoTagsText" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" data-bind="click: saveEditPhoto">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit life event -->
+<div class="modal fade" id="editEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit life event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label">Event type</label>
+                    <select class="form-select" data-bind="value: editEventType">
+                        <option value="BIRT">Birth</option>
+                        <option value="DEAT">Death</option>
+                        <option value="MARR">Marriage</option>
+                        <option value="DIV">Divorce</option>
+                        <option value="BAPM">Baptism</option>
+                        <option value="CHR">Christening</option>
+                        <option value="CONF">Confirmation</option>
+                        <option value="ADOP">Adoption</option>
+                        <option value="EMIG">Emigration</option>
+                        <option value="IMMI">Immigration</option>
+                        <option value="NATU">Naturalization</option>
+                        <option value="BURI">Burial</option>
+                        <option value="CREM">Cremation</option>
+                        <option value="OCCU">Occupation</option>
+                        <option value="EDUC">Education</option>
+                        <option value="RELI">Religion</option>
+                        <option value="RESI">Residence</option>
+                        <option value="EVEN">Custom Event</option>
+                    </select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <label class="form-label">Year</label>
+                        <input type="number" class="form-control" data-bind="value: editEventYear" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Month</label>
+                        <input type="number" class="form-control" min="1" max="12" data-bind="value: editEventMonth" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Day</label>
+                        <input type="number" class="form-control" min="1" max="31" data-bind="value: editEventDay" />
+                    </div>
+                </div>
+                <div class="mb-2 mt-2">
+                    <label class="form-label">Place</label>
+                    <input type="text" class="form-control" data-bind="value: editEventPlace" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-control" data-bind="value: editEventDescription" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" data-bind="click: saveEditEvent">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
+    <script>
+        window.profilePersonId = @(editPersonId.HasValue ? editPersonId.Value.ToString() : "null");
+    </script>
     <script src="~/js/profile.js" asp-append-version="true"></script>
 }

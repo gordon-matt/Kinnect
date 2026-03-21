@@ -16,6 +16,13 @@ public class Photo : BaseEntity<int>
 
     public DateTime CreatedAtUtc { get; set; }
 
+    /// <summary>Optional date the photo was taken (partial dates allowed).</summary>
+    public short? YearTaken { get; set; }
+
+    public byte? MonthTaken { get; set; }
+
+    public byte? DayTaken { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
 
     public virtual ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
@@ -32,6 +39,10 @@ public class PhotoMap : IEntityTypeConfiguration<Photo>
         builder.Property(m => m.Title).IsRequired().HasMaxLength(500);
         builder.Property(m => m.FilePath).IsRequired().HasMaxLength(1000);
         builder.Property(m => m.ThumbnailPath).HasMaxLength(1000);
+
+        builder.Property(m => m.YearTaken);
+        builder.Property(m => m.MonthTaken);
+        builder.Property(m => m.DayTaken);
 
         builder.HasOne(m => m.UploadedBy)
             .WithMany()

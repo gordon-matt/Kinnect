@@ -19,6 +19,24 @@ class ViewProfileViewModel {
         this.videos = ko.observableArray([]);
         this.documents = ko.observableArray([]);
         this.events = ko.observableArray([]);
+
+        this.photoLightboxUrl = ko.observable(null);
+
+        this.editingEventId = ko.observable(null);
+        this.editEventType = ko.observable('BIRT');
+        this.editEventYear = ko.observable(null);
+        this.editEventMonth = ko.observable(null);
+        this.editEventDay = ko.observable(null);
+        this.editEventPlace = ko.observable('');
+        this.editEventDescription = ko.observable('');
+
+        this.editingPhotoId = ko.observable(null);
+        this.editPhotoTitle = ko.observable('');
+        this.editPhotoDescription = ko.observable('');
+        this.editPhotoYear = ko.observable(null);
+        this.editPhotoMonth = ko.observable(null);
+        this.editPhotoDay = ko.observable(null);
+        this.editPhotoTagsText = ko.observable('');
     }
 
     loadProfile = async () => {
@@ -47,7 +65,6 @@ class ViewProfileViewModel {
             }
             this.birthInfo(birth);
 
-            // Determine edit permission
             const meRes = await fetch('/api/people/me');
             if (meRes.ok) {
                 const meResult = await meRes.json();
@@ -93,30 +110,141 @@ class ViewProfileViewModel {
         return `${date.toLocaleDateString()} at ${timeStr}`;
     }
 
+    formatPhotoDate(photo) {
+        if (photo == null || photo.yearTaken == null) return '';
+        const y = photo.yearTaken;
+        if (photo.monthTaken != null && photo.dayTaken != null) {
+            return `${y}-${String(photo.monthTaken).padStart(2, '0')}-${String(photo.dayTaken).padStart(2, '0')}`;
+        }
+        if (photo.monthTaken != null) return `${y}-${String(photo.monthTaken).padStart(2, '0')}`;
+        return String(y);
+    }
+
     eventIcon(eventType) {
         const icons = {
-            'BIRT': 'bi-star',
-            'DEAT': 'bi-flower1',
-            'BURI': 'bi-tree',
-            'CREM': 'bi-fire',
-            'MARR': 'bi-heart',
-            'DIV': 'bi-x-circle',
-            'ENGA': 'bi-heart-half',
-            'BAPM': 'bi-droplet',
-            'CHR': 'bi-droplet-half',
-            'CONF': 'bi-shield-check',
-            'ADOP': 'bi-house-heart',
-            'EMIG': 'bi-airplane',
-            'IMMI': 'bi-airplane-fill',
-            'NATU': 'bi-flag',
-            'OCCU': 'bi-briefcase',
-            'EDUC': 'bi-mortarboard',
-            'RELI': 'bi-book',
-            'RESI': 'bi-house',
-            'EVEN': 'bi-calendar-event',
+            BIRT: 'bi-star',
+            DEAT: 'bi-flower1',
+            BURI: 'bi-tree',
+            CREM: 'bi-fire',
+            MARR: 'bi-heart',
+            DIV: 'bi-x-circle',
+            ENGA: 'bi-heart-half',
+            BAPM: 'bi-droplet',
+            CHR: 'bi-droplet-half',
+            CONF: 'bi-shield-check',
+            ADOP: 'bi-house-heart',
+            EMIG: 'bi-airplane',
+            IMMI: 'bi-airplane-fill',
+            NATU: 'bi-flag',
+            OCCU: 'bi-briefcase',
+            EDUC: 'bi-mortarboard',
+            RELI: 'bi-book',
+            RESI: 'bi-house',
+            EVEN: 'bi-calendar-event'
         };
         return icons[eventType] || 'bi-calendar-event';
     }
+
+    openPhotoLightbox = (photo) => {
+        this.photoLightboxUrl('/uploads/' + photo.filePath);
+        const el = document.getElementById('photoLightboxModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+
+    startEditPhoto = (photo) => {
+        this.editingPhotoId(photo.id);
+        this.editPhotoTitle(photo.title);
+        this.editPhotoDescription(photo.description || '');
+        this.editPhotoYear(photo.yearTaken);
+        this.editPhotoMonth(photo.monthTaken);
+        this.editPhotoDay(photo.dayTaken);
+        this.editPhotoTagsText((photo.tags || []).join(', '));
+        const el = document.getElementById('editPhotoModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+
+    saveEditPhoto = async () => {
+        const id = this.editingPhotoId();
+        if (!id) return;
+
+        const tags = this.editPhotoTagsText()
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+        const body = {
+            title: this.editPhotoTitle(),
+            description: this.editPhotoDescription() || null,
+            yearTaken: this.editPhotoYear() || null,
+            monthTaken: this.editPhotoMonth() || null,
+            dayTaken: this.editPhotoDay() || null,
+            tags
+        };
+
+        try {
+            const res = await fetch(`/api/photos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editPhotoModal'))?.hide();
+                this.editingPhotoId(null);
+                await this.loadProfile();
+                toast.success('Photo updated!');
+            } else {
+                toast.error('Failed to update photo.');
+            }
+        } catch {
+            toast.error('Error updating photo.');
+        }
+    };
+
+    startEditEvent = (ev) => {
+        this.editingEventId(ev.id);
+        this.editEventType(ev.eventType);
+        this.editEventYear(ev.year);
+        this.editEventMonth(ev.month);
+        this.editEventDay(ev.day);
+        this.editEventPlace(ev.place || '');
+        this.editEventDescription(ev.description || '');
+        const el = document.getElementById('editEventModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+
+    saveEditEvent = async () => {
+        const eid = this.editingEventId();
+        if (!eid) return;
+
+        const body = {
+            eventType: this.editEventType(),
+            year: this.editEventYear() || null,
+            month: this.editEventMonth() || null,
+            day: this.editEventDay() || null,
+            place: this.editEventPlace() || null,
+            description: this.editEventDescription() || null
+        };
+
+        try {
+            const res = await fetch(`/api/people/${this.personId}/events/${eid}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editEventModal'))?.hide();
+                this.editingEventId(null);
+                await this.loadProfile();
+                toast.success('Event updated!');
+            } else {
+                toast.error('Failed to update event.');
+            }
+        } catch {
+            toast.error('Error updating event.');
+        }
+    };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

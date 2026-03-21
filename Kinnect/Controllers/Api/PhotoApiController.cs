@@ -12,6 +12,8 @@ namespace Kinnect.Controllers.Api;
 [Authorize]
 public class PhotoApiController(IPhotoService photoService, IPersonService personService, IUserContextService userContextService, IFileStorageService fileStorageService) : ControllerBase
 {
+    private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
+
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}")]
     public async Task<Result<IEnumerable<PhotoDto>>> GetByPerson(int personId)
@@ -27,7 +29,14 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
     }
 
     [HttpPost]
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string title, [FromForm] string? description, [FromForm] string? tags)
+    public async Task<IActionResult> Upload(
+        IFormFile file,
+        [FromForm] string title,
+        [FromForm] string? description,
+        [FromForm] string? tags,
+        [FromForm] int? yearTaken,
+        [FromForm] int? monthTaken,
+        [FromForm] int? dayTaken)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
@@ -42,8 +51,23 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 
-        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList);
+        short? y = yearTaken is >= 1 and <= 9999 ? (short)yearTaken.Value : null;
+        byte? mo = monthTaken is >= 1 and <= 12 ? (byte)monthTaken.Value : null;
+        byte? d = dayTaken is >= 1 and <= 31 ? (byte)dayTaken.Value : null;
+
+        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList, y, mo, d);
         return result.IsSuccess ? Ok(result.Value) : BadRequest();
+    }
+
+    [TranslateResultToActionResult]
+    [HttpPut("{id:int}")]
+    public async Task<Result<PhotoDto>> Update(int id, [FromBody] PhotoUpdateRequest request)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await photoService.UpdateAsync(id, request, userId, IsAdmin);
     }
 
     [TranslateResultToActionResult]

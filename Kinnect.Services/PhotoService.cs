@@ -1,6 +1,8 @@
 using Ardalis.Result;
+using Kinnect.Data.Entities;
 using Kinnect.Models;
 using Kinnect.Services.Abstractions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kinnect.Services;
 
@@ -32,7 +34,7 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         return Result.Success(MapToDto(photo));
     }
 
-    public async Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags)
+    public async Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags, short? yearTaken = null, byte? monthTaken = null, byte? dayTaken = null)
     {
         var photo = new Photo
         {
@@ -41,7 +43,10 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
             FilePath = filePath,
             ThumbnailPath = thumbnailPath,
             UploadedByPersonId = uploadedByPersonId,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            YearTaken = yearTaken,
+            MonthTaken = monthTaken,
+            DayTaken = dayTaken
         };
 
         await photoRepository.InsertAsync(photo);
@@ -51,17 +56,46 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
             await SyncTagsAsync(photo.Id, tags);
         }
 
-        return Result.Success(new PhotoDto
+        var created = await GetByIdAsync(photo.Id);
+        return created.IsSuccess ? Result.Success(created.Value) : Result.Error("Failed to load created photo.");
+    }
+
+    public async Task<Result<PhotoDto>> UpdateAsync(int id, PhotoUpdateRequest request, string currentUserId, bool isAdmin)
+    {
+        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
         {
-            Id = photo.Id,
-            Title = photo.Title,
-            FilePath = photo.FilePath,
-            ThumbnailPath = photo.ThumbnailPath,
-            Description = photo.Description,
-            UploadedByPersonId = photo.UploadedByPersonId,
-            CreatedAtUtc = photo.CreatedAtUtc,
-            Tags = tags ?? []
+            Query = x => x.Id == id,
+            Include = q => q.Include(p => p.UploadedBy).Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
         });
+        var photo = photos.FirstOrDefault();
+
+        if (photo is null)
+            return Result.NotFound("Photo not found.");
+
+        if (!CanEditPhotoMetadata(photo.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
+
+        photo.Title = request.Title;
+        photo.Description = request.Description;
+        photo.YearTaken = request.YearTaken;
+        photo.MonthTaken = request.MonthTaken;
+        photo.DayTaken = request.DayTaken;
+
+        await photoRepository.UpdateAsync(photo);
+
+        if (request.Tags is not null)
+            await SyncTagsAsync(id, request.Tags);
+
+        return await GetByIdAsync(id);
+    }
+
+    private static bool CanEditPhotoMetadata(Person uploadedBy, string currentUserId, bool isAdmin)
+    {
+        if (isAdmin)
+            return true;
+        if (uploadedBy.UserId == null)
+            return true;
+        return uploadedBy.UserId == currentUserId;
     }
 
     public async Task<Result> UpdateTagsAsync(int id, List<string> tags)
@@ -124,6 +158,9 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         UploadedByPersonId = p.UploadedByPersonId,
         UploadedByName = $"{p.UploadedBy.GivenNames} {p.UploadedBy.FamilyName}",
         CreatedAtUtc = p.CreatedAtUtc,
+        YearTaken = p.YearTaken,
+        MonthTaken = p.MonthTaken,
+        DayTaken = p.DayTaken,
         Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList()
     };
 }

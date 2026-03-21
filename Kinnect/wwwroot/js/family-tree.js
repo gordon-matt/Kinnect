@@ -14,10 +14,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Determine the initial person: prefer the logged-in user's person, else first record
+    // Determine the initial person: prefer the logged-in user's person, else first record.
+    // Chart defaults main_id to data[0].id; updateTree({ id }) is NOT supported — must call updateMainId().
     let initialId = data[0].id;
-    if (myPersonId) {
-        const myNode = data.find(d => d.data && d.data.personId === myPersonId);
+    if (myPersonId != null && myPersonId !== '') {
+        const myNode = data.find(d => {
+            const pid = d.data?.personId;
+            return pid != null && Number(pid) === Number(myPersonId);
+        });
         if (myNode) initialId = myNode.id;
     }
 
@@ -58,7 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         f3Card.setCardClickOpen(f3Card);
     }
 
-    f3Chart.updateTree({ initial: true, id: initialId });
+    f3Chart.updateMainId(initialId);
+    f3Chart.updateTree({ initial: true });
 
     // ── Card inner HTML ────────────────────────────────────────────────────────
     function cardInnerHtmlCreator(d) {
