@@ -72,6 +72,8 @@ builder.Services.AddEntityFrameworkRepository();
 
 builder.Services.KinnectAddHangfire(connectionString);
 builder.Services.KinnectAddServices();
+builder.Services.KinnectAddImageProcessing(builder.Configuration);
+builder.Services.KinnectAddUserInfoService(builder.Configuration);
 
 builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {

@@ -2,9 +2,50 @@
     ViewData["Title"] = "Family Tree";
     ViewData["FullWidth"] = true;
     ViewData["BodyClass"] = "family-tree-page";
+    bool isAdmin = (bool)(ViewData["IsAdmin"] ?? false);
+    int? myPersonId = ViewData["MyPersonId"] as int?;
 }
 
-<div id="FamilyChart" class="f3" style="width:100%; height:calc(100vh - 56px);"></div>
+<div id="FamilyChart" class="f3" style="width:100%; height:calc(100vh - 56px); position:relative;"></div>
+
+<!-- GEDCOM toolbar (top-right corner) -->
+<div style="position:fixed; top:66px; right:16px; z-index:1000; display:flex; gap:6px;">
+    <a href="/api/gedcom/export" class="btn btn-sm btn-outline-secondary" title="Export GEDCOM" download>
+        <i class="bi bi-download"></i>
+    </a>
+    @if (isAdmin)
+    {
+        <button class="btn btn-sm btn-outline-secondary" title="Import GEDCOM" data-bs-toggle="modal" data-bs-target="#gedcomImportModal">
+            <i class="bi bi-upload"></i>
+        </button>
+    }
+</div>
+
+<!-- GEDCOM Import Modal -->
+@if (isAdmin)
+{
+    <div class="modal fade" id="gedcomImportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload"></i> Import GEDCOM</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Upload a <code>.ged</code> file to import people, relationships, and life events. Existing records matched by GEDCOM ID will be updated.</p>
+                    <input type="file" id="gedcomFile" accept=".ged,.GED" class="form-control" />
+                    <div id="gedcomResult" class="mt-3" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="importGedcom()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @section Styles {
     <link rel="stylesheet" href="~/lib/family-chart/dist/styles/family-chart.css" asp-append-version="true" />
@@ -20,5 +61,46 @@
         <script src="~/lib/d3/dist/d3.min.js"></script>
         <script src="~/lib/family-chart/dist/family-chart.js"></script>
     </environment>
+    <script>
+        const isAdmin = @(isAdmin ? "true" : "false");
+        const myPersonId = @(myPersonId.HasValue ? myPersonId.Value.ToString() : "null");
+    </script>
     <script src="~/js/family-tree.js" asp-append-version="true"></script>
+    @if (isAdmin)
+    {
+        <script>
+        async function importGedcom() {
+            const fileInput = document.getElementById('gedcomFile');
+            const resultDiv = document.getElementById('gedcomResult');
+            if (!fileInput.files[0]) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<div class="alert alert-warning">Please select a .ged file.</div>';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="alert alert-info">Importing...</div>';
+            try {
+                const res = await fetch('/api/gedcom/import', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    resultDiv.innerHTML = `<div class="alert alert-success">
+                        <strong>Import complete!</strong><br>
+                        People imported: ${data.peopleImported}<br>
+                        People updated: ${data.peopleUpdated}<br>
+                        Relationships: ${data.relationshipsImported}<br>
+                        Events: ${data.eventsImported}
+                        ${data.warnings?.length ? '<br><em>Warnings: ' + data.warnings.join(', ') + '</em>' : ''}
+                    </div>`;
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">Import failed: ${data.error}</div>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+            }
+        }
+        </script>
+    }
 }

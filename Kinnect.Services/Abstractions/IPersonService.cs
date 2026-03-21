@@ -13,13 +13,17 @@ public interface IPersonService
 
     Task<Result<PersonDto>> CreateAsync(PersonEditRequest request, string? userId = null);
 
-    Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId);
+    Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false);
 
-    Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId);
+    Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false);
 
-    Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId);
+    Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false);
 
     Task<Result> DeleteAsync(int id, string currentUserId);
+
+    Task<Result> LinkUserAccountAsync(int personId, string userId);
+
+    Task<Result> UnlinkUserAccountAsync(int personId);
 
     Task<Result<IEnumerable<FamilyTreeDatum>>> GetFamilyTreeDataAsync();
 

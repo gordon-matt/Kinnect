@@ -42,6 +42,16 @@ public class PersonDto
 
     public int? MotherId { get; set; }
 
+    public string? Occupation { get; set; }
+
+    public string? Education { get; set; }
+
+    public string? Religion { get; set; }
+
+    public string? Note { get; set; }
+
+    public string? GedcomId { get; set; }
+
     public bool HasAccount => UserId != null;
 }
 
@@ -78,6 +88,14 @@ public class PersonEditRequest
     public int? FatherId { get; set; }
 
     public int? MotherId { get; set; }
+
+    public string? Occupation { get; set; }
+
+    public string? Education { get; set; }
+
+    public string? Religion { get; set; }
+
+    public string? Note { get; set; }
 }
 
 public class PersonParentLinkRequest

@@ -13,6 +13,10 @@ class ProfileViewModel {
         this.profileImagePath = ko.observable(null);
         this.latitude = ko.observable(null);
         this.longitude = ko.observable(null);
+        this.occupation = ko.observable('');
+        this.education = ko.observable('');
+        this.religion = ko.observable('');
+        this.note = ko.observable('');
 
         this.fullName = ko.computed(() => `${this.givenNames()} ${this.familyName()}`);
         this.locationText = ko.computed(() => {
@@ -25,6 +29,7 @@ class ProfileViewModel {
         this.photos = ko.observableArray([]);
         this.videos = ko.observableArray([]);
         this.documents = ko.observableArray([]);
+        this.events = ko.observableArray([]);
 
         this.isUploadingPhoto = ko.observable(false);
         this.photoTitle = ko.observable('');
@@ -37,6 +42,14 @@ class ProfileViewModel {
         this.isUploadingDocument = ko.observable(false);
         this.documentTitle = ko.observable('');
         this.documentDescription = ko.observable('');
+
+        this.isAddingEvent = ko.observable(false);
+        this.newEventType = ko.observable('BIRT');
+        this.newEventYear = ko.observable(null);
+        this.newEventMonth = ko.observable(null);
+        this.newEventDay = ko.observable(null);
+        this.newEventPlace = ko.observable('');
+        this.newEventDescription = ko.observable('');
 
         this._tagifyInstances = {};
         this._personSnapshot = null;
@@ -61,6 +74,10 @@ class ProfileViewModel {
             this.profileImagePath(person.profileImagePath);
             this.latitude(person.latitude);
             this.longitude(person.longitude);
+            this.occupation(person.occupation || '');
+            this.education(person.education || '');
+            this.religion(person.religion || '');
+            this.note(person.note || '');
 
             await this.loadContent();
         } catch (err) {
@@ -74,22 +91,25 @@ class ProfileViewModel {
         const pid = this.personId();
         if (!pid) return;
 
-        const [postsRes, photosRes, videosRes, docsRes] = await Promise.all([
+        const [postsRes, photosRes, videosRes, docsRes, eventsRes] = await Promise.all([
             fetch(`/api/posts/person/${pid}`),
             fetch(`/api/photos/person/${pid}`),
             fetch(`/api/videos/person/${pid}`),
-            fetch(`/api/documents/person/${pid}`)
+            fetch(`/api/documents/person/${pid}`),
+            fetch(`/api/people/${pid}/events`)
         ]);
 
         const postsData = await postsRes.json();
         const photosData = await photosRes.json();
         const videosData = await videosRes.json();
         const docsData = await docsRes.json();
+        const eventsData = await eventsRes.json();
 
         this.posts(postsData.value || postsData || []);
         this.photos(photosData.value || photosData || []);
         this.videos(videosData.value || videosData || []);
         this.documents(docsData.value || docsData || []);
+        this.events(eventsData.value || eventsData || []);
     };
 
     saveProfile = async () => {
@@ -110,7 +130,11 @@ class ProfileViewModel {
             latitude: this.latitude() || null,
             longitude: this.longitude() || null,
             fatherId: snapshot.fatherId ?? null,
-            motherId: snapshot.motherId ?? null
+            motherId: snapshot.motherId ?? null,
+            occupation: this.occupation() || null,
+            education: this.education() || null,
+            religion: this.religion() || null,
+            note: this.note() || null
         };
 
         try {
@@ -155,6 +179,100 @@ class ProfileViewModel {
         }
     };
 
+    // ── Timeline ───────────────────────────────────────────────────────────────
+    showAddEvent = () => {
+        this.newEventType('BIRT');
+        this.newEventYear(null);
+        this.newEventMonth(null);
+        this.newEventDay(null);
+        this.newEventPlace('');
+        this.newEventDescription('');
+        this.isAddingEvent(true);
+    };
+
+    cancelAddEvent = () => this.isAddingEvent(false);
+
+    addEvent = async () => {
+        const pid = this.personId();
+        if (!pid) return;
+
+        const body = {
+            eventType: this.newEventType(),
+            year: this.newEventYear() || null,
+            month: this.newEventMonth() || null,
+            day: this.newEventDay() || null,
+            place: this.newEventPlace() || null,
+            description: this.newEventDescription() || null
+        };
+
+        try {
+            const res = await fetch(`/api/people/${pid}/events`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                this.isAddingEvent(false);
+                await this.loadContent();
+                toast.success('Event added!');
+            } else {
+                toast.error('Failed to add event.');
+            }
+        } catch {
+            toast.error('Error adding event.');
+        }
+    };
+
+    deleteEvent = async (eventId) => {
+        const pid = this.personId();
+        if (!confirm('Delete this event?')) return;
+        try {
+            const res = await fetch(`/api/people/${pid}/events/${eventId}`, { method: 'DELETE' });
+            if (res.ok) {
+                await this.loadContent();
+                toast.success('Event deleted.');
+            } else {
+                toast.error('Failed to delete event.');
+            }
+        } catch {
+            toast.error('Error deleting event.');
+        }
+    };
+
+    formatDateTime(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${date.toLocaleDateString()} at ${timeStr}`;
+    }
+
+    eventIcon(eventType) {
+        const icons = {
+            'BIRT': 'bi-star',
+            'DEAT': 'bi-flower1',
+            'BURI': 'bi-tree',
+            'CREM': 'bi-fire',
+            'MARR': 'bi-heart',
+            'DIV': 'bi-x-circle',
+            'ENGA': 'bi-heart-half',
+            'BAPM': 'bi-droplet',
+            'CHR': 'bi-droplet-half',
+            'CONF': 'bi-shield-check',
+            'ADOP': 'bi-house-heart',
+            'EMIG': 'bi-airplane',
+            'IMMI': 'bi-airplane-fill',
+            'NATU': 'bi-flag',
+            'OCCU': 'bi-briefcase',
+            'EDUC': 'bi-mortarboard',
+            'RELI': 'bi-book',
+            'RESI': 'bi-house',
+            'EVEN': 'bi-calendar-event',
+        };
+        return icons[eventType] || 'bi-calendar-event';
+    }
+
+    // ── Media uploads ──────────────────────────────────────────────────────────
     showPhotoUpload = () => {
         this.isUploadingPhoto(true);
         this.initTagify('photoTags');

@@ -154,13 +154,32 @@ internal static class ServiceCollectionExtensions
             services.AddHttpContextAccessor();
             services.AddScoped<IUserContextService, UserContextService>();
             services.AddScoped<IPersonService, PersonService>();
+            services.AddScoped<IPersonEventService, PersonEventService>();
             services.AddScoped<IPostService, PostService>();
             services.AddScoped<IPhotoService, PhotoService>();
             services.AddScoped<IVideoService, VideoService>();
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<IFeedService, FeedService>();
+            services.AddScoped<IGedcomService, GedcomService>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
+        }
+
+        public void KinnectAddImageProcessing(IConfiguration configuration)
+        {
+            services.Configure<ImageProcessingOptions>(
+                configuration.GetSection("ImageProcessing"));
+        }
+
+        public void KinnectAddUserInfoService(IConfiguration configuration)
+        {
+            string authProvider = configuration.GetValue<string>("Authentication:Provider") ?? "Identity";
+            bool useKeycloak = authProvider.Equals("Keycloak", StringComparison.OrdinalIgnoreCase);
+
+            if (useKeycloak)
+                services.AddScoped<IUserInfoService, KeycloakUserInfoService>();
+            else
+                services.AddScoped<IUserInfoService, AspNetIdentityUserInfoService>();
         }
     }
 }

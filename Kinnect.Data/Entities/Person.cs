@@ -40,6 +40,17 @@ public class Person : BaseEntity<int>
 
     public int? MotherId { get; set; }
 
+    public string? Occupation { get; set; }
+
+    public string? Education { get; set; }
+
+    public string? Religion { get; set; }
+
+    public string? Note { get; set; }
+
+    /// <summary>GEDCOM cross-reference ID used during import (e.g. @I1@).</summary>
+    public string? GedcomId { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }
@@ -61,6 +72,8 @@ public class Person : BaseEntity<int>
     public virtual ICollection<Post> Posts { get; set; } = [];
 
     public virtual ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
+
+    public virtual ICollection<PersonEvent> Events { get; set; } = [];
 }
 
 public class PersonMap : IEntityTypeConfiguration<Person>
@@ -75,6 +88,11 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.Property(m => m.PlaceOfBirth).HasMaxLength(500);
         builder.Property(m => m.PlaceOfDeath).HasMaxLength(500);
         builder.Property(m => m.ProfileImagePath).HasMaxLength(500);
+        builder.Property(m => m.Occupation).HasMaxLength(500);
+        builder.Property(m => m.Education).HasMaxLength(500);
+        builder.Property(m => m.Religion).HasMaxLength(200);
+        builder.Property(m => m.Note).HasMaxLength(4000);
+        builder.Property(m => m.GedcomId).HasMaxLength(50);
 
         builder.HasOne(m => m.User)
             .WithOne()

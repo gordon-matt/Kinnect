@@ -9,6 +9,13 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=kinnect;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}"
       FileStorage__BasePath: /app/data
+      ImageProcessing__AutoShrinkImages: "true"
+      ImageProcessing__MaxWidth: "1920"
+      ImageProcessing__MaxHeight: "1080"
+      ImageProcessing__Quality: "80"
+      ImageProcessing__ThumbnailWidth: "400"
+      ImageProcessing__ThumbnailHeight: "400"
+      ImageProcessing__ThumbnailQuality: "70"
       GoogleMaps__ApiKey: "${GOOGLE_MAPS_API_KEY:-}"
       # SeedAdmin__Email: admin@example.com
       # SeedAdmin__Password: "${ADMIN_PASSWORD}"

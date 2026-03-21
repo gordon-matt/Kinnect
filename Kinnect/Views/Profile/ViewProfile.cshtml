@@ -1,6 +1,7 @@
 @{
     ViewData["Title"] = "Profile";
     var personId = ViewData["PersonId"];
+    bool isAdmin = (bool)(ViewData["IsAdmin"] ?? false);
 }
 
 <div class="row">
@@ -23,9 +24,25 @@
                                 <i class="bi bi-person"></i>
                             </div>
                         </div>
-                        <div>
+                        <div class="flex-grow-1">
                             <h3 data-bind="text: fullName" class="mb-0"></h3>
                             <small class="text-muted" data-bind="text: birthInfo"></small>
+                        </div>
+                        <div class="ms-3 d-flex gap-2 flex-wrap justify-content-end">
+                            <div data-bind="if: canEdit">
+                                <a data-bind="attr: { href: canEditOwn() ? '/Profile' : '/Profile/Edit/' + personId }" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit Profile
+                                </a>
+                            </div>
+                            @if (isAdmin)
+                            {
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#linkUserModal" data-bind="visible: !hasAccount()">
+                                    <i class="bi bi-person-badge"></i> Link User Account
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkUserModal" data-bind="visible: hasAccount">
+                                    <i class="bi bi-person-x"></i> Unlink User Account
+                                </button>
+                            }
                         </div>
                     </div>
 
@@ -34,10 +51,17 @@
                         <p data-bind="text: bio"></p>
                     </div>
 
-                    <div data-bind="if: canEdit" class="mt-2">
-                        <a data-bind="attr: { href: '/Profile' }" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit Profile
-                        </a>
+                    <div data-bind="if: occupation" class="mt-1">
+                        <i class="bi bi-briefcase text-muted me-1"></i>
+                        <span data-bind="text: occupation" class="text-muted small"></span>
+                    </div>
+                    <div data-bind="if: education" class="mt-1">
+                        <i class="bi bi-mortarboard text-muted me-1"></i>
+                        <span data-bind="text: education" class="text-muted small"></span>
+                    </div>
+                    <div data-bind="if: religion" class="mt-1">
+                        <i class="bi bi-heart text-muted me-1"></i>
+                        <span data-bind="text: religion" class="text-muted small"></span>
                     </div>
                 </div>
             </div>
@@ -45,6 +69,9 @@
             <ul class="nav nav-tabs mb-3" role="tablist">
                 <li class="nav-item">
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#postsTab">Posts</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#timelineTab">Timeline</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#photosTab">Photos</button>
@@ -63,18 +90,47 @@
                         <div class="card mb-2">
                             <div class="card-body">
                                 <p data-bind="text: content"></p>
-                                <small class="text-muted" data-bind="text: new Date(createdAtUtc).toLocaleDateString()"></small>
+                                <small class="text-muted" data-bind="text: $root.formatDateTime(createdAtUtc)"></small>
                             </div>
                         </div>
                     </div>
                     <div data-bind="visible: posts().length === 0" class="text-muted text-center py-3">No posts yet.</div>
                 </div>
 
+                <div class="tab-pane fade" id="timelineTab">
+                    <div data-bind="visible: events().length === 0" class="text-muted text-center py-3">No life events recorded.</div>
+                    <div class="timeline" data-bind="foreach: events">
+                        <div class="d-flex mb-3">
+                            <div class="timeline-icon me-3 flex-shrink-0">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                                    <i data-bind="attr: { class: 'bi ' + $root.eventIcon(eventType) }"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="card">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <strong data-bind="text: eventTypeLabel"></strong>
+                                            <span class="text-muted small" data-bind="text: dateDisplay || ''"></span>
+                                        </div>
+                                        <div data-bind="if: place" class="text-muted small">
+                                            <i class="bi bi-geo-alt"></i> <span data-bind="text: place"></span>
+                                        </div>
+                                        <div data-bind="if: description" class="small mt-1">
+                                            <span data-bind="text: description"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="tab-pane fade" id="photosTab">
                     <div class="row" data-bind="foreach: photos">
                         <div class="col-md-4 mb-3">
                             <div class="card">
-                                <img data-bind="attr: { src: '/uploads/' + filePath }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
+                                <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
                                 <div class="card-body p-2">
                                     <small class="fw-semibold" data-bind="text: title"></small>
                                 </div>
@@ -110,9 +166,100 @@
     </div>
 </div>
 
+@if (isAdmin)
+{
+    <!-- Link User Account Modal -->
+    <div class="modal fade" id="linkUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-badge"></i> Link User Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Select a user account to link to this person record.</p>
+                    <select id="userSelect" class="form-select">
+                        <option value="">Loading users...</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="linkUserAccount()">
+                        <i class="bi bi-person-badge"></i> Link Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unlink User Account Modal -->
+    <div class="modal fade" id="unlinkUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-x"></i> Unlink User Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to unlink the user account from this person record? The user will no longer be able to edit this profile.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="unlinkUserAccount()">
+                        <i class="bi bi-person-x"></i> Unlink
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @section Scripts {
     <script>
         const viewPersonId = @personId;
+        const isAdmin = @(isAdmin ? "true" : "false");
     </script>
     <script src="~/js/view-profile.js" asp-append-version="true"></script>
+    @if (isAdmin)
+    {
+        <script>
+        document.getElementById('linkUserModal')?.addEventListener('show.bs.modal', async () => {
+            const select = document.getElementById('userSelect');
+            select.innerHTML = '<option value="">Loading...</option>';
+            const res = await fetch('/api/people/users');
+            if (res.ok) {
+                const users = await res.json();
+                select.innerHTML = '<option value="">-- Select a user --</option>' +
+                    users.map(u => `<option value="${u.userId}">${u.username} (${u.email})</option>`).join('');
+            }
+        });
+
+        async function linkUserAccount() {
+            const userId = document.getElementById('userSelect').value;
+            if (!userId) return;
+            const res = await fetch(`/api/people/${viewPersonId}/link-user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('linkUserModal'))?.hide();
+                location.reload();
+            } else {
+                const err = await res.json();
+                alert('Failed to link: ' + (err?.title || JSON.stringify(err)));
+            }
+        }
+
+        async function unlinkUserAccount() {
+            const res = await fetch(`/api/people/${viewPersonId}/link-user`, { method: 'DELETE' });
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('unlinkUserModal'))?.hide();
+                location.reload();
+            } else {
+                alert('Failed to unlink user account.');
+            }
+        }
+        </script>
+    }
 }

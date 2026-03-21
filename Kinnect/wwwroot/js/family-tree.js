@@ -8,9 +8,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             '<div class="d-flex align-items-center justify-content-center h-100 text-muted">' +
             '<div class="text-center">' +
             '<i class="bi bi-diagram-3" style="font-size:4rem;"></i>' +
-            '<p class="mt-2">No family tree data yet. Add people to get started.</p>' +
-            '</div></div>';
+            '<p class="mt-2">No family tree data yet.' +
+            (isAdmin ? ' Add people to get started.' : '') +
+            '</p></div></div>';
         return;
+    }
+
+    // Determine the initial person: prefer the logged-in user's person, else first record
+    let initialId = data[0].id;
+    if (myPersonId) {
+        const myNode = data.find(d => d.data && d.data.personId === myPersonId);
+        if (myNode) initialId = myNode.id;
     }
 
     const f3Chart = f3.createChart('#FamilyChart', data)
@@ -22,30 +30,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         .setCardInnerHtmlCreator(cardInnerHtmlCreator)
         .setMiniTree(true);
 
-    const f3EditTree = f3Chart.editTree()
-        .setFields([
-            { id: 'first name',  label: 'First name',  type: 'text' },
-            { id: 'last name',   label: 'Last name',   type: 'text' },
-            { id: 'birthday',    label: 'Birthday',    type: 'text' },
-            { id: 'gender',      label: 'Gender',      type: 'select', options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }] }
-        ])
-        .setOnSubmit((e, datum, applyChanges, postSubmit) => {
-            e.preventDefault();
-            applyChanges();
-            savePersonFromDatum(datum).then(postSubmit);
-        })
-        .setOnDelete((datum, deletePerson, postSubmit) => {
-            if (confirm('Are you sure you want to remove this person from the tree?')) {
-                deletePerson();
-                if (datum.data.personId) {
-                    deletePersonFromServer(datum.data.personId);
+    if (isAdmin) {
+        const f3EditTree = f3Chart.editTree()
+            .setFields([
+                { id: 'first name',  label: 'First name',  type: 'text' },
+                { id: 'last name',   label: 'Last name',   type: 'text' },
+                { id: 'birthday',    label: 'Birthday',    type: 'text' },
+                { id: 'gender',      label: 'Gender',      type: 'select', options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }] }
+            ])
+            .setOnSubmit((e, datum, applyChanges, postSubmit) => {
+                e.preventDefault();
+                applyChanges();
+                savePersonFromDatum(datum).then(postSubmit);
+            })
+            .setOnDelete((datum, deletePerson, postSubmit) => {
+                if (confirm('Are you sure you want to remove this person from the tree?')) {
+                    deletePerson();
+                    if (datum.data.personId) {
+                        deletePersonFromServer(datum.data.personId);
+                    }
+                    postSubmit({});
                 }
-                postSubmit({});
-            }
-        })
-        .setCardClickOpen(f3Card);
+            })
+            .setCardClickOpen(f3Card);
+    } else {
+        // View-only: clicking a card opens the profile
+        f3Card.setCardClickOpen(f3Card);
+    }
 
-    f3Chart.updateTree({ initial: true });
+    f3Chart.updateTree({ initial: true, id: initialId });
 
     // ── Card inner HTML ────────────────────────────────────────────────────────
     function cardInnerHtmlCreator(d) {
@@ -56,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const name = `${data['first name'] || ''} ${data['last name'] || ''}`.trim() || 'Unknown';
         const birthday = data.birthday || '';
         const personId = data.personId;
+        const isCurrentUser = myPersonId && personId === myPersonId;
 
         const avatarHtml = data.avatar
             ? `<img src="/uploads/${data.avatar}"
@@ -73,12 +87,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                   >&#128100;</a>`
             : '';
 
+        const highlightBorder = isCurrentUser ? '2px solid #f0a500' : 'none';
+
         return `
             <div class="card-inner"
                  style="display:flex;align-items:center;gap:10px;
                         padding:8px 12px;min-width:200px;position:relative;
                         border-left:4px solid ${borderColor};background:#fff;
-                        border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+                        border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);
+                        outline:${highlightBorder};outline-offset:2px;">
                 ${avatarHtml}
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:.85rem;white-space:nowrap;
@@ -89,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>`;
     }
 
-    // ── Server sync helpers ────────────────────────────────────────────────────
+    // ── Server sync helpers (admin only) ───────────────────────────────────────
     async function savePersonFromDatum(datum) {
         const d = datum.data;
         const personId = d.personId;
@@ -107,7 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             body.dayOfBirth   = parts.length >= 3 ? (parseInt(parts[2]) || null) : null;
         }
 
-        // Resolve parent IDs — library uses rels.parents[] internally
         if (datum.rels?.parents?.length > 0) {
             for (const parentChartId of datum.rels.parents) {
                 const parent = f3Chart.store.getDatum(parentChartId);
@@ -136,7 +152,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const newPersonId = (json.value || json).id;
                     datum.data.personId = newPersonId;
 
-                    // Link spouse relationship if this person was added as a spouse
                     if (newPersonId && datum.rels?.spouses?.length > 0) {
                         for (const spouseChartId of datum.rels.spouses) {
                             const spouseDatum = f3Chart.store.getDatum(spouseChartId);
@@ -150,14 +165,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Persist parent links for this person and all linked children.
             await syncParentsForPerson(datum);
             if (datum.rels?.children?.length > 0) {
                 for (const childChartId of datum.rels.children) {
                     const childDatum = f3Chart.store.getDatum(childChartId);
-                    if (childDatum) {
-                        await syncParentsForPerson(childDatum);
-                    }
+                    if (childDatum) await syncParentsForPerson(childDatum);
                 }
             }
         } catch (err) {
@@ -179,7 +191,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 else if (parent.data.gender === 'F') motherId = parent.data.personId;
             }
         }
-
         await updateParentsOnServer(personId, fatherId, motherId);
     }
 

@@ -56,6 +56,10 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
             Longitude = request.Longitude,
             FatherId = request.FatherId,
             MotherId = request.MotherId,
+            Occupation = request.Occupation,
+            Education = request.Education,
+            Religion = request.Religion,
+            Note = request.Note,
             UserId = userId,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
@@ -65,13 +69,13 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         return Result.Success(MapToDto(person));
     }
 
-    public async Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId)
+    public async Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false)
     {
         var person = await personRepository.FindOneAsync(id);
         if (person is null)
             return Result.NotFound("Person not found.");
 
-        if (person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
             return Result.Forbidden();
 
         await SaveVersionAsync(person, currentUserId);
@@ -92,13 +96,17 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         person.Longitude = request.Longitude;
         person.FatherId = request.FatherId;
         person.MotherId = request.MotherId;
+        person.Occupation = request.Occupation;
+        person.Education = request.Education;
+        person.Religion = request.Religion;
+        person.Note = request.Note;
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
         return Result.Success(MapToDto(person));
     }
 
-    public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId)
+    public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false)
     {
         if (fatherId.HasValue && fatherId == id)
             return Result.Invalid(new ValidationError("Father cannot be the same person."));
@@ -113,7 +121,7 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         if (person is null)
             return Result.NotFound("Person not found.");
 
-        if (person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
             return Result.Forbidden();
 
         await SaveVersionAsync(person, currentUserId);
@@ -126,16 +134,47 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         return Result.Success();
     }
 
-    public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId)
+    public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false)
     {
         var person = await personRepository.FindOneAsync(id);
         if (person is null)
             return Result.NotFound("Person not found.");
 
-        if (person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
             return Result.Forbidden();
 
         person.ProfileImagePath = imagePath;
+        person.UpdatedAtUtc = DateTime.UtcNow;
+        await personRepository.UpdateAsync(person);
+        return Result.Success();
+    }
+
+    public async Task<Result> LinkUserAccountAsync(int personId, string userId)
+    {
+        var person = await personRepository.FindOneAsync(personId);
+        if (person is null)
+            return Result.NotFound("Person not found.");
+
+        var existing = await personRepository.FindAsync(new SearchOptions<Person>
+        {
+            Query = x => x.UserId == userId
+        });
+        if (existing.Any())
+            return Result.Conflict("This user account is already linked to another person.");
+
+        person.UserId = userId;
+        person.UpdatedAtUtc = DateTime.UtcNow;
+        await personRepository.UpdateAsync(person);
+        return Result.Success();
+    }
+
+    public async Task<Result> UnlinkUserAccountAsync(int personId)
+    {
+        var person = await personRepository.FindOneAsync(personId);
+        if (person is null)
+            return Result.NotFound("Person not found.");
+
+        person.UserId = null;
         person.UpdatedAtUtc = DateTime.UtcNow;
         await personRepository.UpdateAsync(person);
         return Result.Success();
@@ -320,6 +359,10 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         person.Longitude = snapshot.Longitude;
         person.FatherId = snapshot.FatherId;
         person.MotherId = snapshot.MotherId;
+        person.Occupation = snapshot.Occupation;
+        person.Education = snapshot.Education;
+        person.Religion = snapshot.Religion;
+        person.Note = snapshot.Note;
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
@@ -345,7 +388,11 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
             Latitude = person.Latitude,
             Longitude = person.Longitude,
             FatherId = person.FatherId,
-            MotherId = person.MotherId
+            MotherId = person.MotherId,
+            Occupation = person.Occupation,
+            Education = person.Education,
+            Religion = person.Religion,
+            Note = person.Note
         };
 
         await versionRepository.InsertAsync(new PersonVersion
@@ -377,6 +424,11 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         Latitude = p.Latitude,
         Longitude = p.Longitude,
         FatherId = p.FatherId,
-        MotherId = p.MotherId
+        MotherId = p.MotherId,
+        Occupation = p.Occupation,
+        Education = p.Education,
+        Religion = p.Religion,
+        Note = p.Note,
+        GedcomId = p.GedcomId
     };
 }

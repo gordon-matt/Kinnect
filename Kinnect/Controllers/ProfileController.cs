@@ -14,6 +14,7 @@ public class ProfileController : Controller
     public IActionResult View(int id)
     {
         ViewData["PersonId"] = id;
+        ViewData["IsAdmin"] = User.IsInRole(Constants.Roles.Administrator);
         return View("ViewProfile");
     }
 }

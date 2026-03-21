@@ -1,8 +1,12 @@
 using Kinnect.Services.Abstractions;
+using Microsoft.Extensions.Options;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 namespace Kinnect.Services;
 
-public class FileStorageService(IConfiguration configuration) : IFileStorageService
+public class FileStorageService(IConfiguration configuration, IOptions<ImageProcessingOptions> imageOptions) : IFileStorageService
 {
     private string BasePath => configuration["FileStorage:BasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
@@ -18,6 +22,53 @@ public class FileStorageService(IConfiguration configuration) : IFileStorageServ
         await fileStream.CopyToAsync(fs);
 
         return relativePath.Replace('\\', '/');
+    }
+
+    public async Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category, string fileName)
+    {
+        var opts = imageOptions.Value;
+
+        // Buffer the stream so we can read it multiple times
+        using var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        string datePart = DateTime.UtcNow.ToString("yyyy/MM");
+        string mainName = $"{Guid.NewGuid()}.jpg";
+        string mainRelative = Path.Combine(category, datePart, mainName).Replace('\\', '/');
+        string mainFull = Path.Combine(BasePath, mainRelative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(mainFull)!);
+
+        using var mainImage = await Image.LoadAsync(buffer);
+
+        if (opts.AutoShrinkImages && (mainImage.Width > opts.MaxWidth || mainImage.Height > opts.MaxHeight))
+        {
+            mainImage.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(opts.MaxWidth, opts.MaxHeight)
+            }));
+        }
+
+        await mainImage.SaveAsync(mainFull, new JpegEncoder { Quality = opts.Quality });
+
+        // Generate thumbnail
+        buffer.Position = 0;
+        using var thumbImage = await Image.LoadAsync(buffer);
+        thumbImage.Mutate(x => x.Resize(new ResizeOptions
+        {
+            Mode = ResizeMode.Max,
+            Size = new Size(opts.ThumbnailWidth, opts.ThumbnailHeight)
+        }));
+
+        string thumbName = $"thumb_{Guid.NewGuid()}.jpg";
+        string thumbRelative = Path.Combine(Constants.FileStorage.Thumbnails, datePart, thumbName).Replace('\\', '/');
+        string thumbFull = Path.Combine(BasePath, thumbRelative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(thumbFull)!);
+
+        await thumbImage.SaveAsync(thumbFull, new JpegEncoder { Quality = opts.ThumbnailQuality });
+
+        return (mainRelative, thumbRelative);
     }
 
     public void DeleteFile(string relativePath)

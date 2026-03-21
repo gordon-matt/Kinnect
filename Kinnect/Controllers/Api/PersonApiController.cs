@@ -1,6 +1,7 @@
 using Ardalis.Result;
 using Ardalis.Result.AspNetCore;
 using Kinnect.Models;
+using Kinnect.Services;
 using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,8 +11,13 @@ namespace Kinnect.Controllers.Api;
 [ApiController]
 [Route("api/people")]
 [Authorize]
-public class PersonApiController(IPersonService personService, IUserContextService userContextService) : ControllerBase
+public class PersonApiController(
+    IPersonService personService,
+    IUserContextService userContextService,
+    IUserInfoService userInfoService) : ControllerBase
 {
+    private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
+
     [TranslateResultToActionResult]
     [HttpGet]
     public async Task<Result<IEnumerable<PersonDto>>> GetAll()
@@ -39,6 +45,7 @@ public class PersonApiController(IPersonService personService, IUserContextServi
 
     [TranslateResultToActionResult]
     [HttpPost]
+    [Authorize(Roles = Constants.Roles.Administrator)]
     public async Task<Result<PersonDto>> Create([FromBody] PersonEditRequest request)
     {
         return await personService.CreateAsync(request);
@@ -52,18 +59,19 @@ public class PersonApiController(IPersonService personService, IUserContextServi
         if (userId is null)
             return Result.Unauthorized();
 
-        return await personService.UpdateAsync(id, request, userId);
+        return await personService.UpdateAsync(id, request, userId, IsAdmin);
     }
 
     [TranslateResultToActionResult]
     [HttpPut("{id:int}/parents")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
     public async Task<Result> UpdateParents(int id, [FromBody] PersonParentLinkRequest request)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
             return Result.Unauthorized();
 
-        return await personService.UpdateParentsAsync(id, request.FatherId, request.MotherId, userId);
+        return await personService.UpdateParentsAsync(id, request.FatherId, request.MotherId, userId, isAdmin: true);
     }
 
     [TranslateResultToActionResult]
@@ -87,6 +95,7 @@ public class PersonApiController(IPersonService personService, IUserContextServi
 
     [TranslateResultToActionResult]
     [HttpPost("{personId:int}/spouse/{spouseId:int}")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
     public async Task<Result> AddSpouse(int personId, int spouseId)
     {
         return await personService.AddSpouseAsync(personId, spouseId);
@@ -94,6 +103,7 @@ public class PersonApiController(IPersonService personService, IUserContextServi
 
     [TranslateResultToActionResult]
     [HttpDelete("{personId:int}/spouse/{spouseId:int}")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
     public async Task<Result> RemoveSpouse(int personId, int spouseId)
     {
         return await personService.RemoveSpouseAsync(personId, spouseId);
@@ -128,14 +138,42 @@ public class PersonApiController(IPersonService personService, IUserContextServi
 
     [TranslateResultToActionResult]
     [HttpPost("{id:int}/profile-image")]
-    public async Task<Result> UploadProfileImage(int id, IFormFile file, [FromServices] IFileStorageService fileStorageService)
+    public async Task<Result<object>> UploadProfileImage(int id, IFormFile file, [FromServices] IFileStorageService fileStorageService)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
             return Result.Unauthorized();
 
         using var stream = file.OpenReadStream();
-        string path = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.ProfileImages, file.FileName);
-        return await personService.UpdateProfileImageAsync(id, path, userId);
+        var (imagePath, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.ProfileImages, file.FileName);
+        var updateResult = await personService.UpdateProfileImageAsync(id, imagePath, userId, IsAdmin);
+        if (!updateResult.IsSuccess)
+            return Result.Forbidden();
+
+        return Result.Success<object>(new { imagePath });
+    }
+
+    [TranslateResultToActionResult]
+    [HttpPost("{id:int}/link-user")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
+    public async Task<Result> LinkUserAccount(int id, [FromBody] LinkUserAccountRequest request)
+    {
+        return await personService.LinkUserAccountAsync(id, request.UserId);
+    }
+
+    [TranslateResultToActionResult]
+    [HttpDelete("{id:int}/link-user")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
+    public async Task<Result> UnlinkUserAccount(int id)
+    {
+        return await personService.UnlinkUserAccountAsync(id);
+    }
+
+    [HttpGet("users")]
+    [Authorize(Roles = Constants.Roles.Administrator)]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var users = await userInfoService.GetAllUsersAsync();
+        return Ok(users);
     }
 }

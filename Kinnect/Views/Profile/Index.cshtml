@@ -78,6 +78,26 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-md-6">
+                                <label class="form-label">Occupation</label>
+                                <input type="text" class="form-control" data-bind="value: occupation" placeholder="e.g. Teacher, Engineer…" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Education</label>
+                                <input type="text" class="form-control" data-bind="value: education" placeholder="e.g. BSc Computer Science" />
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Religion</label>
+                                <input type="text" class="form-control" data-bind="value: religion" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" rows="2" data-bind="value: note" placeholder="Any additional notes…"></textarea>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
                                 <label class="form-label">Latitude</label>
                                 <input type="number" step="any" class="form-control" data-bind="value: latitude" />
                             </div>
@@ -96,6 +116,9 @@
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#postsTab">Posts</button>
                 </li>
                 <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#timelineTab">Timeline</button>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#photosTab">Photos</button>
                 </li>
                 <li class="nav-item">
@@ -112,7 +135,103 @@
                         <div class="card mb-2">
                             <div class="card-body">
                                 <p data-bind="text: content"></p>
-                                <small class="text-muted" data-bind="text: new Date(createdAtUtc).toLocaleDateString()"></small>
+                                <small class="text-muted" data-bind="text: $root.formatDateTime(createdAtUtc)"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="timelineTab">
+                    <div data-bind="visible: events().length === 0" class="text-muted text-center py-3">
+                        No life events recorded yet.
+                    </div>
+                    <!-- Event add form -->
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showAddEvent, visible: !isAddingEvent()">
+                            <i class="bi bi-plus"></i> Add Event
+                        </button>
+                        <div data-bind="visible: isAddingEvent" class="card mt-2">
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label form-label-sm">Event Type</label>
+                                        <select class="form-select form-select-sm" data-bind="value: newEventType">
+                                            <option value="BIRT">Birth</option>
+                                            <option value="DEAT">Death</option>
+                                            <option value="MARR">Marriage</option>
+                                            <option value="DIV">Divorce</option>
+                                            <option value="BAPM">Baptism</option>
+                                            <option value="CHR">Christening</option>
+                                            <option value="CONF">Confirmation</option>
+                                            <option value="ADOP">Adoption</option>
+                                            <option value="EMIG">Emigration</option>
+                                            <option value="IMMI">Immigration</option>
+                                            <option value="NATU">Naturalization</option>
+                                            <option value="BURI">Burial</option>
+                                            <option value="CREM">Cremation</option>
+                                            <option value="OCCU">Occupation</option>
+                                            <option value="EDUC">Education</option>
+                                            <option value="RELI">Religion</option>
+                                            <option value="RESI">Residence</option>
+                                            <option value="EVEN">Custom Event</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label form-label-sm">Year</label>
+                                        <input type="number" class="form-control form-control-sm" data-bind="value: newEventYear" placeholder="YYYY" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label form-label-sm">Month</label>
+                                        <input type="number" class="form-control form-control-sm" min="1" max="12" data-bind="value: newEventMonth" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label form-label-sm">Day</label>
+                                        <input type="number" class="form-control form-control-sm" min="1" max="31" data-bind="value: newEventDay" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label form-label-sm">Place</label>
+                                        <input type="text" class="form-control form-control-sm" data-bind="value: newEventPlace" placeholder="City, Country" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label form-label-sm">Description</label>
+                                        <input type="text" class="form-control form-control-sm" data-bind="value: newEventDescription" />
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-primary btn-sm" data-bind="click: addEvent">Save</button>
+                                    <button class="btn btn-secondary btn-sm ms-1" data-bind="click: cancelAddEvent">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline" data-bind="foreach: events">
+                        <div class="d-flex mb-3">
+                            <div class="timeline-icon me-3 flex-shrink-0">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                                    <i data-bind="attr: { class: 'bi ' + $root.eventIcon(eventType) }"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="card">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <strong data-bind="text: eventTypeLabel"></strong>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="text-muted small" data-bind="text: dateDisplay || ''"></span>
+                                                <button class="btn btn-sm btn-link p-0 text-danger" data-bind="click: $root.deleteEvent.bind($root, id)" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div data-bind="if: place" class="text-muted small">
+                                            <i class="bi bi-geo-alt"></i> <span data-bind="text: place"></span>
+                                        </div>
+                                        <div data-bind="if: description" class="small mt-1">
+                                            <span data-bind="text: description"></span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -137,7 +256,7 @@
                     <div class="row" data-bind="foreach: photos">
                         <div class="col-md-4 mb-3">
                             <div class="card">
-                                <img data-bind="attr: { src: '/uploads/' + filePath }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
+                                <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover;" />
                                 <div class="card-body p-2">
                                     <small class="fw-semibold" data-bind="text: title"></small>
                                 </div>

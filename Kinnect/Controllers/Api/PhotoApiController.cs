@@ -38,11 +38,11 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
             return Forbid();
 
         using var stream = file.OpenReadStream();
-        string filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Photos, file.FileName);
+        var (filePath, thumbnailPath) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos, file.FileName);
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 
-        var result = await photoService.CreateAsync(title, description, filePath, null, personResult.Value.Id, tagList);
+        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList);
         return result.IsSuccess ? Ok(result.Value) : BadRequest();
     }
 
