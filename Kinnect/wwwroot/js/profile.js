@@ -26,6 +26,14 @@
     // Copyable event types (item 8)
     const COPYABLE_TYPES = new Set(['EMIG', 'IMMI', 'RESI']);
 
+    /** Matches server PersonEventDto.DateDisplay logic for spouse-synthetic rows */
+    function partialDateDisplay(year, month, day) {
+        if (year == null) return null;
+        if (month != null && day != null)
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return String(year);
+    }
+
     class ProfileViewModel {
         constructor() {
             this.loading = ko.observable(true);
@@ -76,42 +84,54 @@
                 for (const sp of this.spouses()) {
                     const name = sp.displayName;
                     if (ko.unwrap(sp.engagementYear)) {
+                        const y = ko.unwrap(sp.engagementYear);
+                        const mo = ko.unwrap(sp.engagementMonth);
+                        const d = ko.unwrap(sp.engagementDay);
                         items.push({
                             _source: 'spouse',
                             id: null,
                             eventType: 'ENGA',
                             eventTypeLabel: 'Engagement',
-                            year: ko.unwrap(sp.engagementYear),
-                            month: ko.unwrap(sp.engagementMonth),
-                            day: ko.unwrap(sp.engagementDay),
+                            year: y,
+                            month: mo,
+                            day: d,
+                            dateDisplay: partialDateDisplay(y, mo, d),
                             place: null,
                             description: `To ${name}`,
                             spousePersonId: sp.spousePersonId
                         });
                     }
                     if (ko.unwrap(sp.marriageYear)) {
+                        const y = ko.unwrap(sp.marriageYear);
+                        const mo = ko.unwrap(sp.marriageMonth);
+                        const d = ko.unwrap(sp.marriageDay);
                         items.push({
                             _source: 'spouse',
                             id: null,
                             eventType: 'MARR',
                             eventTypeLabel: 'Marriage',
-                            year: ko.unwrap(sp.marriageYear),
-                            month: ko.unwrap(sp.marriageMonth),
-                            day: ko.unwrap(sp.marriageDay),
+                            year: y,
+                            month: mo,
+                            day: d,
+                            dateDisplay: partialDateDisplay(y, mo, d),
                             place: null,
                             description: `To ${name}`,
                             spousePersonId: sp.spousePersonId
                         });
                     }
                     if (ko.unwrap(sp.divorceYear)) {
+                        const y = ko.unwrap(sp.divorceYear);
+                        const mo = ko.unwrap(sp.divorceMonth);
+                        const d = ko.unwrap(sp.divorceDay);
                         items.push({
                             _source: 'spouse',
                             id: null,
                             eventType: 'DIV',
                             eventTypeLabel: 'Divorce',
-                            year: ko.unwrap(sp.divorceYear),
-                            month: ko.unwrap(sp.divorceMonth),
-                            day: ko.unwrap(sp.divorceDay),
+                            year: y,
+                            month: mo,
+                            day: d,
+                            dateDisplay: partialDateDisplay(y, mo, d),
                             place: null,
                             description: `From ${name}`,
                             spousePersonId: sp.spousePersonId
@@ -183,6 +203,9 @@
             this.newEventLatitude = ko.observable(null);
             this.newEventLongitude = ko.observable(null);
             this.newEventDescription = ko.observable('');
+            this.newEventLocationSearchQuery = ko.observable('');
+            this.newEventLocationSearchResults = ko.observableArray([]);
+            this._newEventLocationSearchTimer = null;
             this.newEventDayOptions = daysInMonth(this.newEventMonth, this.newEventYear);
             this._newEventMap = null;
             this._newEventMarker = null;
@@ -197,6 +220,9 @@
             this.editEventLatitude = ko.observable(null);
             this.editEventLongitude = ko.observable(null);
             this.editEventDescription = ko.observable('');
+            this.editEventLocationSearchQuery = ko.observable('');
+            this.editEventLocationSearchResults = ko.observableArray([]);
+            this._editEventLocationSearchTimer = null;
             this.editEventDayOptions = daysInMonth(this.editEventMonth, this.editEventYear);
             this._editEventMap = null;
             this._editEventMarker = null;
@@ -230,6 +256,14 @@
             this.locationSearchQuery.subscribe(() => {
                 clearTimeout(this._locationSearchTimer);
                 this._locationSearchTimer = setTimeout(() => this.runLocationSearch(), 400);
+            });
+            this.newEventLocationSearchQuery.subscribe(() => {
+                clearTimeout(this._newEventLocationSearchTimer);
+                this._newEventLocationSearchTimer = setTimeout(() => this.runNewEventLocationSearch(), 400);
+            });
+            this.editEventLocationSearchQuery.subscribe(() => {
+                clearTimeout(this._editEventLocationSearchTimer);
+                this._editEventLocationSearchTimer = setTimeout(() => this.runEditEventLocationSearch(), 400);
             });
         }
 
@@ -524,49 +558,180 @@
             this._locationMap?.setView([lat, lng], 15);
         };
 
-        // ── Event place mini-map (item 5) ──────────────────────────────────────
-        _initEventMap = (mapId, latObs, lngObs, mapRef, markerRef) => {
-            if (typeof L === 'undefined') return [mapRef, markerRef];
-            const el = document.getElementById(mapId);
-            if (!el) return [mapRef, markerRef];
+        runNewEventLocationSearch = async () => {
+            const q = (this.newEventLocationSearchQuery() || '').trim();
+            if (q.length < 3) {
+                this.newEventLocationSearchResults([]);
+                return;
+            }
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
+                const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.newEventLocationSearchResults(Array.isArray(data) ? data : []);
+            } catch {
+                this.newEventLocationSearchResults([]);
+            }
+        };
 
-            if (mapRef) { mapRef.remove(); }
+        pickNewEventLocationResult = (place) => {
+            const lat = parseFloat(place.lat);
+            const lng = parseFloat(place.lon);
+            if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+            this.newEventLocationSearchResults([]);
+            const name = place.display_name || '';
+            this.newEventLocationSearchQuery(name);
+            this.newEventPlace(name);
+            if (!this._newEventMap) this.initNewEventMap();
+            this.setNewEventPin(lat, lng);
+            this._newEventMap?.setView([lat, lng], 15);
+        };
 
-            const lat0 = parseFloat(latObs()) || 0;
-            const lng0 = parseFloat(lngObs()) || 0;
-            const hasPos = lat0 !== 0 || lng0 !== 0;
+        setNewEventPin = (lat, lng) => {
+            this.newEventLatitude(lat);
+            this.newEventLongitude(lng);
+            if (!this._newEventMap) return;
+            if (!this._newEventMarker) {
+                this._newEventMarker = L.marker([lat, lng], { draggable: true }).addTo(this._newEventMap);
+                this._newEventMarker.on('dragend', (e) => {
+                    const p = e.target.getLatLng();
+                    this.newEventLatitude(p.lat);
+                    this.newEventLongitude(p.lng);
+                });
+            } else {
+                this._newEventMarker.setLatLng([lat, lng]);
+            }
+            this._newEventMap.setView([lat, lng], 14);
+        };
 
-            const m = L.map(mapId).setView(hasPos ? [lat0, lng0] : [20, 0], hasPos ? 12 : 2);
+        clearNewEventPlace = (d, e) => {
+            if (e) e.preventDefault();
+            this.newEventPlace('');
+            this.newEventLatitude(null);
+            this.newEventLongitude(null);
+            this.newEventLocationSearchQuery('');
+            this.newEventLocationSearchResults([]);
+            if (this._newEventMap && this._newEventMarker) {
+                this._newEventMap.removeLayer(this._newEventMarker);
+                this._newEventMarker = null;
+            }
+        };
+
+        runEditEventLocationSearch = async () => {
+            const q = (this.editEventLocationSearchQuery() || '').trim();
+            if (q.length < 3) {
+                this.editEventLocationSearchResults([]);
+                return;
+            }
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
+                const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.editEventLocationSearchResults(Array.isArray(data) ? data : []);
+            } catch {
+                this.editEventLocationSearchResults([]);
+            }
+        };
+
+        pickEditEventLocationResult = (place) => {
+            const lat = parseFloat(place.lat);
+            const lng = parseFloat(place.lon);
+            if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+            this.editEventLocationSearchResults([]);
+            const name = place.display_name || '';
+            this.editEventLocationSearchQuery(name);
+            this.editEventPlace(name);
+            if (!this._editEventMap) this.initEditEventMap();
+            this.setEditEventPin(lat, lng);
+            this._editEventMap?.setView([lat, lng], 15);
+        };
+
+        setEditEventPin = (lat, lng) => {
+            this.editEventLatitude(lat);
+            this.editEventLongitude(lng);
+            if (!this._editEventMap) return;
+            if (!this._editEventMarker) {
+                this._editEventMarker = L.marker([lat, lng], { draggable: true }).addTo(this._editEventMap);
+                this._editEventMarker.on('dragend', (e) => {
+                    const p = e.target.getLatLng();
+                    this.editEventLatitude(p.lat);
+                    this.editEventLongitude(p.lng);
+                });
+            } else {
+                this._editEventMarker.setLatLng([lat, lng]);
+            }
+            this._editEventMap.setView([lat, lng], 14);
+        };
+
+        clearEditEventPlace = (d, e) => {
+            if (e) e.preventDefault();
+            this.editEventPlace('');
+            this.editEventLatitude(null);
+            this.editEventLongitude(null);
+            this.editEventLocationSearchQuery('');
+            this.editEventLocationSearchResults([]);
+            if (this._editEventMap && this._editEventMarker) {
+                this._editEventMap.removeLayer(this._editEventMarker);
+                this._editEventMarker = null;
+            }
+        };
+
+        initNewEventMap = () => {
+            if (typeof L === 'undefined') return;
+            const el = document.getElementById('newEventMap');
+            if (!el) return;
+            if (this._newEventMap) {
+                this._newEventMap.remove();
+                this._newEventMap = null;
+            }
+            this._newEventMarker = null;
+
+            const lat0 = this.newEventLatitude();
+            const lng0 = this.newEventLongitude();
+            const hasPos =
+                lat0 != null &&
+                lng0 != null &&
+                !Number.isNaN(Number(lat0)) &&
+                !Number.isNaN(Number(lng0));
+
+            const m = L.map('newEventMap').setView(hasPos ? [Number(lat0), Number(lng0)] : [20, 0], hasPos ? 14 : 2);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors',
                 maxZoom: 19
             }).addTo(m);
-
-            const marker = L.marker(hasPos ? [lat0, lng0] : [20, 0], { draggable: true }).addTo(m);
-            m.on('click', (e) => {
-                latObs(e.latlng.lat);
-                lngObs(e.latlng.lng);
-                marker.setLatLng([e.latlng.lat, e.latlng.lng]);
-            });
-            marker.on('dragend', (e) => {
-                const p = e.target.getLatLng();
-                latObs(p.lat);
-                lngObs(p.lng);
-            });
+            this._newEventMap = m;
+            m.on('click', (e) => this.setNewEventPin(e.latlng.lat, e.latlng.lng));
+            if (hasPos) this.setNewEventPin(Number(lat0), Number(lng0));
             setTimeout(() => m.invalidateSize(), 200);
-            return [m, marker];
-        };
-
-        initNewEventMap = () => {
-            [this._newEventMap, this._newEventMarker] = this._initEventMap(
-                'newEventMap', this.newEventLatitude, this.newEventLongitude,
-                this._newEventMap, this._newEventMarker);
         };
 
         initEditEventMap = () => {
-            [this._editEventMap, this._editEventMarker] = this._initEventMap(
-                'editEventMap', this.editEventLatitude, this.editEventLongitude,
-                this._editEventMap, this._editEventMarker);
+            if (typeof L === 'undefined') return;
+            const el = document.getElementById('editEventMap');
+            if (!el) return;
+            if (this._editEventMap) {
+                this._editEventMap.remove();
+                this._editEventMap = null;
+            }
+            this._editEventMarker = null;
+
+            const lat0 = this.editEventLatitude();
+            const lng0 = this.editEventLongitude();
+            const hasPos =
+                lat0 != null &&
+                lng0 != null &&
+                !Number.isNaN(Number(lat0)) &&
+                !Number.isNaN(Number(lng0));
+
+            const m = L.map('editEventMap').setView(hasPos ? [Number(lat0), Number(lng0)] : [20, 0], hasPos ? 14 : 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(m);
+            this._editEventMap = m;
+            m.on('click', (e) => this.setEditEventPin(e.latlng.lat, e.latlng.lng));
+            if (hasPos) this.setEditEventPin(Number(lat0), Number(lng0));
+            setTimeout(() => m.invalidateSize(), 200);
         };
 
         // ── Profile image ──────────────────────────────────────────────────────
@@ -594,14 +759,21 @@
             this.newEventLatitude(null);
             this.newEventLongitude(null);
             this.newEventDescription('');
+            this.newEventLocationSearchQuery('');
+            this.newEventLocationSearchResults([]);
             this.isAddingEvent(true);
-            // Init mini map after DOM renders
             setTimeout(() => this.initNewEventMap(), 150);
         };
 
         cancelAddEvent = () => {
             this.isAddingEvent(false);
-            if (this._newEventMap) { this._newEventMap.remove(); this._newEventMap = null; }
+            this.newEventLocationSearchQuery('');
+            this.newEventLocationSearchResults([]);
+            if (this._newEventMap) {
+                this._newEventMap.remove();
+                this._newEventMap = null;
+            }
+            this._newEventMarker = null;
         };
 
         addEvent = async () => {
@@ -651,11 +823,10 @@
             this.editEventLatitude(ev.latitude ?? null);
             this.editEventLongitude(ev.longitude ?? null);
             this.editEventDescription(ev.description || '');
+            this.editEventLocationSearchQuery(ev.place || '');
+            this.editEventLocationSearchResults([]);
             const el = document.getElementById('editEventModal');
-            if (el) {
-                bootstrap.Modal.getOrCreateInstance(el).show();
-                el.addEventListener('shown.bs.modal', () => this.initEditEventMap(), { once: true });
-            }
+            if (el) bootstrap.Modal.getOrCreateInstance(el).show();
         };
 
         saveEditEvent = async () => {
@@ -940,6 +1111,10 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const vm = new ProfileViewModel();
         ko.applyBindings(vm);
+        const editEventModal = document.getElementById('editEventModal');
+        if (editEventModal) {
+            editEventModal.addEventListener('shown.bs.modal', () => vm.initEditEventMap());
+        }
         await vm.loadProfile();
     });
 })();

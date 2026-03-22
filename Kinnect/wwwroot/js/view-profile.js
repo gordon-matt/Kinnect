@@ -15,6 +15,13 @@ function daysInMonth(monthObs, yearObs) {
     });
 }
 
+function partialDateDisplay(year, month, day) {
+    if (year == null) return null;
+    if (month != null && day != null)
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return String(year);
+}
+
 class ViewProfileViewModel {
     constructor(personId, isAdminUser) {
         this.loading = ko.observable(true);
@@ -49,23 +56,29 @@ class ViewProfileViewModel {
             for (const sp of this.spouses()) {
                 const name = sp.displayName;
                 if (sp.engagementYear) {
+                    const y = sp.engagementYear, mo = sp.engagementMonth, d = sp.engagementDay;
                     items.push({
                         _source: 'spouse', id: null, eventType: 'ENGA', eventTypeLabel: 'Engagement',
-                        year: sp.engagementYear, month: sp.engagementMonth, day: sp.engagementDay,
+                        year: y, month: mo, day: d,
+                        dateDisplay: partialDateDisplay(y, mo, d),
                         place: null, description: `To ${name}`
                     });
                 }
                 if (sp.marriageYear) {
+                    const y = sp.marriageYear, mo = sp.marriageMonth, d = sp.marriageDay;
                     items.push({
                         _source: 'spouse', id: null, eventType: 'MARR', eventTypeLabel: 'Marriage',
-                        year: sp.marriageYear, month: sp.marriageMonth, day: sp.marriageDay,
+                        year: y, month: mo, day: d,
+                        dateDisplay: partialDateDisplay(y, mo, d),
                         place: null, description: `To ${name}`
                     });
                 }
                 if (sp.divorceYear) {
+                    const y = sp.divorceYear, mo = sp.divorceMonth, d = sp.divorceDay;
                     items.push({
                         _source: 'spouse', id: null, eventType: 'DIV', eventTypeLabel: 'Divorce',
-                        year: sp.divorceYear, month: sp.divorceMonth, day: sp.divorceDay,
+                        year: y, month: mo, day: d,
+                        dateDisplay: partialDateDisplay(y, mo, d),
                         place: null, description: `From ${name}`
                     });
                 }

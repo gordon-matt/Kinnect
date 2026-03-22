@@ -14,7 +14,9 @@
         .profile-map-search { z-index: 1000; max-height: 200px; overflow-y: auto; }
         .profile-map-search .search-hit:hover { background: #f0f0f0; }
         #profileLocationMap { z-index: 1; }
-        .event-mini-map { height: 180px; border-radius: .375rem; }
+        .event-mini-map { height: 220px; border-radius: .375rem; z-index: 1; }
+        .event-map-search { z-index: 1000; max-height: 160px; overflow-y: auto; }
+        .event-map-search .search-hit:hover { background: #f0f0f0; }
         .spouse-event-badge { font-size: .75rem; }
     </style>
 }
@@ -261,19 +263,30 @@
                                     <select class="form-select form-select-sm" data-bind="options: newEventDayOptions, value: newEventDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label form-label-sm">Place name</label>
-                                    <input type="text" class="form-control form-control-sm" data-bind="value: newEventPlace" placeholder="City, Country" />
-                                </div>
-                                <div class="col-md-6">
                                     <label class="form-label form-label-sm">Description</label>
                                     <input type="text" class="form-control form-control-sm" data-bind="value: newEventDescription" />
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label form-label-sm">Place on map (optional)</label>
-                                    <div id="newEventMap" class="event-mini-map border"></div>
+                                    <label class="form-label form-label-sm">Place</label>
+                                    <p class="text-muted small mb-2">Search for an address or click the map to place the pin. The place name and coordinates are set together from a search result.</p>
+                                    <div class="position-relative border rounded overflow-hidden" style="background:#e9ecef;">
+                                        <div class="position-absolute m-2 bg-white rounded shadow-sm p-2" style="width:min(320px, calc(100% - 1rem)); z-index:500;">
+                                            <input type="search" class="form-control form-control-sm" placeholder="Search address…" autocomplete="off" data-bind="textInput: newEventLocationSearchQuery" />
+                                            <div class="event-map-search small border-top mt-1 pt-1" data-bind="foreach: newEventLocationSearchResults">
+                                                <div class="search-hit px-1 py-1" style="cursor:pointer;" data-bind="text: display_name, click: function() { $root.pickNewEventLocationResult($data); }"></div>
+                                            </div>
+                                        </div>
+                                        <div id="newEventMap" class="event-mini-map"></div>
+                                    </div>
                                     <div class="text-muted small mt-1" data-bind="visible: newEventLatitude() != null">
-                                        Pinned: <span data-bind="text: newEventLatitude() != null ? Number(newEventLatitude()).toFixed(5) + ', ' + Number(newEventLongitude()).toFixed(5) : ''"></span>
-                                        <a href="#" class="ms-2 small" data-bind="click: function(){ newEventLatitude(null); newEventLongitude(null); }">Clear</a>
+                                        <span data-bind="text: newEventPlace() ? newEventPlace() : ''"></span>
+                                        <span class="ms-1" data-bind="visible: newEventLatitude() != null">·</span>
+                                        <span data-bind="text: newEventLatitude() != null ? Number(newEventLatitude()).toFixed(5) + ', ' + Number(newEventLongitude()).toFixed(5) : ''"></span>
+                                        <a href="#" class="ms-2 small" data-bind="click: clearNewEventPlace">Clear</a>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="form-label form-label-sm mb-0">Place name (editable)</label>
+                                        <input type="text" class="form-control form-control-sm" data-bind="value: newEventPlace" placeholder="Filled when you pick a search result; you can shorten or edit the text." />
                                     </div>
                                 </div>
                             </div>
@@ -304,7 +317,7 @@
                                                 <!-- /ko -->
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
-                                                <span class="text-muted small" data-bind="text: dateDisplay || (year ? year : '')"></span>
+                                                <span class="text-muted small" data-bind="text: $data.dateDisplay != null && $data.dateDisplay !== '' ? $data.dateDisplay : ($data.year != null ? $data.year : '')"></span>
                                                 <!-- ko if: _source === 'event' -->
                                                 <button type="button" class="btn btn-sm btn-link p-0" data-bind="click: $root.startEditEvent" title="Edit">
                                                     <i class="bi bi-pencil"></i>
@@ -580,21 +593,31 @@
                         <select class="form-select" data-bind="options: editEventDayOptions, value: editEventDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                     </div>
                 </div>
-                <div class="mb-2 mt-2">
-                    <label class="form-label">Place name</label>
-                    <input type="text" class="form-control" data-bind="value: editEventPlace" />
-                </div>
                 <div class="mb-2">
                     <label class="form-label">Description</label>
                     <input type="text" class="form-control" data-bind="value: editEventDescription" />
                 </div>
-                <!-- item 5: event place map -->
                 <div class="mb-2">
-                    <label class="form-label">Pin on map (optional)</label>
-                    <div id="editEventMap" class="event-mini-map border"></div>
+                    <label class="form-label">Place</label>
+                    <p class="text-muted small">Search for an address or click the map. A search result sets the place name and pin together.</p>
+                    <div class="position-relative border rounded overflow-hidden" style="background:#e9ecef;">
+                        <div class="position-absolute m-2 bg-white rounded shadow-sm p-2" style="width:min(320px, calc(100% - 1rem)); z-index:500;">
+                            <input type="search" class="form-control form-control-sm" placeholder="Search address…" autocomplete="off" data-bind="textInput: editEventLocationSearchQuery" />
+                            <div class="event-map-search small border-top mt-1 pt-1" data-bind="foreach: editEventLocationSearchResults">
+                                <div class="search-hit px-1 py-1" style="cursor:pointer;" data-bind="text: display_name, click: function() { $root.pickEditEventLocationResult($data); }"></div>
+                            </div>
+                        </div>
+                        <div id="editEventMap" class="event-mini-map"></div>
+                    </div>
                     <div class="text-muted small mt-1" data-bind="visible: editEventLatitude() != null">
-                        Pinned: <span data-bind="text: editEventLatitude() != null ? Number(editEventLatitude()).toFixed(5) + ', ' + Number(editEventLongitude()).toFixed(5) : ''"></span>
-                        <a href="#" class="ms-2 small" data-bind="click: function(){ editEventLatitude(null); editEventLongitude(null); }">Clear</a>
+                        <span data-bind="text: editEventPlace() ? editEventPlace() : ''"></span>
+                        <span class="ms-1" data-bind="visible: editEventLatitude() != null">·</span>
+                        <span data-bind="text: editEventLatitude() != null ? Number(editEventLatitude()).toFixed(5) + ', ' + Number(editEventLongitude()).toFixed(5) : ''"></span>
+                        <a href="#" class="ms-2 small" data-bind="click: clearEditEventPlace">Clear</a>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label mb-0">Place name (editable)</label>
+                        <input type="text" class="form-control" data-bind="value: editEventPlace" placeholder="Filled when you pick a search result; you can edit the text." />
                     </div>
                 </div>
             </div>

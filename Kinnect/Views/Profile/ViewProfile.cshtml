@@ -119,7 +119,7 @@
                                                 <!-- /ko -->
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
-                                                <span class="text-muted small" data-bind="text: dateDisplay || (year ? year : '')"></span>
+                                                <span class="text-muted small" data-bind="text: $data.dateDisplay != null && $data.dateDisplay !== '' ? $data.dateDisplay : ($data.year != null ? $data.year : '')"></span>
                                                 <!-- ko if: $root.canEdit() && _source === 'event' -->
                                                 <button type="button" class="btn btn-sm btn-link p-0" data-bind="click: $root.startEditEvent" title="Edit">
                                                     <i class="bi bi-pencil"></i>
