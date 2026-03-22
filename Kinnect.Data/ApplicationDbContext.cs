@@ -31,6 +31,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<PersonEvent> PersonEvents { get; set; }
 
+    public DbSet<PhotoEvent> PhotoEvents { get; set; }
+
+    public DbSet<VideoEvent> VideoEvents { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

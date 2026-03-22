@@ -12,10 +12,6 @@ public class Person : BaseEntity<int>
 
     public bool IsMale { get; set; }
 
-    public string? PlaceOfBirth { get; set; }
-
-    public string? PlaceOfDeath { get; set; }
-
     public string? Bio { get; set; }
 
     public string? ProfileImagePath { get; set; }
@@ -73,8 +69,6 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.Property(m => m.FamilyName).IsRequired().HasMaxLength(200);
         builder.Property(m => m.GivenNames).IsRequired().HasMaxLength(200);
         builder.Property(m => m.IsMale).IsRequired();
-        builder.Property(m => m.PlaceOfBirth).HasMaxLength(500);
-        builder.Property(m => m.PlaceOfDeath).HasMaxLength(500);
         builder.Property(m => m.ProfileImagePath).HasMaxLength(500);
         builder.Property(m => m.Occupation).HasMaxLength(500);
         builder.Property(m => m.Education).HasMaxLength(500);

@@ -18,5 +18,7 @@ public class FeedItemDto
 
     public string? ThumbnailPath { get; set; }
 
+    public string? FilePath { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 }

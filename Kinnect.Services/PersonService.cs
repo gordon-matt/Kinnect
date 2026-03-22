@@ -47,8 +47,6 @@ public class PersonService(
             FamilyName = request.FamilyName,
             GivenNames = request.GivenNames,
             IsMale = request.IsMale,
-            PlaceOfBirth = request.PlaceOfBirth,
-            PlaceOfDeath = request.PlaceOfDeath,
             Bio = request.Bio,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
@@ -81,8 +79,6 @@ public class PersonService(
         person.FamilyName = request.FamilyName;
         person.GivenNames = request.GivenNames;
         person.IsMale = request.IsMale;
-        person.PlaceOfBirth = request.PlaceOfBirth;
-        person.PlaceOfDeath = request.PlaceOfDeath;
         person.Bio = request.Bio;
         person.Latitude = request.Latitude;
         person.Longitude = request.Longitude;
@@ -307,9 +303,12 @@ public class PersonService(
                 MarriageYear = link.MarriageYear,
                 MarriageMonth = link.MarriageMonth,
                 MarriageDay = link.MarriageDay,
-                DivorceYear = link.DivorceYear,
-                DivorceMonth = link.DivorceMonth,
-                DivorceDay = link.DivorceDay
+            DivorceYear = link.DivorceYear,
+            DivorceMonth = link.DivorceMonth,
+            DivorceDay = link.DivorceDay,
+            EngagementYear = link.EngagementYear,
+            EngagementMonth = link.EngagementMonth,
+            EngagementDay = link.EngagementDay
             };
         }).Where(x => x != null).Cast<PersonSpouseDetailDto>()
             .OrderBy(s => s.FamilyName).ThenBy(s => s.GivenNames)
@@ -349,6 +348,9 @@ public class PersonService(
         link.DivorceYear = request.DivorceYear;
         link.DivorceMonth = request.DivorceMonth;
         link.DivorceDay = request.DivorceDay;
+        link.EngagementYear = request.EngagementYear;
+        link.EngagementMonth = request.EngagementMonth;
+        link.EngagementDay = request.EngagementDay;
 
         await spouseRepository.UpdateAsync(link);
         return Result.Success();
@@ -425,8 +427,6 @@ public class PersonService(
         person.FamilyName = snapshot.FamilyName;
         person.GivenNames = snapshot.GivenNames;
         person.IsMale = snapshot.IsMale;
-        person.PlaceOfBirth = snapshot.PlaceOfBirth;
-        person.PlaceOfDeath = snapshot.PlaceOfDeath;
         person.Bio = snapshot.Bio;
         person.Latitude = snapshot.Latitude;
         person.Longitude = snapshot.Longitude;
@@ -449,8 +449,6 @@ public class PersonService(
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
             IsMale = person.IsMale,
-            PlaceOfBirth = person.PlaceOfBirth,
-            PlaceOfDeath = person.PlaceOfDeath,
             Bio = person.Bio,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
@@ -478,8 +476,6 @@ public class PersonService(
         FamilyName = p.FamilyName,
         GivenNames = p.GivenNames,
         IsMale = p.IsMale,
-        PlaceOfBirth = p.PlaceOfBirth,
-        PlaceOfDeath = p.PlaceOfDeath,
         Bio = p.Bio,
         ProfileImagePath = p.ProfileImagePath,
         Latitude = p.Latitude,

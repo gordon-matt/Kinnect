@@ -76,7 +76,6 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
-            ApplyBirthDeathPlaces(individual, person);
             ApplyFacts(individual, person);
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
@@ -86,7 +85,6 @@ public class GedcomService(
             person.GivenNames = givenNames;
             person.FamilyName = familyName;
             person.IsMale = isMale;
-            ApplyBirthDeathPlaces(individual, person);
             ApplyFacts(individual, person);
             person.UpdatedAtUtc = DateTime.UtcNow;
             await personRepository.UpdateAsync(person);
@@ -96,15 +94,6 @@ public class GedcomService(
         xrefToPersonId[individual.XRefID] = person.Id;
 
         await ImportPersonEventsAsync(individual, database, person.Id, summary);
-    }
-
-    private static void ApplyBirthDeathPlaces(GedcomIndividualRecord individual, Person person)
-    {
-        if (individual.Birth != null)
-            person.PlaceOfBirth = individual.Birth.Place?.Name;
-
-        if (individual.Death != null)
-            person.PlaceOfDeath = individual.Death.Place?.Name;
     }
 
     private static void ApplyFacts(GedcomIndividualRecord individual, Person person)
@@ -149,7 +138,6 @@ public class GedcomService(
             [GedcomEventType.EMIG]   = PersonEventType.Emigration,
             [GedcomEventType.IMMI]   = PersonEventType.Immigration,
             [GedcomEventType.NATU]   = PersonEventType.Naturalization,
-            [GedcomEventType.ENGA]   = PersonEventType.Engagement,
             [GedcomEventType.RESI]   = PersonEventType.Residence,
         };
 
@@ -319,13 +307,6 @@ public class GedcomService(
                     sb.AppendLine($"2 DATE {FormatDate(birthEvt.Year, birthEvt.Month, birthEvt.Day)}");
                 if (!string.IsNullOrWhiteSpace(birthEvt.Place))
                     sb.AppendLine($"2 PLAC {birthEvt.Place}");
-                else if (!string.IsNullOrWhiteSpace(person.PlaceOfBirth))
-                    sb.AppendLine($"2 PLAC {person.PlaceOfBirth}");
-            }
-            else if (!string.IsNullOrWhiteSpace(person.PlaceOfBirth))
-            {
-                sb.AppendLine("1 BIRT");
-                sb.AppendLine($"2 PLAC {person.PlaceOfBirth}");
             }
 
             var deathEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Death);
@@ -336,13 +317,6 @@ public class GedcomService(
                     sb.AppendLine($"2 DATE {FormatDate(deathEvt.Year, deathEvt.Month, deathEvt.Day)}");
                 if (!string.IsNullOrWhiteSpace(deathEvt.Place))
                     sb.AppendLine($"2 PLAC {deathEvt.Place}");
-                else if (!string.IsNullOrWhiteSpace(person.PlaceOfDeath))
-                    sb.AppendLine($"2 PLAC {person.PlaceOfDeath}");
-            }
-            else if (!string.IsNullOrWhiteSpace(person.PlaceOfDeath))
-            {
-                sb.AppendLine("1 DEAT");
-                sb.AppendLine($"2 PLAC {person.PlaceOfDeath}");
             }
 
             if (!string.IsNullOrWhiteSpace(person.Occupation))

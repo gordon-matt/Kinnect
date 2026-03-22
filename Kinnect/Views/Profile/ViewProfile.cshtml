@@ -98,11 +98,13 @@
                 </div>
 
                 <div class="tab-pane fade" id="timelineTab">
-                    <div data-bind="visible: events().length === 0" class="text-muted text-center py-3">No life events recorded.</div>
-                    <div class="timeline" data-bind="foreach: events">
+                    <div data-bind="visible: timelineItems().length === 0" class="text-muted text-center py-3">No life events recorded.</div>
+                    <div class="timeline" data-bind="foreach: timelineItems">
                         <div class="d-flex mb-3">
                             <div class="timeline-icon me-3 flex-shrink-0">
-                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                                <div class="rounded-circle text-white d-flex align-items-center justify-content-center"
+                                     style="width:40px;height:40px;"
+                                     data-bind="css: { 'bg-primary': _source === 'event', 'bg-secondary': _source === 'spouse' }">
                                     <i data-bind="attr: { class: 'bi ' + $root.eventIcon(eventType) }"></i>
                                 </div>
                             </div>
@@ -110,10 +112,15 @@
                                 <div class="card">
                                     <div class="card-body py-2 px-3">
                                         <div class="d-flex justify-content-between align-items-start">
-                                            <strong data-bind="text: eventTypeLabel"></strong>
+                                            <div>
+                                                <strong data-bind="text: eventTypeLabel || eventType"></strong>
+                                                <!-- ko if: _source === 'spouse' -->
+                                                <span class="badge bg-secondary ms-1" style="font-size:.7rem;">via spouse</span>
+                                                <!-- /ko -->
+                                            </div>
                                             <div class="d-flex align-items-center gap-2">
-                                                <span class="text-muted small" data-bind="text: dateDisplay || ''"></span>
-                                                <!-- ko if: $root.canEdit -->
+                                                <span class="text-muted small" data-bind="text: dateDisplay || (year ? year : '')"></span>
+                                                <!-- ko if: $root.canEdit() && _source === 'event' -->
                                                 <button type="button" class="btn btn-sm btn-link p-0" data-bind="click: $root.startEditEvent" title="Edit">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
@@ -223,11 +230,11 @@
                     </div>
                     <div class="col-4">
                         <label class="form-label">Month</label>
-                        <input type="number" class="form-control" min="1" max="12" data-bind="value: editPhotoMonth" />
+                        <select class="form-select" data-bind="options: MONTHS, value: editPhotoMonth, optionsValue: 'v', optionsText: 'l'"></select>
                     </div>
                     <div class="col-4">
                         <label class="form-label">Day</label>
-                        <input type="number" class="form-control" min="1" max="31" data-bind="value: editPhotoDay" />
+                        <select class="form-select" data-bind="options: editPhotoDayOptions, value: editPhotoDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                     </div>
                 </div>
                 <div class="mb-2">
@@ -264,7 +271,6 @@
                         <option value="EMIG">Emigration</option>
                         <option value="IMMI">Immigration</option>
                         <option value="NATU">Naturalization</option>
-                        <option value="ENGA">Engagement</option>
                         <option value="MARB">Marriage Banns</option>
                         <option value="MARL">Marriage License</option>
                         <option value="BURI">Burial</option>
@@ -280,11 +286,11 @@
                     </div>
                     <div class="col-4">
                         <label class="form-label">Month</label>
-                        <input type="number" class="form-control" min="1" max="12" data-bind="value: editEventMonth" />
+                        <select class="form-select" data-bind="options: MONTHS, value: editEventMonth, optionsValue: 'v', optionsText: 'l'"></select>
                     </div>
                     <div class="col-4">
                         <label class="form-label">Day</label>
-                        <input type="number" class="form-control" min="1" max="31" data-bind="value: editEventDay" />
+                        <select class="form-select" data-bind="options: editEventDayOptions, value: editEventDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                     </div>
                 </div>
                 <div class="mb-2 mt-2">

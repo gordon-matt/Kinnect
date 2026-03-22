@@ -59,7 +59,7 @@ public static class PersonEventType
 
     private static readonly HashSet<string> NonTimelineEventTypes =
     [
-        Occupation, Education, Religion, Marriage, Divorce,
+        Occupation, Education, Religion, Marriage, Divorce, Engagement,
     ];
 
     /// <summary>Stored on <see cref="PersonSpouse"/> or profile fields, not as <see cref="PersonEventDto"/>.</summary>
@@ -84,6 +84,10 @@ public class PersonEventDto
     public byte? Day { get; set; }
 
     public string? Place { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
 
     public string? Description { get; set; }
 
@@ -114,6 +118,10 @@ public class PersonEventRequest
     public byte? Day { get; set; }
 
     public string? Place { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
 
     public string? Description { get; set; }
 

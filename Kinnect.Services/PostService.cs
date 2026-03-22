@@ -33,6 +33,26 @@ public class PostService(IRepository<Post> postRepository, IRepository<Person> p
         return Result.Success(posts.OrderByDescending(p => p.CreatedAtUtc).Select(MapToDto));
     }
 
+    public async Task<Result<PagedItems<PostDto>>> GetByPersonPagedAsync(int personId, int page = 1, int pageSize = 10)
+    {
+        var posts = await postRepository.FindAsync(new SearchOptions<Post>
+        {
+            Query = x => x.AuthorPersonId == personId,
+            Include = q => q.Include(p => p.Author)
+        });
+
+        var ordered = posts.OrderByDescending(p => p.CreatedAtUtc).ToList();
+        var items = ordered.Skip((page - 1) * pageSize).Take(pageSize).Select(MapToDto);
+
+        return Result.Success(new PagedItems<PostDto>
+        {
+            Items = items,
+            TotalCount = ordered.Count,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
     public async Task<Result<PostDto>> GetByIdAsync(int id)
     {
         var posts = await postRepository.FindAsync(new SearchOptions<Post>

@@ -22,7 +22,7 @@
 
         <div data-bind="visible: loading" class="text-center py-4">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+                <span class="visually-hidden">Loading…</span>
             </div>
         </div>
 
@@ -50,7 +50,10 @@
 
                     <!-- ko if: type() === 'photo' -->
                     <p class="card-text fw-semibold" data-bind="text: title"></p>
-                    <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt="" />
+                    <a href="#" data-bind="click: function(data, event) { $root.openLightbox($data); return false; }">
+                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt=""
+                             style="cursor:pointer; max-height:400px; object-fit:cover;" />
+                    </a>
                     <!-- /ko -->
 
                     <!-- ko if: type() === 'video' -->
@@ -68,8 +71,25 @@
             <p class="mt-2">No updates yet. Be the first to post!</p>
         </div>
 
-        <div data-bind="visible: hasMore" class="text-center mb-4">
+        <!-- Infinite scroll sentinel (item 2) – load more button still shown as fallback -->
+        <div id="feedSentinel" class="py-2"></div>
+        <div data-bind="visible: hasMore && !loading()" class="text-center mb-4">
             <button class="btn btn-outline-primary" data-bind="click: loadMore">Load More</button>
+        </div>
+    </div>
+</div>
+
+<!-- Photo lightbox (item 12) -->
+<div class="modal fade" id="homeLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0 pb-0">
+                <span class="text-white fw-semibold" data-bind="text: lightboxTitle, visible: lightboxTitle()"></span>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img data-bind="attr: { src: lightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
+            </div>
         </div>
     </div>
 </div>

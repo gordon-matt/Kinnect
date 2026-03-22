@@ -21,6 +21,12 @@ public class PersonSpouse : IEntity
 
     public byte? DivorceDay { get; set; }
 
+    public short? EngagementYear { get; set; }
+
+    public byte? EngagementMonth { get; set; }
+
+    public byte? EngagementDay { get; set; }
+
     public virtual Person Person { get; set; } = null!;
 
     public virtual Person Spouse { get; set; } = null!;

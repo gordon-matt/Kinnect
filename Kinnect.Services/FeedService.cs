@@ -45,6 +45,7 @@ public class FeedService(IRepository<Post> postRepository, IRepository<Photo> ph
             AuthorPersonId = p.UploadedByPersonId,
             Title = p.Title,
             ThumbnailPath = p.ThumbnailPath ?? p.FilePath,
+            FilePath = p.FilePath,
             CreatedAtUtc = p.CreatedAtUtc
         }));
 

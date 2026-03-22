@@ -39,4 +39,11 @@ public class PersonEventApiController(IPersonEventService personEventService) : 
     {
         return await personEventService.DeleteAsync(eventId);
     }
+
+    [TranslateResultToActionResult]
+    [HttpPost("{eventId:int}/copy/{targetPersonId:int}")]
+    public async Task<Result<PersonEventDto>> CopyToTarget(int personId, int eventId, int targetPersonId)
+    {
+        return await personEventService.CopyToPersonAsync(eventId, targetPersonId);
+    }
 }

@@ -42,6 +42,8 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             Month = request.Month,
             Day = request.Day,
             Place = request.Place,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
             Description = request.Description,
             Note = request.Note,
             CreatedAtUtc = DateTime.UtcNow
@@ -65,6 +67,8 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         evt.Month = request.Month;
         evt.Day = request.Day;
         evt.Place = request.Place;
+        evt.Latitude = request.Latitude;
+        evt.Longitude = request.Longitude;
         evt.Description = request.Description;
         evt.Note = request.Note;
 
@@ -82,6 +86,31 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         return Result.Success();
     }
 
+    public async Task<Result<PersonEventDto>> CopyToPersonAsync(int sourceEventId, int targetPersonId)
+    {
+        var source = await eventRepository.FindOneAsync(sourceEventId);
+        if (source is null)
+            return Result.NotFound("Event not found.");
+
+        var copy = new PersonEvent
+        {
+            PersonId = targetPersonId,
+            EventType = source.EventType,
+            Year = source.Year,
+            Month = source.Month,
+            Day = source.Day,
+            Place = source.Place,
+            Latitude = source.Latitude,
+            Longitude = source.Longitude,
+            Description = source.Description,
+            Note = source.Note,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await eventRepository.InsertAsync(copy);
+        return Result.Success(MapToDto(copy));
+    }
+
     private static PersonEventDto MapToDto(PersonEvent e) => new()
     {
         Id = e.Id,
@@ -91,6 +120,8 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         Month = e.Month,
         Day = e.Day,
         Place = e.Place,
+        Latitude = e.Latitude,
+        Longitude = e.Longitude,
         Description = e.Description,
         Note = e.Note,
         CreatedAtUtc = e.CreatedAtUtc

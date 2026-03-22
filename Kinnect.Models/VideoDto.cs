@@ -21,4 +21,6 @@ public class VideoDto
     public DateTime CreatedAtUtc { get; set; }
 
     public List<string> Tags { get; set; } = [];
+
+    public List<int> EventIds { get; set; } = [];
 }

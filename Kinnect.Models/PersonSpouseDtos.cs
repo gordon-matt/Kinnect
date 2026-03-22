@@ -21,6 +21,12 @@ public class PersonSpouseDetailDto
     public byte? DivorceMonth { get; set; }
 
     public byte? DivorceDay { get; set; }
+
+    public short? EngagementYear { get; set; }
+
+    public byte? EngagementMonth { get; set; }
+
+    public byte? EngagementDay { get; set; }
 }
 
 public class PersonSpouseUpdateRequest
@@ -36,4 +42,10 @@ public class PersonSpouseUpdateRequest
     public byte? DivorceMonth { get; set; }
 
     public byte? DivorceDay { get; set; }
+
+    public short? EngagementYear { get; set; }
+
+    public byte? EngagementMonth { get; set; }
+
+    public byte? EngagementDay { get; set; }
 }

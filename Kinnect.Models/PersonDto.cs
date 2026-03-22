@@ -14,10 +14,6 @@ public class PersonDto
 
     public bool IsMale { get; set; }
 
-    public string? PlaceOfBirth { get; set; }
-
-    public string? PlaceOfDeath { get; set; }
-
     public string? Bio { get; set; }
 
     public string? ProfileImagePath { get; set; }
@@ -50,10 +46,6 @@ public class PersonEditRequest
     public string GivenNames { get; set; } = null!;
 
     public bool IsMale { get; set; }
-
-    public string? PlaceOfBirth { get; set; }
-
-    public string? PlaceOfDeath { get; set; }
 
     public string? Bio { get; set; }
 

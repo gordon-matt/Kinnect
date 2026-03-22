@@ -5,6 +5,10 @@ class HomeViewModel {
         this.newPostContent = ko.observable('');
         this.page = ko.observable(1);
         this.hasMore = ko.observable(false);
+
+        // Photo lightbox (item 12)
+        this.lightboxUrl = ko.observable(null);
+        this.lightboxTitle = ko.observable('');
     }
 
     loadFeed = async () => {
@@ -20,6 +24,7 @@ class HomeViewModel {
                 content: ko.observable(item.content),
                 title: ko.observable(item.title),
                 thumbnailPath: ko.observable(item.thumbnailPath),
+                filePath: ko.observable(item.filePath),
                 createdAtUtc: ko.observable(item.createdAtUtc),
                 timeAgo: this.getTimeAgo(item.createdAtUtc)
             }));
@@ -62,8 +67,18 @@ class HomeViewModel {
     };
 
     loadMore = () => {
+        if (this.loading()) return;
         this.page(this.page() + 1);
         this.loadFeed();
+    };
+
+    openLightbox = (item) => {
+        const path = item.filePath?.() || item.thumbnailPath?.();
+        if (!path) return;
+        this.lightboxUrl('/uploads/' + path);
+        this.lightboxTitle(item.title?.() || '');
+        const el = document.getElementById('homeLightboxModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
     };
 
     getTimeAgo(dateStr) {
@@ -76,8 +91,7 @@ class HomeViewModel {
         if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
         if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
 
-        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        return `${date.toLocaleDateString()} at ${timeStr}`;
+        return `${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
 }
 
@@ -85,4 +99,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const vm = new HomeViewModel();
     ko.applyBindings(vm);
     await vm.loadFeed();
+
+    // Item 2: infinite scroll via IntersectionObserver
+    const sentinel = document.getElementById('feedSentinel');
+    if (sentinel && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && vm.hasMore() && !vm.loading()) {
+                    vm.loadMore();
+                }
+            },
+            { rootMargin: '200px' }
+        );
+        observer.observe(sentinel);
+    }
 });

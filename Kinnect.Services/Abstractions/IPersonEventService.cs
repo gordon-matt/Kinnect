@@ -14,4 +14,6 @@ public interface IPersonEventService
     Task<Result<PersonEventDto>> UpdateAsync(int id, PersonEventRequest request);
 
     Task<Result> DeleteAsync(int id);
+
+    Task<Result<PersonEventDto>> CopyToPersonAsync(int sourceEventId, int targetPersonId);
 }

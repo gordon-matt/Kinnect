@@ -9,6 +9,8 @@ public interface IPostService
 
     Task<Result<IEnumerable<PostDto>>> GetByPersonAsync(int personId);
 
+    Task<Result<PagedItems<PostDto>>> GetByPersonPagedAsync(int personId, int page = 1, int pageSize = 10);
+
     Task<Result<PostDto>> GetByIdAsync(int id);
 
     Task<Result<PostDto>> CreateAsync(PostCreateRequest request, int authorPersonId);

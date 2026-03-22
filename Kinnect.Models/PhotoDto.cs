@@ -26,6 +26,8 @@ public class PhotoDto
 
     public List<string> Tags { get; set; } = [];
 
+    public List<int> EventIds { get; set; } = [];
+
     public string? DateTakenDisplay
     {
         get

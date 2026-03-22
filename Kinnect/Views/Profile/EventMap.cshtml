@@ -1,0 +1,41 @@
+@{
+    var personId = (int)ViewData["PersonId"]!;
+    var personName = (string)ViewData["PersonName"]!;
+}
+
+@section Styles {
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
+    </environment>
+    <style>
+        #eventMap { height: calc(100vh - 200px); min-height: 400px; }
+        .event-popup strong { display: block; }
+        .leaflet-tooltip { white-space: nowrap; }
+    </style>
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a href="/Profile/View/@personId" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to profile
+    </a>
+    <h4 class="mb-0">Event map — @personName</h4>
+</div>
+
+<div id="eventMap" class="rounded border"></div>
+<p class="text-muted small mt-1">Events with a known location are shown as map pins. Dated events are connected by a line in chronological order.</p>
+
+@section Scripts {
+    <script>
+        window.eventMapPersonId = @personId;
+    </script>
+    <environment include="Development">
+        <script src="~/lib/leaflet/dist/leaflet.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/leaflet/dist/leaflet.min.js"></script>
+    </environment>
+    <script src="~/js/event-map.js" asp-append-version="true"></script>
+}

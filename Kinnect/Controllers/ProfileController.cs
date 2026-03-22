@@ -39,4 +39,16 @@ public class ProfileController(IPersonService personService, IUserContextService
         ViewData["IsAdmin"] = User.IsInRole(Constants.Roles.Administrator);
         return View("ViewProfile");
     }
+
+    public async Task<IActionResult> EventMap(int id)
+    {
+        var personResult = await personService.GetByIdAsync(id);
+        if (!personResult.IsSuccess)
+            return NotFound();
+
+        ViewData["PersonId"] = id;
+        ViewData["PersonName"] = personResult.Value.FullName;
+        ViewData["Title"] = $"{personResult.Value.FullName} — Event Map";
+        return View("EventMap");
+    }
 }

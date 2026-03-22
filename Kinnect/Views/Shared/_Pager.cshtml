@@ -1,0 +1,83 @@
+@using Kinnect.Models
+@model PagerViewModel
+
+@*
+    Reusable KnockoutJS-driven pagination component.
+
+    The Expr / Fn properties contain the names of KO observables and functions
+    on the parent view model – they are embedded verbatim into data-bind attributes,
+    so every expression is evaluated by KO at runtime.
+*@
+
+<nav aria-label="@Model.AriaLabel"
+     data-bind="visible: @(Model.TotalPagesExpr)() > 1"
+     class="mt-3">
+
+    <ul class="pagination justify-content-center flex-wrap align-items-center mb-2">
+
+        <li class="page-item"
+            data-bind="css: { disabled: @(Model.CurrentPageExpr)() === 1 }">
+            <a class="page-link" href="#" title="First page"
+               data-bind="click: function(){ @(Model.GoToPageFn)(1); }">
+                <i class="bi bi-chevron-double-left"></i>
+            </a>
+        </li>
+
+        <li class="page-item"
+            data-bind="css: { disabled: @(Model.CurrentPageExpr)() === 1 }">
+            <a class="page-link" href="#"
+               data-bind="click: @(Model.PreviousPageFn)">Previous</a>
+        </li>
+
+        <!-- ko foreach: @(Model.PageNumbersExpr) -->
+        <li class="page-item"
+            data-bind="css: { active: $data === $parent.@(Model.CurrentPageExpr)() }">
+            <a class="page-link" href="#"
+               data-bind="text: $data, click: function() { $parent.@(Model.GoToPageFn)($data); }"></a>
+        </li>
+        <!-- /ko -->
+
+        <li class="page-item"
+            data-bind="css: { disabled: @(Model.CurrentPageExpr)() === @(Model.TotalPagesExpr)() }">
+            <a class="page-link" href="#"
+               data-bind="click: @(Model.NextPageFn)">Next</a>
+        </li>
+
+        <li class="page-item"
+            data-bind="css: { disabled: @(Model.CurrentPageExpr)() === @(Model.TotalPagesExpr)() }">
+            <a class="page-link" href="#" title="Last page"
+               data-bind="click: function(){ @(Model.GoToPageFn)(@(Model.TotalPagesExpr)()); }">
+                <i class="bi bi-chevron-double-right"></i>
+            </a>
+        </li>
+
+        <li class="page-item ms-2 border-0">
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted text-nowrap">Go to:</span>
+                <input type="number"
+                       class="form-control form-control-sm"
+                       style="width: 65px;"
+                       min="1"
+                       placeholder="#"
+                       data-bind="attr: { max: @(Model.TotalPagesExpr)() },
+                                  event: { keydown: function(data, event) {
+                                      if (event.key === 'Enter') {
+                                          var v = parseInt(event.target.value);
+                                          if (!isNaN(v) && v >= 1 && v <= @(Model.TotalPagesExpr)()) {
+                                              @(Model.GoToPageFn)(v);
+                                              event.target.value = '';
+                                          }
+                                      }
+                                      return true;
+                                  } }" />
+            </div>
+        </li>
+    </ul>
+
+    <p class="text-center text-muted small">
+        Page <span data-bind="text: @(Model.CurrentPageExpr)"></span>
+        of <span data-bind="text: @(Model.TotalPagesExpr)"></span>
+        &mdash;
+        <span data-bind="text: @(Model.TotalCountExpr)"></span> @Model.ItemLabel
+    </p>
+</nav>
