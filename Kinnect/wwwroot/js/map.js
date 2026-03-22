@@ -18,29 +18,21 @@ class MapViewModel {
 
     initMap = () => {
         const pins = this.pins();
-        if (pins.length === 0 || !googleMapsApiKey) return;
+        if (pins.length === 0 || typeof L === 'undefined') return;
 
-        const center = pins.length > 0
-            ? { lat: pins[0].latitude, lng: pins[0].longitude }
-            : { lat: 0, lng: 0 };
+        const center = [pins[0].latitude, pins[0].longitude];
+        const map = L.map('familyMap').setView(center, 4);
 
-        const map = new google.maps.Map(document.getElementById('familyMap'), {
-            zoom: 4,
-            center: center,
-            styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
-        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
 
-        const bounds = new google.maps.LatLngBounds();
+        const bounds = L.latLngBounds([]);
 
         pins.forEach(pin => {
-            const position = { lat: pin.latitude, lng: pin.longitude };
+            const position = [pin.latitude, pin.longitude];
             bounds.extend(position);
-
-            const marker = new google.maps.Marker({
-                position: position,
-                map: map,
-                title: pin.fullName
-            });
 
             const infoContent = `
                 <div style="text-align:center;padding:4px;">
@@ -51,8 +43,9 @@ class MapViewModel {
                     <a href="/Profile/View/${pin.personId}">View Profile</a>
                 </div>`;
 
-            const infoWindow = new google.maps.InfoWindow({ content: infoContent });
-            marker.addListener('click', () => infoWindow.open(map, marker));
+            L.marker(position)
+                .addTo(map)
+                .bindPopup(infoContent);
         });
 
         if (pins.length > 1) {
@@ -67,14 +60,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     mapViewModel = new MapViewModel();
     ko.applyBindings(mapViewModel);
     await mapViewModel.loadPins();
-
-    if (typeof google !== 'undefined') {
-        mapViewModel.initMap();
-    }
+    mapViewModel.initMap();
 });
-
-function initMap() {
-    if (mapViewModel && !mapViewModel.loading()) {
-        mapViewModel.initMap();
-    }
-}

@@ -31,6 +31,10 @@ public interface IPersonService
 
     Task<Result> RemoveSpouseAsync(int personId, int spouseId);
 
+    Task<Result<IEnumerable<PersonSpouseDetailDto>>> GetSpousesForPersonAsync(int personId);
+
+    Task<Result> UpdateSpouseRelationshipAsync(int personId, int spouseId, PersonSpouseUpdateRequest request, string currentUserId, bool isAdmin = false);
+
     Task<Result<IEnumerable<MapPinDto>>> GetMapPinsAsync();
 
     Task<Result<IEnumerable<PersonVersionDto>>> GetVersionsAsync(int personId);

@@ -112,6 +112,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ── Server sync helpers (admin only) ───────────────────────────────────────
+    async function upsertBirthEventForPerson(personId, birthdayStr) {
+        if (!personId) return;
+        const trimmed = (birthdayStr || '').trim();
+        if (!trimmed) return;
+        const parts = trimmed.split('-');
+        const year = parseInt(parts[0], 10) || null;
+        const month = parts.length >= 2 ? parseInt(parts[1], 10) || null : null;
+        const day = parts.length >= 3 ? parseInt(parts[2], 10) || null : null;
+        const evRes = await fetch(`/api/people/${personId}/events`);
+        const evJson = await evRes.json();
+        const events = evJson.value || evJson || [];
+        const birt = events.find((e) => e.eventType === 'BIRT');
+        const payload = {
+            eventType: 'BIRT',
+            year,
+            month,
+            day,
+            place: null,
+            description: null,
+            note: null
+        };
+        if (birt) {
+            await fetch(`/api/people/${personId}/events/${birt.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            await fetch(`/api/people/${personId}/events`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+    }
+
     async function savePersonFromDatum(datum) {
         const d = datum.data;
         const personId = d.personId;
@@ -121,13 +157,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             familyName: d['last name'] || '',
             isMale: d.gender === 'M'
         };
-
-        if (d.birthday) {
-            const parts = d.birthday.split('-');
-            body.yearOfBirth  = parseInt(parts[0]) || null;
-            body.monthOfBirth = parts.length >= 2 ? (parseInt(parts[1]) || null) : null;
-            body.dayOfBirth   = parts.length >= 3 ? (parseInt(parts[2]) || null) : null;
-        }
 
         if (datum.rels?.parents?.length > 0) {
             for (const parentChartId of datum.rels.parents) {
@@ -145,7 +174,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
-                if (!res.ok) console.error(`Update person failed: ${res.status}`);
+                if (res.ok) {
+                    await upsertBirthEventForPerson(personId, d.birthday);
+                } else {
+                    console.error(`Update person failed: ${res.status}`);
+                }
             } else {
                 const res = await fetch('/api/people', {
                     method: 'POST',
@@ -156,6 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const json = await res.json();
                     const newPersonId = (json.value || json).id;
                     datum.data.personId = newPersonId;
+                    await upsertBirthEventForPerson(newPersonId, d.birthday);
 
                     if (newPersonId && datum.rels?.spouses?.length > 0) {
                         for (const spouseChartId of datum.rels.spouses) {

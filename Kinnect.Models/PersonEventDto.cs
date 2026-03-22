@@ -52,8 +52,19 @@ public static class PersonEventType
     public static string GetLabel(string type) =>
         Labels.TryGetValue(type, out var label) ? label : type;
 
-    public static IEnumerable<(string Type, string Label)> All =>
-        Labels.Select(kv => (kv.Key, kv.Value));
+    /// <summary>Types that belong on the person timeline (excludes occupation/education/religion and marriage/divorce, which use other data).</summary>
+    public static IEnumerable<(string Type, string Label)> TimelineSelectableTypes =>
+        Labels.Where(kv => !NonTimelineEventTypes.Contains(kv.Key))
+            .Select(kv => (kv.Key, kv.Value));
+
+    private static readonly HashSet<string> NonTimelineEventTypes =
+    [
+        Occupation, Education, Religion, Marriage, Divorce,
+    ];
+
+    /// <summary>Stored on <see cref="PersonSpouse"/> or profile fields, not as <see cref="PersonEventDto"/>.</summary>
+    public static bool IsNonTimelineEventType(string eventType) =>
+        NonTimelineEventTypes.Contains(eventType.ToUpperInvariant());
 }
 
 public class PersonEventDto

@@ -3,6 +3,20 @@
     var editPersonId = ViewData["EditPersonId"] as int?;
 }
 
+@section Styles {
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
+    </environment>
+    <style>
+        .profile-map-search { z-index: 1000; max-height: 200px; overflow-y: auto; }
+        .profile-map-search .search-hit:hover { background: #f0f0f0; }
+        #profileLocationMap { z-index: 1; }
+    </style>
+}
+
 <div class="row">
     <div class="col-md-8 mx-auto">
         @if (editPersonId.HasValue)
@@ -38,7 +52,8 @@
                         </div>
                         <div>
                             <h3 data-bind="text: fullName" class="mb-0"></h3>
-                            <small class="text-muted" data-bind="text: locationText"></small>
+                            <small class="text-muted d-block" data-bind="text: subtitleLine"></small>
+                            <small class="text-muted" data-bind="visible: latitude() != null && longitude() != null, text: coordinateLine"></small>
                         </div>
                     </div>
 
@@ -53,20 +68,7 @@
                                 <input type="text" class="form-control" data-bind="value: familyName" />
                             </div>
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Year of Birth</label>
-                                <input type="number" class="form-control" data-bind="value: yearOfBirth" />
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Month</label>
-                                <input type="number" class="form-control" min="1" max="12" data-bind="value: monthOfBirth" />
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Day</label>
-                                <input type="number" class="form-control" min="1" max="31" data-bind="value: dayOfBirth" />
-                            </div>
-                        </div>
+                        <p class="text-muted small mb-3">Birth and death dates are managed on the <strong>Timeline</strong> tab as life events.</p>
                         <div class="mb-3">
                             <label class="form-label">Bio</label>
                             <textarea class="form-control" rows="3" data-bind="value: bio"></textarea>
@@ -104,16 +106,44 @@
                             <label class="form-label">Notes</label>
                             <textarea class="form-control" rows="2" data-bind="value: note" placeholder="Any additional notes…"></textarea>
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Latitude</label>
-                                <input type="number" step="any" class="form-control" data-bind="value: latitude" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Longitude</label>
-                                <input type="number" step="any" class="form-control" data-bind="value: longitude" />
+                        <div class="mb-3">
+                            <label class="form-label">Map location</label>
+                            <p class="text-muted small">Search for an address or click the map to place the pin. Appears on the family map when the person has no death event.</p>
+                            <div class="position-relative border rounded overflow-hidden" style="background:#e9ecef;">
+                                <div class="position-absolute m-2 bg-white rounded shadow-sm p-2" style="width:min(300px, calc(100% - 1rem)); z-index:500;">
+                                    <input type="search" class="form-control form-control-sm" placeholder="Search address…" autocomplete="off" data-bind="textInput: locationSearchQuery" />
+                                    <div class="profile-map-search small border-top mt-1 pt-1" data-bind="foreach: locationSearchResults">
+                                        <div class="search-hit px-1 py-1" style="cursor:pointer;" data-bind="text: display_name, click: function() { $root.pickLocationSearchResult($data); }"></div>
+                                    </div>
+                                </div>
+                                <div id="profileLocationMap" style="height:260px;"></div>
                             </div>
                         </div>
+
+                        <h6 class="mt-4">Spouse relationships</h6>
+                        <p class="text-muted small">Marriage and divorce dates apply to both people in the couple.</p>
+                        <div data-bind="visible: spouses().length === 0" class="text-muted small mb-2">No spouse links recorded.</div>
+                        <div data-bind="foreach: spouses" class="mb-3">
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <div class="fw-semibold mb-2">
+                                        <a data-bind="attr: { href: '/Profile/View/' + spousePersonId }, text: displayName"></a>
+                                    </div>
+                                    <div class="row g-2 small">
+                                        <div class="col-12 text-muted">Marriage</div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Year" data-bind="value: marriageYear" /></div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Month" min="1" max="12" data-bind="value: marriageMonth" /></div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Day" min="1" max="31" data-bind="value: marriageDay" /></div>
+                                        <div class="col-12 text-muted">Divorce</div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Year" data-bind="value: divorceYear" /></div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Month" min="1" max="12" data-bind="value: divorceMonth" /></div>
+                                        <div class="col-4"><input type="number" class="form-control form-control-sm" placeholder="Day" min="1" max="31" data-bind="value: divorceDay" /></div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-bind="click: function() { $root.saveSpouseRow($data); }">Save dates</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save</button>
                     </form>
                 </div>
@@ -166,8 +196,6 @@
                                         <select class="form-select form-select-sm" data-bind="value: newEventType">
                                             <option value="BIRT">Birth</option>
                                             <option value="DEAT">Death</option>
-                                            <option value="MARR">Marriage</option>
-                                            <option value="DIV">Divorce</option>
                                             <option value="BAPM">Baptism</option>
                                             <option value="CHR">Christening</option>
                                             <option value="CONF">Confirmation</option>
@@ -175,11 +203,11 @@
                                             <option value="EMIG">Emigration</option>
                                             <option value="IMMI">Immigration</option>
                                             <option value="NATU">Naturalization</option>
+                                            <option value="ENGA">Engagement</option>
+                                            <option value="MARB">Marriage Banns</option>
+                                            <option value="MARL">Marriage License</option>
                                             <option value="BURI">Burial</option>
                                             <option value="CREM">Cremation</option>
-                                            <option value="OCCU">Occupation</option>
-                                            <option value="EDUC">Education</option>
-                                            <option value="RELI">Religion</option>
                                             <option value="RESI">Residence</option>
                                             <option value="EVEN">Custom Event</option>
                                         </select>
@@ -426,8 +454,6 @@
                     <select class="form-select" data-bind="value: editEventType">
                         <option value="BIRT">Birth</option>
                         <option value="DEAT">Death</option>
-                        <option value="MARR">Marriage</option>
-                        <option value="DIV">Divorce</option>
                         <option value="BAPM">Baptism</option>
                         <option value="CHR">Christening</option>
                         <option value="CONF">Confirmation</option>
@@ -435,11 +461,11 @@
                         <option value="EMIG">Emigration</option>
                         <option value="IMMI">Immigration</option>
                         <option value="NATU">Naturalization</option>
+                        <option value="ENGA">Engagement</option>
+                        <option value="MARB">Marriage Banns</option>
+                        <option value="MARL">Marriage License</option>
                         <option value="BURI">Burial</option>
                         <option value="CREM">Cremation</option>
-                        <option value="OCCU">Occupation</option>
-                        <option value="EDUC">Education</option>
-                        <option value="RELI">Religion</option>
                         <option value="RESI">Residence</option>
                         <option value="EVEN">Custom Event</option>
                     </select>
@@ -479,5 +505,11 @@
     <script>
         window.profilePersonId = @(editPersonId.HasValue ? editPersonId.Value.ToString() : "null");
     </script>
+    <environment include="Development">
+        <script src="~/lib/leaflet/dist/leaflet.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/leaflet/dist/leaflet.min.js"></script>
+    </environment>
     <script src="~/js/profile.js" asp-append-version="true"></script>
 }

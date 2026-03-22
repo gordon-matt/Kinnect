@@ -16,7 +16,6 @@ services:
       ImageProcessing__ThumbnailWidth: "400"
       ImageProcessing__ThumbnailHeight: "400"
       ImageProcessing__ThumbnailQuality: "70"
-      GoogleMaps__ApiKey: "${GOOGLE_MAPS_API_KEY:-}"
       # SeedAdmin__Email: admin@example.com
       # SeedAdmin__Password: "${ADMIN_PASSWORD}"
       # SeedAdmin__FirstName: Admin

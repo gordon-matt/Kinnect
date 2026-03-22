@@ -11,9 +11,6 @@
             this.givenNames = ko.observable('');
             this.familyName = ko.observable('');
             this.isMaleStr = ko.observable('true');
-            this.yearOfBirth = ko.observable(null);
-            this.monthOfBirth = ko.observable(null);
-            this.dayOfBirth = ko.observable(null);
             this.placeOfBirth = ko.observable('');
             this.bio = ko.observable('');
             this.profileImagePath = ko.observable(null);
@@ -24,18 +21,41 @@
             this.religion = ko.observable('');
             this.note = ko.observable('');
 
-            this.fullName = ko.computed(() => `${this.givenNames()} ${this.familyName()}`);
-            this.locationText = ko.computed(() => {
-                const lat = this.latitude();
-                const lng = this.longitude();
-                return lat && lng ? `${lat}, ${lng}` : '';
-            });
+            this.locationSearchQuery = ko.observable('');
+            this.locationSearchResults = ko.observableArray([]);
+            this._locationSearchTimer = null;
+            this._locationMap = null;
+            this._locationMapMarker = null;
 
             this.posts = ko.observableArray([]);
             this.photos = ko.observableArray([]);
             this.videos = ko.observableArray([]);
             this.documents = ko.observableArray([]);
             this.events = ko.observableArray([]);
+            this.spouses = ko.observableArray([]);
+
+            this.fullName = ko.computed(() => `${this.givenNames()} ${this.familyName()}`);
+            this.subtitleLine = ko.computed(() => {
+                const evs = this.events();
+                const birt = evs.find((e) => e.eventType === 'BIRT');
+                const parts = [];
+                if (birt && birt.year != null) {
+                    parts.push(
+                        birt.month && birt.day
+                            ? `b. ${birt.year}-${String(birt.month).padStart(2, '0')}-${String(birt.day).padStart(2, '0')}`
+                            : `b. ${birt.year}`
+                    );
+                }
+                const pob = this.placeOfBirth();
+                if (pob) parts.push(pob);
+                return parts.join(' · ');
+            });
+            this.coordinateLine = ko.computed(() => {
+                const lat = this.latitude();
+                const lng = this.longitude();
+                if (lat == null || lng == null) return '';
+                return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+            });
 
             this.isUploadingPhoto = ko.observable(false);
             this.photoTitle = ko.observable('');
@@ -81,6 +101,11 @@
             this._explicitPersonId = explicitPersonId;
             this._tagifyInstances = {};
             this._personSnapshot = null;
+
+            this.locationSearchQuery.subscribe(() => {
+                clearTimeout(this._locationSearchTimer);
+                this._locationSearchTimer = setTimeout(() => this.runLocationSearch(), 400);
+            });
         }
 
         loadProfile = async () => {
@@ -95,9 +120,6 @@
                 this.givenNames(person.givenNames);
                 this.familyName(person.familyName);
                 this.isMaleStr(person.isMale ? 'true' : 'false');
-                this.yearOfBirth(person.yearOfBirth);
-                this.monthOfBirth(person.monthOfBirth);
-                this.dayOfBirth(person.dayOfBirth);
                 this.placeOfBirth(person.placeOfBirth || '');
                 this.bio(person.bio || '');
                 this.profileImagePath(person.profileImagePath);
@@ -109,6 +131,16 @@
                 this.note(person.note || '');
 
                 await this.loadContent();
+                if (this._locationMap && this._locationMapMarker) {
+                    const la = this.latitude();
+                    const ln = this.longitude();
+                    if (la != null && ln != null && !Number.isNaN(Number(la)) && !Number.isNaN(Number(ln))) {
+                        this._locationMapMarker.setLatLng([Number(la), Number(ln)]);
+                        this._locationMap.setView([Number(la), Number(ln)], 14);
+                    }
+                } else {
+                    requestAnimationFrame(() => this.initLocationMap());
+                }
             } catch (err) {
                 console.error('Error loading profile:', err);
             } finally {
@@ -120,12 +152,13 @@
             const pid = this.personId();
             if (!pid) return;
 
-            const [postsRes, photosRes, videosRes, docsRes, eventsRes] = await Promise.all([
+            const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes] = await Promise.all([
                 fetch(`/api/posts/person/${pid}`),
                 fetch(`/api/photos/person/${pid}`),
                 fetch(`/api/videos/person/${pid}`),
                 fetch(`/api/documents/person/${pid}`),
-                fetch(`/api/people/${pid}/events`)
+                fetch(`/api/people/${pid}/events`),
+                fetch(`/api/people/${pid}/spouses`)
             ]);
 
             const postsData = await postsRes.json();
@@ -133,12 +166,27 @@
             const videosData = await videosRes.json();
             const docsData = await docsRes.json();
             const eventsData = await eventsRes.json();
+            const spousesData = await spousesRes.json();
 
             this.posts(postsData.value || postsData || []);
             this.photos(photosData.value || photosData || []);
             this.videos(videosData.value || videosData || []);
             this.documents(docsData.value || docsData || []);
             this.events(eventsData.value || eventsData || []);
+
+            const spouseList = spousesData.value || spousesData || [];
+            this.spouses(
+                spouseList.map((s) => ({
+                    spousePersonId: s.spousePersonId,
+                    displayName: `${s.givenNames} ${s.familyName}`.trim(),
+                    marriageYear: ko.observable(s.marriageYear ?? null),
+                    marriageMonth: ko.observable(s.marriageMonth ?? null),
+                    marriageDay: ko.observable(s.marriageDay ?? null),
+                    divorceYear: ko.observable(s.divorceYear ?? null),
+                    divorceMonth: ko.observable(s.divorceMonth ?? null),
+                    divorceDay: ko.observable(s.divorceDay ?? null)
+                }))
+            );
         };
 
         saveProfile = async () => {
@@ -147,17 +195,11 @@
                 givenNames: this.givenNames(),
                 familyName: this.familyName(),
                 isMale: this.isMaleStr() === 'true',
-                yearOfBirth: this.yearOfBirth() || null,
-                monthOfBirth: this.monthOfBirth() || null,
-                dayOfBirth: this.dayOfBirth() || null,
-                yearOfDeath: snapshot.yearOfDeath ?? null,
-                monthOfDeath: snapshot.monthOfDeath ?? null,
-                dayOfDeath: snapshot.dayOfDeath ?? null,
                 placeOfBirth: this.placeOfBirth() || null,
                 placeOfDeath: snapshot.placeOfDeath ?? null,
                 bio: this.bio() || null,
-                latitude: this.latitude() || null,
-                longitude: this.longitude() || null,
+                latitude: this.latitude() != null ? Number(this.latitude()) : null,
+                longitude: this.longitude() != null ? Number(this.longitude()) : null,
                 fatherId: snapshot.fatherId ?? null,
                 motherId: snapshot.motherId ?? null,
                 occupation: this.occupation() || null,
@@ -182,6 +224,100 @@
             } catch {
                 toast.error('Error saving profile.');
             }
+        };
+
+        numOrNull = (obs) => {
+            const v = obs();
+            if (v === '' || v === null || v === undefined) return null;
+            const n = parseInt(v, 10);
+            return Number.isNaN(n) ? null : n;
+        };
+
+        saveSpouseRow = async (row) => {
+            const pid = this.personId();
+            if (!pid) return;
+            const body = {
+                marriageYear: this.numOrNull(row.marriageYear),
+                marriageMonth: this.numOrNull(row.marriageMonth),
+                marriageDay: this.numOrNull(row.marriageDay),
+                divorceYear: this.numOrNull(row.divorceYear),
+                divorceMonth: this.numOrNull(row.divorceMonth),
+                divorceDay: this.numOrNull(row.divorceDay)
+            };
+            try {
+                const res = await fetch(`/api/people/${pid}/spouse/${row.spousePersonId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (res.ok) toast.success('Spouse dates saved.');
+                else toast.error('Could not save spouse dates.');
+            } catch {
+                toast.error('Error saving spouse dates.');
+            }
+        };
+
+        setMapPin = (lat, lng) => {
+            this.latitude(lat);
+            this.longitude(lng);
+            if (this._locationMap && this._locationMapMarker) {
+                this._locationMapMarker.setLatLng([lat, lng]);
+                this._locationMap.panTo([lat, lng]);
+            }
+        };
+
+        initLocationMap = () => {
+            if (typeof L === 'undefined') return;
+            const el = document.getElementById('profileLocationMap');
+            if (!el || this._locationMap) return;
+
+            const lat0 = this.latitude();
+            const lng0 = this.longitude();
+            const hasPos = lat0 != null && lng0 != null && !Number.isNaN(Number(lat0)) && !Number.isNaN(Number(lng0));
+            const lat = hasPos ? Number(lat0) : -34.9285;
+            const lng = hasPos ? Number(lng0) : 138.6007;
+
+            this._locationMap = L.map('profileLocationMap').setView([lat, lng], hasPos ? 14 : 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(this._locationMap);
+
+            this._locationMapMarker = L.marker([lat, lng], { draggable: true }).addTo(this._locationMap);
+            this._locationMap.on('click', (e) => this.setMapPin(e.latlng.lat, e.latlng.lng));
+            this._locationMapMarker.on('dragend', (e) => {
+                const p = e.target.getLatLng();
+                this.setMapPin(p.lat, p.lng);
+            });
+
+            setTimeout(() => this._locationMap?.invalidateSize(), 200);
+        };
+
+        runLocationSearch = async () => {
+            const q = (this.locationSearchQuery() || '').trim();
+            if (q.length < 3) {
+                this.locationSearchResults([]);
+                return;
+            }
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
+                const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.locationSearchResults(Array.isArray(data) ? data : []);
+            } catch {
+                this.locationSearchResults([]);
+            }
+        };
+
+        pickLocationSearchResult = (place) => {
+            const lat = parseFloat(place.lat);
+            const lng = parseFloat(place.lon);
+            if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+            this.locationSearchResults([]);
+            this.locationSearchQuery(place.display_name || '');
+            if (!this._locationMap) this.initLocationMap();
+            this.setMapPin(lat, lng);
+            this._locationMap?.setView([lat, lng], 15);
         };
 
         uploadProfileImage = async (vm, event) => {
@@ -338,6 +474,8 @@
                 EMIG: 'bi-airplane',
                 IMMI: 'bi-airplane-fill',
                 NATU: 'bi-flag',
+                MARB: 'bi-megaphone',
+                MARL: 'bi-file-earmark-text',
                 OCCU: 'bi-briefcase',
                 EDUC: 'bi-mortarboard',
                 RELI: 'bi-book',

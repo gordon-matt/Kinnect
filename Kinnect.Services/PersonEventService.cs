@@ -14,6 +14,7 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         });
 
         return Result.Success(events
+            .Where(e => !PersonEventType.IsNonTimelineEventType(e.EventType))
             .OrderBy(e => e.Year ?? 9999)
             .ThenBy(e => e.Month ?? 0)
             .ThenBy(e => e.Day ?? 0)
@@ -30,6 +31,9 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
 
     public async Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request)
     {
+        if (PersonEventType.IsNonTimelineEventType(request.EventType))
+            return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
+
         var evt = new PersonEvent
         {
             PersonId = personId,
@@ -52,6 +56,9 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         var evt = await eventRepository.FindOneAsync(id);
         if (evt is null)
             return Result.NotFound("Event not found.");
+
+        if (PersonEventType.IsNonTimelineEventType(request.EventType))
+            return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
 
         evt.EventType = request.EventType.ToUpperInvariant();
         evt.Year = request.Year;

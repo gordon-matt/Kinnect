@@ -110,6 +110,24 @@ public class PersonApiController(
     }
 
     [TranslateResultToActionResult]
+    [HttpGet("{id:int}/spouses")]
+    public async Task<Result<IEnumerable<PersonSpouseDetailDto>>> GetSpouses(int id)
+    {
+        return await personService.GetSpousesForPersonAsync(id);
+    }
+
+    [TranslateResultToActionResult]
+    [HttpPut("{personId:int}/spouse/{spouseId:int}")]
+    public async Task<Result> UpdateSpouseRelationship(int personId, int spouseId, [FromBody] PersonSpouseUpdateRequest request)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await personService.UpdateSpouseRelationshipAsync(personId, spouseId, request, userId, IsAdmin);
+    }
+
+    [TranslateResultToActionResult]
     [HttpGet("map-pins")]
     public async Task<Result<IEnumerable<MapPinDto>>> GetMapPins()
     {

@@ -14,18 +14,6 @@ public class PersonDto
 
     public bool IsMale { get; set; }
 
-    public short? YearOfBirth { get; set; }
-
-    public byte? MonthOfBirth { get; set; }
-
-    public byte? DayOfBirth { get; set; }
-
-    public short? YearOfDeath { get; set; }
-
-    public byte? MonthOfDeath { get; set; }
-
-    public byte? DayOfDeath { get; set; }
-
     public string? PlaceOfBirth { get; set; }
 
     public string? PlaceOfDeath { get; set; }
@@ -62,18 +50,6 @@ public class PersonEditRequest
     public string GivenNames { get; set; } = null!;
 
     public bool IsMale { get; set; }
-
-    public short? YearOfBirth { get; set; }
-
-    public byte? MonthOfBirth { get; set; }
-
-    public byte? DayOfBirth { get; set; }
-
-    public short? YearOfDeath { get; set; }
-
-    public byte? MonthOfDeath { get; set; }
-
-    public byte? DayOfDeath { get; set; }
 
     public string? PlaceOfBirth { get; set; }
 

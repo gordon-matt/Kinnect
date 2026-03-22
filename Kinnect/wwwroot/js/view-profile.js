@@ -53,17 +53,7 @@ class ViewProfileViewModel {
             this.religion(person.religion);
             this.hasAccount(!!person.userId);
 
-            let birth = '';
-            if (person.yearOfBirth) {
-                birth = person.yearOfBirth.toString();
-                if (person.monthOfBirth && person.dayOfBirth) {
-                    birth = `${person.yearOfBirth}-${String(person.monthOfBirth).padStart(2, '0')}-${String(person.dayOfBirth).padStart(2, '0')}`;
-                }
-            }
-            if (person.placeOfBirth) {
-                birth += (birth ? ', ' : '') + person.placeOfBirth;
-            }
-            this.birthInfo(birth);
+            this.birthInfo('');
 
             const meRes = await fetch('/api/people/me');
             if (meRes.ok) {
@@ -96,12 +86,28 @@ class ViewProfileViewModel {
             this.videos(videosData.value || videosData || []);
             this.documents(docsData.value || docsData || []);
             this.events(eventsData.value || eventsData || []);
+            this.birthInfo(this.formatBirthHeader(person, this.events()));
         } catch (err) {
             console.error('Error loading profile:', err);
         } finally {
             this.loading(false);
         }
     };
+
+    formatBirthHeader(person, events) {
+        const birt = (events || []).find((e) => e.eventType === 'BIRT');
+        let birth = '';
+        if (birt && birt.year) {
+            birth =
+                birt.month && birt.day
+                    ? `${birt.year}-${String(birt.month).padStart(2, '0')}-${String(birt.day).padStart(2, '0')}`
+                    : String(birt.year);
+        }
+        if (person.placeOfBirth) {
+            birth += (birth ? ' · ' : '') + person.placeOfBirth;
+        }
+        return birth;
+    }
 
     formatDateTime(dateStr) {
         if (!dateStr) return '';
@@ -136,6 +142,8 @@ class ViewProfileViewModel {
             EMIG: 'bi-airplane',
             IMMI: 'bi-airplane-fill',
             NATU: 'bi-flag',
+            MARB: 'bi-megaphone',
+            MARL: 'bi-file-earmark-text',
             OCCU: 'bi-briefcase',
             EDUC: 'bi-mortarboard',
             RELI: 'bi-book',

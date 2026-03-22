@@ -12,18 +12,6 @@ public class Person : BaseEntity<int>
 
     public bool IsMale { get; set; }
 
-    public short? YearOfBirth { get; set; }
-
-    public byte? MonthOfBirth { get; set; }
-
-    public byte? DayOfBirth { get; set; }
-
-    public short? YearOfDeath { get; set; }
-
-    public byte? MonthOfDeath { get; set; }
-
-    public byte? DayOfDeath { get; set; }
-
     public string? PlaceOfBirth { get; set; }
 
     public string? PlaceOfDeath { get; set; }

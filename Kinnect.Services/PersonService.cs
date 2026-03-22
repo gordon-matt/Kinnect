@@ -5,7 +5,11 @@ using Kinnect.Services.Abstractions;
 
 namespace Kinnect.Services;
 
-public class PersonService(IRepository<Person> personRepository, IRepository<PersonSpouse> spouseRepository, IRepository<PersonVersion> versionRepository) : IPersonService
+public class PersonService(
+    IRepository<Person> personRepository,
+    IRepository<PersonSpouse> spouseRepository,
+    IRepository<PersonVersion> versionRepository,
+    IRepository<PersonEvent> eventRepository) : IPersonService
 {
     public async Task<Result<IEnumerable<PersonDto>>> GetAllAsync()
     {
@@ -43,12 +47,6 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
             FamilyName = request.FamilyName,
             GivenNames = request.GivenNames,
             IsMale = request.IsMale,
-            YearOfBirth = request.YearOfBirth,
-            MonthOfBirth = request.MonthOfBirth,
-            DayOfBirth = request.DayOfBirth,
-            YearOfDeath = request.YearOfDeath,
-            MonthOfDeath = request.MonthOfDeath,
-            DayOfDeath = request.DayOfDeath,
             PlaceOfBirth = request.PlaceOfBirth,
             PlaceOfDeath = request.PlaceOfDeath,
             Bio = request.Bio,
@@ -83,12 +81,6 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         person.FamilyName = request.FamilyName;
         person.GivenNames = request.GivenNames;
         person.IsMale = request.IsMale;
-        person.YearOfBirth = request.YearOfBirth;
-        person.MonthOfBirth = request.MonthOfBirth;
-        person.DayOfBirth = request.DayOfBirth;
-        person.YearOfDeath = request.YearOfDeath;
-        person.MonthOfDeath = request.MonthOfDeath;
-        person.DayOfDeath = request.DayOfDeath;
         person.PlaceOfBirth = request.PlaceOfBirth;
         person.PlaceOfDeath = request.PlaceOfDeath;
         person.Bio = request.Bio;
@@ -194,6 +186,12 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
     {
         var people = await personRepository.FindAsync(new SearchOptions<Person>());
         var spouses = await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>());
+        var allEvents = await eventRepository.FindAsync(new SearchOptions<PersonEvent>());
+        var birthByPerson = allEvents
+            .Where(e => e.EventType == PersonEventType.Birth)
+            .GroupBy(e => e.PersonId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Year ?? 9999).ThenBy(x => x.Month ?? 0).ThenBy(x => x.Day ?? 0).First());
+
         var peopleList = people.ToList();
         var spouseList = spouses.ToList();
 
@@ -215,11 +213,11 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
                 .ToList();
 
             string? birthday = null;
-            if (p.YearOfBirth.HasValue)
+            if (birthByPerson.TryGetValue(p.Id, out var birt) && birt.Year.HasValue)
             {
-                birthday = p.MonthOfBirth.HasValue && p.DayOfBirth.HasValue
-                    ? $"{p.YearOfBirth:D4}-{p.MonthOfBirth:D2}-{p.DayOfBirth:D2}"
-                    : p.YearOfBirth.Value.ToString();
+                birthday = birt.Month.HasValue && birt.Day.HasValue
+                    ? $"{birt.Year:D4}-{birt.Month:D2}-{birt.Day:D2}"
+                    : birt.Year.Value.ToString();
             }
 
             return new FamilyTreeDatum
@@ -282,21 +280,102 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         return Result.Success();
     }
 
-    public async Task<Result<IEnumerable<MapPinDto>>> GetMapPinsAsync()
+    public async Task<Result<IEnumerable<PersonSpouseDetailDto>>> GetSpousesForPersonAsync(int personId)
     {
-        var people = await personRepository.FindAsync(new SearchOptions<Person>
+        var person = await personRepository.FindOneAsync(personId);
+        if (person is null)
+            return Result.NotFound("Person not found.");
+
+        var links = await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>
         {
-            Query = x => x.Latitude != null && x.Longitude != null && x.YearOfDeath == null
+            Query = x => x.PersonId == personId || x.SpouseId == personId
         });
 
-        var pins = people.Select(p => new MapPinDto
+        var allPeople = (await personRepository.FindAsync(new SearchOptions<Person>())).ToDictionary(p => p.Id);
+
+        var dtos = links.Select(link =>
         {
-            PersonId = p.Id,
-            FullName = $"{p.GivenNames} {p.FamilyName}",
-            ProfileImagePath = p.ProfileImagePath,
-            Latitude = p.Latitude!.Value,
-            Longitude = p.Longitude!.Value
+            int otherId = link.PersonId == personId ? link.SpouseId : link.PersonId;
+            if (!allPeople.TryGetValue(otherId, out var other))
+                return null;
+
+            return new PersonSpouseDetailDto
+            {
+                SpousePersonId = otherId,
+                GivenNames = other.GivenNames,
+                FamilyName = other.FamilyName,
+                MarriageYear = link.MarriageYear,
+                MarriageMonth = link.MarriageMonth,
+                MarriageDay = link.MarriageDay,
+                DivorceYear = link.DivorceYear,
+                DivorceMonth = link.DivorceMonth,
+                DivorceDay = link.DivorceDay
+            };
+        }).Where(x => x != null).Cast<PersonSpouseDetailDto>()
+            .OrderBy(s => s.FamilyName).ThenBy(s => s.GivenNames)
+            .ToList();
+
+        return Result.Success<IEnumerable<PersonSpouseDetailDto>>(dtos);
+    }
+
+    public async Task<Result> UpdateSpouseRelationshipAsync(
+        int personId,
+        int spouseId,
+        PersonSpouseUpdateRequest request,
+        string currentUserId,
+        bool isAdmin = false)
+    {
+        var person = await personRepository.FindOneAsync(personId);
+        if (person is null)
+            return Result.NotFound("Person not found.");
+
+        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
+            return Result.Forbidden();
+
+        int lowId = Math.Min(personId, spouseId);
+        int highId = Math.Max(personId, spouseId);
+
+        var matches = await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>
+        {
+            Query = x => x.PersonId == lowId && x.SpouseId == highId
         });
+        var link = matches.FirstOrDefault();
+        if (link is null)
+            return Result.NotFound("Spouse relationship not found.");
+
+        link.MarriageYear = request.MarriageYear;
+        link.MarriageMonth = request.MarriageMonth;
+        link.MarriageDay = request.MarriageDay;
+        link.DivorceYear = request.DivorceYear;
+        link.DivorceMonth = request.DivorceMonth;
+        link.DivorceDay = request.DivorceDay;
+
+        await spouseRepository.UpdateAsync(link);
+        return Result.Success();
+    }
+
+    public async Task<Result<IEnumerable<MapPinDto>>> GetMapPinsAsync()
+    {
+        var deadIds = (await eventRepository.FindAsync(new SearchOptions<PersonEvent>
+        {
+            Query = x => x.EventType == PersonEventType.Death
+        })).Select(e => e.PersonId).ToHashSet();
+
+        var people = await personRepository.FindAsync(new SearchOptions<Person>
+        {
+            Query = x => x.Latitude != null && x.Longitude != null
+        });
+
+        var pins = people
+            .Where(p => !deadIds.Contains(p.Id))
+            .Select(p => new MapPinDto
+            {
+                PersonId = p.Id,
+                FullName = $"{p.GivenNames} {p.FamilyName}",
+                ProfileImagePath = p.ProfileImagePath,
+                Latitude = p.Latitude!.Value,
+                Longitude = p.Longitude!.Value
+            });
 
         return Result.Success(pins);
     }
@@ -346,12 +425,6 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         person.FamilyName = snapshot.FamilyName;
         person.GivenNames = snapshot.GivenNames;
         person.IsMale = snapshot.IsMale;
-        person.YearOfBirth = snapshot.YearOfBirth;
-        person.MonthOfBirth = snapshot.MonthOfBirth;
-        person.DayOfBirth = snapshot.DayOfBirth;
-        person.YearOfDeath = snapshot.YearOfDeath;
-        person.MonthOfDeath = snapshot.MonthOfDeath;
-        person.DayOfDeath = snapshot.DayOfDeath;
         person.PlaceOfBirth = snapshot.PlaceOfBirth;
         person.PlaceOfDeath = snapshot.PlaceOfDeath;
         person.Bio = snapshot.Bio;
@@ -376,12 +449,6 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
             IsMale = person.IsMale,
-            YearOfBirth = person.YearOfBirth,
-            MonthOfBirth = person.MonthOfBirth,
-            DayOfBirth = person.DayOfBirth,
-            YearOfDeath = person.YearOfDeath,
-            MonthOfDeath = person.MonthOfDeath,
-            DayOfDeath = person.DayOfDeath,
             PlaceOfBirth = person.PlaceOfBirth,
             PlaceOfDeath = person.PlaceOfDeath,
             Bio = person.Bio,
@@ -411,12 +478,6 @@ public class PersonService(IRepository<Person> personRepository, IRepository<Per
         FamilyName = p.FamilyName,
         GivenNames = p.GivenNames,
         IsMale = p.IsMale,
-        YearOfBirth = p.YearOfBirth,
-        MonthOfBirth = p.MonthOfBirth,
-        DayOfBirth = p.DayOfBirth,
-        YearOfDeath = p.YearOfDeath,
-        MonthOfDeath = p.MonthOfDeath,
-        DayOfDeath = p.DayOfDeath,
         PlaceOfBirth = p.PlaceOfBirth,
         PlaceOfDeath = p.PlaceOfDeath,
         Bio = p.Bio,

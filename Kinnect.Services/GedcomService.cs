@@ -76,7 +76,7 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
-            ApplyBirthDeath(individual, person);
+            ApplyBirthDeathPlaces(individual, person);
             ApplyFacts(individual, person);
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
@@ -86,7 +86,7 @@ public class GedcomService(
             person.GivenNames = givenNames;
             person.FamilyName = familyName;
             person.IsMale = isMale;
-            ApplyBirthDeath(individual, person);
+            ApplyBirthDeathPlaces(individual, person);
             ApplyFacts(individual, person);
             person.UpdatedAtUtc = DateTime.UtcNow;
             await personRepository.UpdateAsync(person);
@@ -98,25 +98,13 @@ public class GedcomService(
         await ImportPersonEventsAsync(individual, database, person.Id, summary);
     }
 
-    private static void ApplyBirthDeath(GedcomIndividualRecord individual, Person person)
+    private static void ApplyBirthDeathPlaces(GedcomIndividualRecord individual, Person person)
     {
         if (individual.Birth != null)
-        {
-            var d = ParseDate(individual.Birth.Date);
-            person.YearOfBirth = d.Year;
-            person.MonthOfBirth = d.Month;
-            person.DayOfBirth = d.Day;
             person.PlaceOfBirth = individual.Birth.Place?.Name;
-        }
 
         if (individual.Death != null)
-        {
-            var d = ParseDate(individual.Death.Date);
-            person.YearOfDeath = d.Year;
-            person.MonthOfDeath = d.Month;
-            person.DayOfDeath = d.Day;
             person.PlaceOfDeath = individual.Death.Place?.Name;
-        }
     }
 
     private static void ApplyFacts(GedcomIndividualRecord individual, Person person)
@@ -161,7 +149,6 @@ public class GedcomService(
             [GedcomEventType.EMIG]   = PersonEventType.Emigration,
             [GedcomEventType.IMMI]   = PersonEventType.Immigration,
             [GedcomEventType.NATU]   = PersonEventType.Naturalization,
-            [GedcomEventType.DIV]    = PersonEventType.Divorce,
             [GedcomEventType.ENGA]   = PersonEventType.Engagement,
             [GedcomEventType.RESI]   = PersonEventType.Residence,
         };
@@ -187,6 +174,40 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow
             };
             await eventRepository.InsertAsync(evt);
+            summary.EventsImported++;
+        }
+
+        bool hasBirtInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.Birth);
+        if (!hasBirtInEvents && individual.Birth != null)
+        {
+            var d = ParseDate(individual.Birth.Date);
+            await eventRepository.InsertAsync(new PersonEvent
+            {
+                PersonId = personId,
+                EventType = PersonEventType.Birth,
+                Year = d.Year,
+                Month = d.Month,
+                Day = d.Day,
+                Place = individual.Birth.Place?.Name,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            summary.EventsImported++;
+        }
+
+        bool hasDeatInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.DEAT);
+        if (!hasDeatInEvents && individual.Death != null)
+        {
+            var d = ParseDate(individual.Death.Date);
+            await eventRepository.InsertAsync(new PersonEvent
+            {
+                PersonId = personId,
+                EventType = PersonEventType.Death,
+                Year = d.Year,
+                Month = d.Month,
+                Day = d.Day,
+                Place = individual.Death.Place?.Name,
+                CreatedAtUtc = DateTime.UtcNow
+            });
             summary.EventsImported++;
         }
     }
@@ -218,32 +239,26 @@ public class GedcomService(
                     spouseRecord.MarriageDay   = d.Day;
                 }
 
-                await spouseRepository.InsertAsync(spouseRecord);
-                summary.RelationshipsImported++;
-
-                // Add marriage as a PersonEvent on both spouses
-                if (family.Marriage != null)
+                GedcomFamilyEvent? divorceEvent = null;
+                foreach (GedcomFamilyEvent famEv in family.Events)
                 {
-                    var d = ParseDate(family.Marriage.Date);
-                    string? place = family.Marriage.Place?.Name;
-                    string? note  = ResolveFirstNote(family.Marriage.Notes, database);
-
-                    foreach (int spousePersonId in new[] { husbandId.Value, wifeId.Value })
+                    if (famEv.EventType == GedcomEventType.DIV)
                     {
-                        await eventRepository.InsertAsync(new PersonEvent
-                        {
-                            PersonId  = spousePersonId,
-                            EventType = PersonEventType.Marriage,
-                            Year      = d.Year,
-                            Month     = d.Month,
-                            Day       = d.Day,
-                            Place     = place,
-                            Note      = note,
-                            CreatedAtUtc = DateTime.UtcNow
-                        });
-                        summary.EventsImported++;
+                        divorceEvent = famEv;
+                        break;
                     }
                 }
+
+                if (divorceEvent != null)
+                {
+                    var dd = ParseDate(divorceEvent.Date);
+                    spouseRecord.DivorceYear  = dd.Year;
+                    spouseRecord.DivorceMonth = dd.Month;
+                    spouseRecord.DivorceDay   = dd.Day;
+                }
+
+                await spouseRepository.InsertAsync(spouseRecord);
+                summary.RelationshipsImported++;
             }
         }
 
@@ -296,20 +311,38 @@ public class GedcomService(
             sb.AppendLine($"1 NAME {person.GivenNames} /{person.FamilyName}/");
             sb.AppendLine($"1 SEX {(person.IsMale ? "M" : "F")}");
 
-            if (person.YearOfBirth.HasValue)
+            var birthEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Birth);
+            if (birthEvt != null)
             {
                 sb.AppendLine("1 BIRT");
-                sb.AppendLine($"2 DATE {FormatDate(person.YearOfBirth, person.MonthOfBirth, person.DayOfBirth)}");
-                if (!string.IsNullOrWhiteSpace(person.PlaceOfBirth))
+                if (birthEvt.Year.HasValue)
+                    sb.AppendLine($"2 DATE {FormatDate(birthEvt.Year, birthEvt.Month, birthEvt.Day)}");
+                if (!string.IsNullOrWhiteSpace(birthEvt.Place))
+                    sb.AppendLine($"2 PLAC {birthEvt.Place}");
+                else if (!string.IsNullOrWhiteSpace(person.PlaceOfBirth))
                     sb.AppendLine($"2 PLAC {person.PlaceOfBirth}");
             }
+            else if (!string.IsNullOrWhiteSpace(person.PlaceOfBirth))
+            {
+                sb.AppendLine("1 BIRT");
+                sb.AppendLine($"2 PLAC {person.PlaceOfBirth}");
+            }
 
-            if (person.YearOfDeath.HasValue)
+            var deathEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Death);
+            if (deathEvt != null)
             {
                 sb.AppendLine("1 DEAT");
-                sb.AppendLine($"2 DATE {FormatDate(person.YearOfDeath, person.MonthOfDeath, person.DayOfDeath)}");
-                if (!string.IsNullOrWhiteSpace(person.PlaceOfDeath))
+                if (deathEvt.Year.HasValue)
+                    sb.AppendLine($"2 DATE {FormatDate(deathEvt.Year, deathEvt.Month, deathEvt.Day)}");
+                if (!string.IsNullOrWhiteSpace(deathEvt.Place))
+                    sb.AppendLine($"2 PLAC {deathEvt.Place}");
+                else if (!string.IsNullOrWhiteSpace(person.PlaceOfDeath))
                     sb.AppendLine($"2 PLAC {person.PlaceOfDeath}");
+            }
+            else if (!string.IsNullOrWhiteSpace(person.PlaceOfDeath))
+            {
+                sb.AppendLine("1 DEAT");
+                sb.AppendLine($"2 PLAC {person.PlaceOfDeath}");
             }
 
             if (!string.IsNullOrWhiteSpace(person.Occupation))
@@ -321,9 +354,10 @@ public class GedcomService(
             if (!string.IsNullOrWhiteSpace(person.Bio))
                 WriteNote(sb, 1, person.Bio);
 
-            // Additional life events (skip birth/death already written above)
+            // Additional life events (skip birth/death and types stored elsewhere)
             foreach (var evt in eventsByPerson[person.Id]
-                .Where(e => e.EventType != PersonEventType.Birth && e.EventType != PersonEventType.Death))
+                .Where(e => e.EventType != PersonEventType.Birth && e.EventType != PersonEventType.Death
+                    && !PersonEventType.IsNonTimelineEventType(e.EventType)))
             {
                 sb.AppendLine($"1 {evt.EventType}");
                 if (evt.Year.HasValue)
@@ -356,6 +390,12 @@ public class GedcomService(
             {
                 sb.AppendLine("1 MARR");
                 sb.AppendLine($"2 DATE {FormatDate(spouse.MarriageYear, spouse.MarriageMonth, spouse.MarriageDay)}");
+            }
+
+            if (spouse.DivorceYear.HasValue)
+            {
+                sb.AppendLine("1 DIV");
+                sb.AppendLine($"2 DATE {FormatDate(spouse.DivorceYear, spouse.DivorceMonth, spouse.DivorceDay)}");
             }
 
             // Children whose both parent IDs match either spouse
