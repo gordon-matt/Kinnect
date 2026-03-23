@@ -298,7 +298,8 @@
                             <label class="form-check-label small text-white-50" for="viewProfileLightboxShowAnnotations">Show annotations</label>
                         </div>
                         <div class="text-white-50 small mb-2" data-bind="visible: !lightboxCanEdit()">Read-only</div>
-                        <div class="d-grid gap-1 mb-2" data-bind="visible: lightboxCanEdit">
+                        <!-- ko if: lightboxCanEdit() -->
+                        <div class="d-grid gap-1 mb-2">
                             <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('rectangle'); }">
                                 <i class="bi bi-bounding-box"></i> Rectangle
                             </button>
@@ -312,7 +313,8 @@
                                 <i class="bi bi-trash"></i> Delete Selected
                             </button>
                         </div>
-                        <button class="btn btn-sm btn-outline-light w-100" data-bind="visible: lightboxCanEdit, click: saveLightboxAnnotations">
+                        <!-- /ko -->
+                        <button class="btn btn-sm btn-outline-light w-100" data-bind="visible: lightboxCanEdit(), click: saveLightboxAnnotations">
                             <i class="bi bi-floppy"></i> Save annotations
                         </button>
                     </div>
