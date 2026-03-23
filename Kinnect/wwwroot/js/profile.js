@@ -80,7 +80,9 @@
             this.ownedVideos = ko.computed(() => this.videos().filter(v => this.isOwnedMedia(v)));
             this.taggedPhotos = ko.computed(() => this.photos().filter(p => !this.isOwnedMedia(p)));
             this.taggedVideos = ko.computed(() => this.videos().filter(v => !this.isOwnedMedia(v)));
-            this.hasTaggedMedia = ko.computed(() => this.taggedPhotos().length > 0 || this.taggedVideos().length > 0);
+            this.hasTaggedMedia = ko.computed(() =>
+                this.photos().some(p => !this.isOwnedMedia(p)) ||
+                this.videos().some(v => !this.isOwnedMedia(v)));
             this.currentMediaFolderName = ko.computed(() => {
                 const id = this.currentMediaFolderId();
                 if (id == null) return '';
@@ -264,6 +266,9 @@
             this.lightboxPhotoId = ko.observable(null);
             this.lightboxPhotoTitle = ko.observable('');
             this.lightboxPhotoDate = ko.observable('');
+            this.lightboxCanEdit = ko.observable(false);
+            this.lightboxHasAnnotations = ko.observable(false);
+            this.lightboxShowAnnotations = ko.observable(true);
             this.lightboxTaggedPeople = ko.observableArray([]);
             this.lightboxPersonTagQuery = ko.observable('');
             this.lightboxPersonTagResults = ko.observableArray([]);
@@ -277,6 +282,9 @@
             this.lightboxPersonTagQuery.subscribe(() => {
                 clearTimeout(this._lightboxPersonTagTimer);
                 this._lightboxPersonTagTimer = setTimeout(() => this._runLightboxPersonTagSearch(), 250);
+            });
+            this.lightboxShowAnnotations.subscribe(() => {
+                if (!this.lightboxCanEdit()) this.initLightboxAnnotorious();
             });
 
             // Edit photo
@@ -994,6 +1002,9 @@
             this.lightboxPhotoId(photo.id);
             this.lightboxPhotoTitle(photo.title || '');
             this.lightboxPhotoDate(this.formatPhotoDate(photo));
+            this.lightboxCanEdit(this.canEditMedia(photo));
+            this.lightboxHasAnnotations(!!photo.annotationsJson);
+            this.lightboxShowAnnotations(true);
             this.lightboxTaggedPeople(photo.taggedPeople || []);
             this.lightboxPersonTagQuery('');
             this.lightboxPersonTagResults([]);
@@ -1008,6 +1019,7 @@
                     const data = await res.json();
                     const full = data.value || data;
                     this.lightboxTaggedPeople(full.taggedPeople || []);
+                    this.lightboxHasAnnotations(!!full.annotationsJson);
                     this._lightboxPhotoData = full;
                 }
             } catch { /* non-fatal */ }
@@ -1024,6 +1036,7 @@
         };
 
         tagPersonFromLightbox = async (person) => {
+            if (!this.lightboxCanEdit()) return;
             const pid = this.lightboxPhotoId();
             if (!pid) return;
             try {
@@ -1037,6 +1050,7 @@
         };
 
         untagPersonFromLightbox = async (personId) => {
+            if (!this.lightboxCanEdit()) return;
             const pid = this.lightboxPhotoId();
             if (!pid) return;
             try {
@@ -1054,6 +1068,7 @@
             }
 
             if (typeof Annotorious === 'undefined') return;
+            if (!this.lightboxCanEdit() && this.lightboxHasAnnotations() && !this.lightboxShowAnnotations()) return;
 
             const img = document.getElementById('lightboxAnnotatableImage');
             if (!img || !img.src) return;
@@ -1082,15 +1097,19 @@
                 this._hideAnnotationHoverLabel();
             });
 
-            anno.on?.('createAnnotation', (annotation) => {
-                const existing = this._getAnnotationComment(annotation);
-                if (existing) return;
-                const text = prompt('Annotation text:', '');
-                if (text && text.trim()) {
-                    const updated = this._setAnnotationComment(annotation, text.trim());
-                    this._applyAnnotationUpdate(anno, annotation, updated);
-                }
-            });
+            if (this.lightboxCanEdit()) {
+                anno.on?.('createAnnotation', (annotation) => {
+                    const existing = this._getAnnotationComment(annotation);
+                    if (existing) return;
+                    const text = prompt('Annotation text:', '');
+                    if (text && text.trim()) {
+                        const updated = this._setAnnotationComment(annotation, text.trim());
+                        this._applyAnnotationUpdate(anno, annotation, updated);
+                    }
+                });
+            } else {
+                anno.setDrawingEnabled?.(false);
+            }
 
             const data = this._lightboxPhotoData;
             if (data?.annotationsJson) {
@@ -1102,7 +1121,7 @@
         };
 
         setAnnotationTool = (tool) => {
-            if (!this._lightboxAnno) return;
+            if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
             if (tool === 'rectangle') {
                 this._lightboxAnno.setDrawingTool?.('rectangle');
                 this._lightboxAnno.setDrawingEnabled?.(true);
@@ -1115,7 +1134,7 @@
         };
 
         editSelectedAnnotationText = async () => {
-            if (!this._lightboxAnno) return;
+            if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
             const selected = await this._getSelectedAnnotation();
             if (!selected) { toast.info('Select an annotation first.'); return; }
             const current = this._getAnnotationComment(selected) || '';
@@ -1126,7 +1145,7 @@
         };
 
         deleteSelectedAnnotation = async () => {
-            if (!this._lightboxAnno) return;
+            if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
             const selected = await this._getSelectedAnnotation();
             if (!selected) { toast.info('Select an annotation first.'); return; }
             if (!confirm('Delete selected annotation?')) return;
@@ -1225,7 +1244,7 @@
 
         saveLightboxAnnotations = async () => {
             const pid = this.lightboxPhotoId();
-            if (!pid || !this._lightboxAnno) return;
+            if (!pid || !this._lightboxAnno || !this.lightboxCanEdit()) return;
 
             try {
                 const annotations = await this._lightboxAnno.getAnnotations();

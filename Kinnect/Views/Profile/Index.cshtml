@@ -587,7 +587,7 @@
                             <div class="d-flex align-items-center mb-1">
                                 <a class="text-white text-decoration-none small" data-bind="text: name, attr: { href: '/Profile/View/' + personId }"></a>
                                 <button class="btn btn-sm p-0 ms-auto text-danger" title="Remove tag"
-                                        data-bind="click: function() { $root.untagPersonFromLightbox(personId); }">
+                                        data-bind="visible: $root.lightboxCanEdit(), click: function() { $root.untagPersonFromLightbox(personId); }">
                                     <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
                                 </button>
                             </div>
@@ -595,7 +595,7 @@
                         <div data-bind="visible: lightboxTaggedPeople().length === 0" class="text-white-50 small mb-2">Nobody tagged yet.</div>
 
                         <!-- Person tagging input -->
-                        <div class="mt-2 position-relative">
+                        <div class="mt-2 position-relative" data-bind="visible: lightboxCanEdit">
                             <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
                                    id="lightboxPersonTagInput"
                                    placeholder="#Type a name to tag…"
@@ -614,7 +614,12 @@
                         <hr class="border-secondary my-3" />
 
                         <h6 class="text-white-50 small text-uppercase mb-2">Annotations</h6>
-                        <div class="d-grid gap-1 mb-2">
+                        <div class="form-check mb-2" data-bind="visible: !lightboxCanEdit() && lightboxHasAnnotations()">
+                            <input class="form-check-input" type="checkbox" id="profileLightboxShowAnnotations" data-bind="checked: lightboxShowAnnotations" />
+                            <label class="form-check-label small text-white-50" for="profileLightboxShowAnnotations">Show annotations</label>
+                        </div>
+                        <div class="text-white-50 small mb-2" data-bind="visible: !lightboxCanEdit()">Read-only</div>
+                        <div class="d-grid gap-1 mb-2" data-bind="visible: lightboxCanEdit">
                             <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('rectangle'); }">
                                 <i class="bi bi-bounding-box"></i> Rectangle
                             </button>
@@ -628,7 +633,7 @@
                                 <i class="bi bi-trash"></i> Delete Selected
                             </button>
                         </div>
-                        <button class="btn btn-sm btn-outline-light w-100" data-bind="click: saveLightboxAnnotations">
+                        <button class="btn btn-sm btn-outline-light w-100" data-bind="visible: lightboxCanEdit, click: saveLightboxAnnotations">
                             <i class="bi bi-floppy"></i> Save annotations
                         </button>
                     </div>

@@ -52,7 +52,9 @@ class ViewProfileViewModel {
         this.ownedVideos = ko.computed(() => this.videos().filter(v => this.isOwnedMedia(v)));
         this.taggedPhotos = ko.computed(() => this.photos().filter(p => !this.isOwnedMedia(p)));
         this.taggedVideos = ko.computed(() => this.videos().filter(v => !this.isOwnedMedia(v)));
-        this.hasTaggedMedia = ko.computed(() => this.taggedPhotos().length > 0 || this.taggedVideos().length > 0);
+        this.hasTaggedMedia = ko.computed(() =>
+            this.photos().some(p => !this.isOwnedMedia(p)) ||
+            this.videos().some(v => !this.isOwnedMedia(v)));
         this.currentMediaFolderName = ko.computed(() => {
             const id = this.currentMediaFolderId();
             if (id == null) return '';
@@ -125,6 +127,9 @@ class ViewProfileViewModel {
         this.lightboxPhotoId = ko.observable(null);
         this.lightboxPhotoTitle = ko.observable('');
         this.lightboxPhotoDate = ko.observable('');
+        this.lightboxCanEdit = ko.observable(false);
+        this.lightboxHasAnnotations = ko.observable(false);
+        this.lightboxShowAnnotations = ko.observable(true);
         this.lightboxTaggedPeople = ko.observableArray([]);
         this.lightboxPersonTagQuery = ko.observable('');
         this.lightboxPersonTagResults = ko.observableArray([]);
@@ -140,6 +145,9 @@ class ViewProfileViewModel {
         this.lightboxPersonTagQuery.subscribe(() => {
             clearTimeout(this._lightboxPersonTagTimer);
             this._lightboxPersonTagTimer = setTimeout(() => this._runLightboxPersonTagSearch(), 250);
+        });
+        this.lightboxShowAnnotations.subscribe(() => {
+            if (!this.lightboxCanEdit()) this.initLightboxAnnotorious();
         });
 
         this.editingEventId = ko.observable(null);
@@ -304,6 +312,9 @@ class ViewProfileViewModel {
         this.lightboxPhotoId(photo.id);
         this.lightboxPhotoTitle(photo.title || '');
         this.lightboxPhotoDate(this.formatPhotoDate(photo));
+        this.lightboxCanEdit(this.canEditMedia(photo));
+        this.lightboxHasAnnotations(!!photo.annotationsJson);
+        this.lightboxShowAnnotations(true);
         this.lightboxTaggedPeople(photo.taggedPeople || []);
         this.lightboxPersonTagQuery('');
         this.lightboxPersonTagResults([]);
@@ -317,6 +328,7 @@ class ViewProfileViewModel {
                 const data = await res.json();
                 const full = data.value || data;
                 this.lightboxTaggedPeople(full.taggedPeople || []);
+                this.lightboxHasAnnotations(!!full.annotationsJson);
                 this._lightboxPhotoData = full;
             }
         } catch { /* non-fatal */ }
@@ -358,6 +370,7 @@ class ViewProfileViewModel {
     canEditMedia = (item) => this.canEdit() && (this.isAdminUser || this.isOwnedMedia(item));
 
     tagPersonFromLightbox = async (person) => {
+        if (!this.lightboxCanEdit()) return;
         const pid = this.lightboxPhotoId();
         if (!pid) return;
         try {
@@ -371,6 +384,7 @@ class ViewProfileViewModel {
     };
 
     untagPersonFromLightbox = async (personId) => {
+        if (!this.lightboxCanEdit()) return;
         const pid = this.lightboxPhotoId();
         if (!pid) return;
         try {
@@ -388,6 +402,7 @@ class ViewProfileViewModel {
         }
 
         if (typeof Annotorious === 'undefined') return;
+        if (!this.lightboxCanEdit() && this.lightboxHasAnnotations() && !this.lightboxShowAnnotations()) return;
 
         const img = document.getElementById('lightboxAnnotatableImage');
         if (!img || !img.src) return;
@@ -416,7 +431,7 @@ class ViewProfileViewModel {
             this._hideAnnotationHoverLabel();
         });
 
-        if (this.canEdit()) {
+        if (this.lightboxCanEdit()) {
             anno.on?.('createAnnotation', (annotation) => {
                 const existing = this._getAnnotationComment(annotation);
                 if (existing) return;
@@ -440,10 +455,13 @@ class ViewProfileViewModel {
             // Disable drawing in read-only mode — only show existing annotations
             anno.setDrawingEnabled(false);
         }
+        if (!this.lightboxCanEdit()) {
+            anno.setDrawingEnabled(false);
+        }
     };
 
     setAnnotationTool = (tool) => {
-        if (!this._lightboxAnno || !this.canEdit()) return;
+        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         if (tool === 'rectangle') {
             this._lightboxAnno.setDrawingTool?.('rectangle');
             this._lightboxAnno.setDrawingEnabled?.(true);
@@ -456,7 +474,7 @@ class ViewProfileViewModel {
     };
 
     editSelectedAnnotationText = async () => {
-        if (!this._lightboxAnno || !this.canEdit()) return;
+        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         const selected = await this._getSelectedAnnotation();
         if (!selected) { toast.info('Select an annotation first.'); return; }
         const current = this._getAnnotationComment(selected) || '';
@@ -467,7 +485,7 @@ class ViewProfileViewModel {
     };
 
     deleteSelectedAnnotation = async () => {
-        if (!this._lightboxAnno || !this.canEdit()) return;
+        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         const selected = await this._getSelectedAnnotation();
         if (!selected) { toast.info('Select an annotation first.'); return; }
         if (!confirm('Delete selected annotation?')) return;
@@ -563,7 +581,7 @@ class ViewProfileViewModel {
 
     saveLightboxAnnotations = async () => {
         const pid = this.lightboxPhotoId();
-        if (!pid || !this._lightboxAnno) return;
+        if (!pid || !this._lightboxAnno || !this.lightboxCanEdit()) return;
 
         try {
             const annotations = await this._lightboxAnno.getAnnotations();
