@@ -394,6 +394,23 @@
                         </div>
                     </div>
 
+                    <div class="row mb-3" data-bind="visible: !inMediaFolder() && hasTaggedMedia()">
+                        <div class="col-md-3 col-sm-4 col-6 mb-3">
+                            <a href="#" class="text-decoration-none" data-bind="click: function() { openTaggedMediaFolder(); return false; }">
+                                <div class="card h-100 border-secondary">
+                                    <div class="card-body text-center">
+                                        <img src="~/img/Folder.png" alt="Tagged" style="width:64px;height:64px;object-fit:contain;" />
+                                        <div class="fw-semibold small mt-2">Tagged</div>
+                                        <div class="text-muted small">
+                                            <span data-bind="text: taggedPhotoCount()"></span> photos ·
+                                            <span data-bind="text: taggedVideoCount()"></span> videos
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Photo upload form -->
                     <div data-bind="visible: isUploadingPhoto" class="card mb-3">
                         <div class="card-header py-2 d-flex justify-content-between align-items-center">
@@ -487,7 +504,7 @@
                                                 <small class="fw-semibold" data-bind="text: title"></small>
                                                 <div class="text-muted small" data-bind="visible: yearTaken || monthTaken || dayTaken, text: $root.formatPhotoDate($data)"></div>
                                             </div>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="click: function() { $root.startEditPhoto($data); }">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="visible: $root.canEditMedia($data), click: function() { $root.startEditPhoto($data); }">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                         </div>
@@ -504,7 +521,7 @@
                             <div class="card mb-2">
                                 <div class="card-body d-flex justify-content-between align-items-center">
                                     <div><i class="bi bi-film"></i> <span data-bind="text: title"></span></div>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit" data-bind="click: function() { $root.startEditVideo($data); }">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit" data-bind="visible: $root.canEditMedia($data), click: function() { $root.startEditVideo($data); }">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                 </div>
@@ -818,6 +835,7 @@
 @section Scripts {
     <script>
         window.profilePersonId = @(editPersonId.HasValue ? editPersonId.Value.ToString() : "null");
+        window.profileIsAdmin = @(User.IsInRole(Constants.Roles.Administrator) ? "true" : "false");
     </script>
     <environment include="Development">
         <script src="~/lib/leaflet/dist/leaflet.js"></script>

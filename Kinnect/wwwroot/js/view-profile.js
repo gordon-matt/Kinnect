@@ -5,6 +5,7 @@ const MONTHS = [
     { v: 7,  l: 'July' },     { v: 8,  l: 'August' },    { v: 9,  l: 'September' },
     { v: 10, l: 'October' },  { v: 11, l: 'November' },  { v: 12, l: 'December' }
 ];
+const TAGGED_FOLDER_KEY = '__tagged__';
 
 function daysInMonth(monthObs, yearObs) {
     return ko.computed(() => {
@@ -47,21 +48,29 @@ class ViewProfileViewModel {
         this.events = ko.observableArray([]);
         this.spouses = ko.observableArray([]);
         this.inMediaFolder = ko.computed(() => this.currentMediaFolderId() != null);
+        this.ownedPhotos = ko.computed(() => this.photos().filter(p => this.isOwnedMedia(p)));
+        this.ownedVideos = ko.computed(() => this.videos().filter(v => this.isOwnedMedia(v)));
+        this.taggedPhotos = ko.computed(() => this.photos().filter(p => !this.isOwnedMedia(p)));
+        this.taggedVideos = ko.computed(() => this.videos().filter(v => !this.isOwnedMedia(v)));
+        this.hasTaggedMedia = ko.computed(() => this.taggedPhotos().length > 0 || this.taggedVideos().length > 0);
         this.currentMediaFolderName = ko.computed(() => {
             const id = this.currentMediaFolderId();
             if (id == null) return '';
+            if (id === TAGGED_FOLDER_KEY) return 'Tagged';
             const folder = this.mediaFolders().find(f => f.id === id);
             return folder?.name || '';
         });
         this.visiblePhotos = ko.computed(() => {
             const folderId = this.currentMediaFolderId();
-            if (folderId == null) return this.photos().filter(p => p.folderId == null);
-            return this.photos().filter(p => p.folderId === folderId);
+            if (folderId == null) return this.ownedPhotos().filter(p => p.folderId == null);
+            if (folderId === TAGGED_FOLDER_KEY) return this.taggedPhotos();
+            return this.ownedPhotos().filter(p => p.folderId === folderId);
         });
         this.visibleVideos = ko.computed(() => {
             const folderId = this.currentMediaFolderId();
-            if (folderId == null) return this.videos().filter(v => v.folderId == null);
-            return this.videos().filter(v => v.folderId === folderId);
+            if (folderId == null) return this.ownedVideos().filter(v => v.folderId == null);
+            if (folderId === TAGGED_FOLDER_KEY) return this.taggedVideos();
+            return this.ownedVideos().filter(v => v.folderId === folderId);
         });
 
         // Merged timeline with spouse events (item 1)
@@ -327,12 +336,26 @@ class ViewProfileViewModel {
         this.currentMediaFolderId(folder.id);
     };
 
+    openTaggedMediaFolder = () => {
+        this.currentMediaFolderId(TAGGED_FOLDER_KEY);
+    };
+
     goBackFromFolder = () => {
         this.currentMediaFolderId(null);
     };
 
-    folderPhotoCount = (folderId) => this.photos().filter(p => p.folderId === folderId).length;
-    folderVideoCount = (folderId) => this.videos().filter(v => v.folderId === folderId).length;
+    folderPhotoCount = (folderId) => this.ownedPhotos().filter(p => p.folderId === folderId).length;
+    folderVideoCount = (folderId) => this.ownedVideos().filter(v => v.folderId === folderId).length;
+    taggedPhotoCount = () => this.taggedPhotos().length;
+    taggedVideoCount = () => this.taggedVideos().length;
+
+    isOwnedMedia = (item) => {
+        if (!item) return false;
+        // Ownership grouping is strictly by uploader == viewed profile person.
+        return item.uploadedByPersonId === this.personId;
+    };
+
+    canEditMedia = (item) => this.canEdit() && (this.isAdminUser || this.isOwnedMedia(item));
 
     tagPersonFromLightbox = async (person) => {
         const pid = this.lightboxPhotoId();
@@ -556,6 +579,10 @@ class ViewProfileViewModel {
     };
 
     startEditPhoto = (photo) => {
+        if (!this.canEditMedia(photo)) {
+            toast.info('Only the uploader (or an admin) can edit this photo.');
+            return;
+        }
         this.editingPhotoId(photo.id);
         this.editPhotoTitle(photo.title);
         this.editPhotoDescription(photo.description || '');
@@ -600,6 +627,10 @@ class ViewProfileViewModel {
     };
 
     startEditVideo = (video) => {
+        if (!this.canEditMedia(video)) {
+            toast.info('Only the uploader (or an admin) can edit this video.');
+            return;
+        }
         this.editingVideoId(video.id);
         this.editVideoTitle(video.title || '');
         this.editVideoDescription(video.description || '');

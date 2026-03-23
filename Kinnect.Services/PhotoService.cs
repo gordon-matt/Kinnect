@@ -14,17 +14,46 @@ public class PhotoService(
 {
     public async Task<Result<IEnumerable<PhotoDto>>> GetByPersonAsync(int personId)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var ownedPhotos = await photoRepository.FindAsync(new SearchOptions<Photo>
         {
-            Query = x => x.UploadedByPersonId == personId
-                      || x.PersonPhotos.Any(pp => pp.PersonId == personId),
+            Query = x => x.UploadedByPersonId == personId,
             Include = q => q
                 .Include(p => p.UploadedBy)
                 .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
                 .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
 
-        return Result.Success(photos.OrderByDescending(p => p.CreatedAtUtc).Select(MapToDto));
+        var personLinks = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
+        {
+            Query = x => x.PersonId == personId
+        });
+
+        var taggedPhotoIds = personLinks
+            .Select(x => x.PhotoId)
+            .Distinct()
+            .ToList();
+
+        IEnumerable<Photo> taggedPhotos = [];
+        if (taggedPhotoIds.Count > 0)
+        {
+            taggedPhotos = await photoRepository.FindAsync(new SearchOptions<Photo>
+            {
+                Query = x => taggedPhotoIds.Contains(x.Id),
+                Include = q => q
+                    .Include(p => p.UploadedBy)
+                    .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+                    .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
+            });
+        }
+
+        var combined = ownedPhotos
+            .Concat(taggedPhotos)
+            .GroupBy(x => x.Id)
+            .Select(g => g.First())
+            .OrderByDescending(p => p.CreatedAtUtc)
+            .Select(MapToDto);
+
+        return Result.Success(combined);
     }
 
     public async Task<Result<PhotoDto>> GetByIdAsync(int id)
