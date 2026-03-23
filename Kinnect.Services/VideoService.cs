@@ -32,7 +32,7 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         return Result.Success(MapToDto(video));
     }
 
-    public async Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags)
+    public async Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags, int? folderId = null)
     {
         var video = new Video
         {
@@ -42,7 +42,8 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
             ThumbnailPath = thumbnailPath,
             Duration = duration,
             UploadedByPersonId = uploadedByPersonId,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            FolderId = folderId
         };
 
         await videoRepository.InsertAsync(video);
@@ -62,8 +63,34 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
             Duration = video.Duration,
             UploadedByPersonId = video.UploadedByPersonId,
             CreatedAtUtc = video.CreatedAtUtc,
-            Tags = tags ?? []
+            Tags = tags ?? [],
+            FolderId = folderId
         });
+    }
+
+    public async Task<Result<VideoDto>> UpdateAsync(int id, VideoUpdateRequest request, string currentUserId, bool isAdmin)
+    {
+        var videos = await videoRepository.FindAsync(new SearchOptions<Video>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(v => v.UploadedBy).Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
+        });
+        var video = videos.FirstOrDefault();
+        if (video is null)
+            return Result.NotFound("Video not found.");
+
+        if (!CanEditVideo(video.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
+
+        video.Title = request.Title;
+        video.Description = request.Description;
+        video.FolderId = request.FolderId;
+        await videoRepository.UpdateAsync(video);
+
+        if (request.Tags is not null)
+            await SyncTagsAsync(id, request.Tags);
+
+        return await GetByIdAsync(id);
     }
 
     public async Task<Result> UpdateTagsAsync(int id, List<string> tags)
@@ -116,6 +143,13 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         }
     }
 
+    private static bool CanEditVideo(Person uploadedBy, string currentUserId, bool isAdmin)
+    {
+        if (isAdmin) return true;
+        if (uploadedBy.UserId == null) return true;
+        return uploadedBy.UserId == currentUserId;
+    }
+
     private static VideoDto MapToDto(Video v) => new()
     {
         Id = v.Id,
@@ -127,6 +161,7 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         UploadedByPersonId = v.UploadedByPersonId,
         UploadedByName = $"{v.UploadedBy.GivenNames} {v.UploadedBy.FamilyName}",
         CreatedAtUtc = v.CreatedAtUtc,
-        Tags = v.VideoTags.Select(vt => vt.Tag.Name).ToList()
+        Tags = v.VideoTags.Select(vt => vt.Tag.Name).ToList(),
+        FolderId = v.FolderId
     };
 }

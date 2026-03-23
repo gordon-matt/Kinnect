@@ -45,7 +45,7 @@ public class PhotoService(
         return Result.Success(MapToDto(photo));
     }
 
-    public async Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags, short? yearTaken = null, byte? monthTaken = null, byte? dayTaken = null)
+    public async Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags, short? yearTaken = null, byte? monthTaken = null, byte? dayTaken = null, int? folderId = null)
     {
         var photo = new Photo
         {
@@ -57,7 +57,8 @@ public class PhotoService(
             CreatedAtUtc = DateTime.UtcNow,
             YearTaken = yearTaken,
             MonthTaken = monthTaken,
-            DayTaken = dayTaken
+            DayTaken = dayTaken,
+            FolderId = folderId
         };
 
         await photoRepository.InsertAsync(photo);

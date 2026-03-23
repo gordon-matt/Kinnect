@@ -42,6 +42,7 @@ class ViewProfileViewModel {
         this.photos = ko.observableArray([]);
         this.videos = ko.observableArray([]);
         this.documents = ko.observableArray([]);
+        this.mediaFolders = ko.observableArray([]);
         this.events = ko.observableArray([]);
         this.spouses = ko.observableArray([]);
 
@@ -104,6 +105,7 @@ class ViewProfileViewModel {
         this._lightboxPhotoData = null;
         this._lightboxPersonTagTimer = null;
         this._allPeople = [];
+        this.lightboxSelectedAnnotationId = ko.observable(null);
 
         this.lightboxPersonTagQuery.subscribe(() => {
             clearTimeout(this._lightboxPersonTagTimer);
@@ -127,6 +129,13 @@ class ViewProfileViewModel {
         this.editPhotoDay = ko.observable(null);
         this.editPhotoDayOptions = daysInMonth(this.editPhotoMonth, this.editPhotoYear);
         this.editPhotoTagsText = ko.observable('');
+        this.editPhotoFolderId = ko.observable(null);
+
+        this.editingVideoId = ko.observable(null);
+        this.editVideoTitle = ko.observable('');
+        this.editVideoDescription = ko.observable('');
+        this.editVideoTagsText = ko.observable('');
+        this.editVideoFolderId = ko.observable(null);
 
         this.MONTHS = MONTHS;
     }
@@ -170,13 +179,14 @@ class ViewProfileViewModel {
                 this.canEdit(true);
             }
 
-            const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes] = await Promise.all([
+            const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes, foldersRes] = await Promise.all([
                 fetch(`/api/posts/person/${this.personId}`),
                 fetch(`/api/photos/person/${this.personId}`),
                 fetch(`/api/videos/person/${this.personId}`),
                 fetch(`/api/documents/person/${this.personId}`),
                 fetch(`/api/people/${this.personId}/events`),
-                fetch(`/api/people/${this.personId}/spouses`)
+                fetch(`/api/people/${this.personId}/spouses`),
+                fetch(`/api/media-folders/person/${this.personId}`)
             ]);
 
             const postsData = await postsRes.json();
@@ -185,12 +195,14 @@ class ViewProfileViewModel {
             const docsData = await docsRes.json();
             const eventsData = await eventsRes.json();
             const spousesData = await spousesRes.json();
+            const foldersData = await foldersRes.json();
 
             this.posts(postsData.value || postsData || []);
             this.photos(photosData.value || photosData || []);
             this.videos(videosData.value || videosData || []);
             this.documents(docsData.value || docsData || []);
             this.events(eventsData.value || eventsData || []);
+            this.mediaFolders(foldersData.value || foldersData || []);
 
             const spouseList = spousesData.value || spousesData || [];
             this.spouses(spouseList.map(s => ({
@@ -331,6 +343,24 @@ class ViewProfileViewModel {
 
         const anno = Annotorious.createImageAnnotator(img);
         this._lightboxAnno = anno;
+        this.lightboxSelectedAnnotationId(null);
+
+        anno.on?.('selectionChanged', (selection) => {
+            const selected = Array.isArray(selection) && selection.length > 0 ? selection[0] : null;
+            this.lightboxSelectedAnnotationId(selected?.id || null);
+        });
+
+        if (this.canEdit()) {
+            anno.on?.('createAnnotation', (annotation) => {
+                const existing = this._getAnnotationComment(annotation);
+                if (existing) return;
+                const text = prompt('Annotation text:', '');
+                if (text && text.trim()) {
+                    const updated = this._setAnnotationComment(annotation, text.trim());
+                    anno.updateAnnotation?.(annotation, updated);
+                }
+            });
+        }
 
         const data = this._lightboxPhotoData;
         if (data?.annotationsJson) {
@@ -344,6 +374,62 @@ class ViewProfileViewModel {
             // Disable drawing in read-only mode — only show existing annotations
             anno.setDrawingEnabled(false);
         }
+    };
+
+    setAnnotationTool = (tool) => {
+        if (!this._lightboxAnno || !this.canEdit()) return;
+        if (tool === 'rectangle') {
+            this._lightboxAnno.setDrawingTool?.('rectangle');
+            this._lightboxAnno.setDrawingEnabled?.(true);
+            return;
+        }
+        if (tool === 'polygon') {
+            this._lightboxAnno.setDrawingTool?.('polygon');
+            this._lightboxAnno.setDrawingEnabled?.(true);
+        }
+    };
+
+    editSelectedAnnotationText = async () => {
+        if (!this._lightboxAnno || !this.canEdit()) return;
+        const selected = await this._getSelectedAnnotation();
+        if (!selected) { toast.info('Select an annotation first.'); return; }
+        const current = this._getAnnotationComment(selected) || '';
+        const text = prompt('Annotation text:', current);
+        if (text == null) return;
+        const updated = this._setAnnotationComment(selected, text.trim());
+        this._lightboxAnno.updateAnnotation?.(selected, updated);
+    };
+
+    deleteSelectedAnnotation = async () => {
+        if (!this._lightboxAnno || !this.canEdit()) return;
+        const selected = await this._getSelectedAnnotation();
+        if (!selected) { toast.info('Select an annotation first.'); return; }
+        if (!confirm('Delete selected annotation?')) return;
+        this._lightboxAnno.removeAnnotation?.(selected.id);
+        this.lightboxSelectedAnnotationId(null);
+    };
+
+    _getSelectedAnnotation = async () => {
+        if (!this._lightboxAnno) return null;
+        const id = this.lightboxSelectedAnnotationId();
+        if (!id) return null;
+        const all = await this._lightboxAnno.getAnnotations();
+        return all.find(a => a.id === id) || null;
+    };
+
+    _getAnnotationComment = (annotation) => {
+        const bodies = Array.isArray(annotation?.body) ? annotation.body : (annotation?.body ? [annotation.body] : []);
+        const body = bodies.find(b => (b.purpose === 'commenting' || b.purpose === 'describing') && typeof b.value === 'string');
+        return body?.value || '';
+    };
+
+    _setAnnotationComment = (annotation, text) => {
+        const clone = structuredClone(annotation);
+        const bodies = Array.isArray(clone.body) ? clone.body : (clone.body ? [clone.body] : []);
+        const filtered = bodies.filter(b => !(b.purpose === 'commenting' || b.purpose === 'describing'));
+        if (text) filtered.push({ type: 'TextualBody', purpose: 'commenting', value: text });
+        clone.body = filtered;
+        return clone;
     };
 
     saveLightboxAnnotations = async () => {
@@ -371,6 +457,7 @@ class ViewProfileViewModel {
         this.editPhotoMonth(photo.monthTaken);
         this.editPhotoDay(photo.dayTaken);
         this.editPhotoTagsText((photo.tags || []).join(', '));
+        this.editPhotoFolderId(photo.folderId ?? null);
         const el = document.getElementById('editPhotoModal');
         if (el) bootstrap.Modal.getOrCreateInstance(el).show();
     };
@@ -386,7 +473,8 @@ class ViewProfileViewModel {
             yearTaken: this.editPhotoYear() || null,
             monthTaken: this.editPhotoMonth() || null,
             dayTaken: this.editPhotoDay() || null,
-            tags
+            tags,
+            folderId: this.editPhotoFolderId() || null
         };
 
         try {
@@ -403,6 +491,44 @@ class ViewProfileViewModel {
                 toast.success('Photo updated!');
             } else toast.error('Failed to update photo.');
         } catch { toast.error('Error updating photo.'); }
+    };
+
+    startEditVideo = (video) => {
+        this.editingVideoId(video.id);
+        this.editVideoTitle(video.title || '');
+        this.editVideoDescription(video.description || '');
+        this.editVideoTagsText((video.tags || []).join(', '));
+        this.editVideoFolderId(video.folderId ?? null);
+        const el = document.getElementById('editVideoModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+
+    saveEditVideo = async () => {
+        const id = this.editingVideoId();
+        if (!id) return;
+
+        const tags = this.editVideoTagsText().split(',').map(t => t.trim()).filter(Boolean);
+        const body = {
+            title: this.editVideoTitle(),
+            description: this.editVideoDescription() || null,
+            tags,
+            folderId: this.editVideoFolderId() || null
+        };
+
+        try {
+            const res = await fetch(`/api/videos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editVideoModal'))?.hide();
+                this.editingVideoId(null);
+                await this.loadProfile();
+                toast.success('Video updated!');
+            } else toast.error('Failed to update video.');
+        } catch { toast.error('Error updating video.'); }
     };
 
     startEditEvent = (ev) => {

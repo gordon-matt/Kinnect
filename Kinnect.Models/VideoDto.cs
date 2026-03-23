@@ -23,4 +23,6 @@ public class VideoDto
     public List<string> Tags { get; set; } = [];
 
     public List<int> EventIds { get; set; } = [];
+
+    public int? FolderId { get; set; }
 }

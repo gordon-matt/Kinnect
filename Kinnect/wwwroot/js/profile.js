@@ -68,6 +68,7 @@
             this.photos = ko.observableArray([]);
             this.videos = ko.observableArray([]);
             this.documents = ko.observableArray([]);
+            this.mediaFolders = ko.observableArray([]);
             this.events = ko.observableArray([]);
             this.spouses = ko.observableArray([]);
 
@@ -182,12 +183,14 @@
             this.photoDayTaken = ko.observable(null);
             this.photoUploadDayOptions = daysInMonth(this.photoMonthTaken, this.photoYearTaken);
             this.photoSelectedEventIds = ko.observableArray([]);
+            this.photoFolderId = ko.observable(null);
 
             // Video upload state
             this.isUploadingVideo = ko.observable(false);
             this.videoTitle = ko.observable('');
             this.videoDescription = ko.observable('');
             this.videoSelectedEventIds = ko.observableArray([]);
+            this.videoFolderId = ko.observable(null);
 
             this.isUploadingDocument = ko.observable(false);
             this.documentTitle = ko.observable('');
@@ -237,6 +240,7 @@
             this.lightboxPersonTagResults = ko.observableArray([]);
             this._lightboxAnno = null;
             this._lightboxPersonTagTimer = null;
+            this.lightboxSelectedAnnotationId = ko.observable(null);
 
             this.lightboxPersonTagQuery.subscribe(() => {
                 clearTimeout(this._lightboxPersonTagTimer);
@@ -253,6 +257,19 @@
             this.editPhotoDayOptions = daysInMonth(this.editPhotoMonth, this.editPhotoYear);
             this.editPhotoTagsText = ko.observable('');
             this.editPhotoSelectedEventIds = ko.observableArray([]);
+            this.editPhotoFolderId = ko.observable(null);
+
+            // Edit video
+            this.editingVideoId = ko.observable(null);
+            this.editVideoTitle = ko.observable('');
+            this.editVideoDescription = ko.observable('');
+            this.editVideoTagsText = ko.observable('');
+            this.editVideoFolderId = ko.observable(null);
+
+            // Folder creation
+            this.isAddingFolder = ko.observable(false);
+            this.newFolderName = ko.observable('');
+            this.newFolderDescription = ko.observable('');
 
             // Copy event dialog (item 8)
             this.copyEventId = ko.observable(null);
@@ -336,13 +353,14 @@
             const pid = this.personId();
             if (!pid) return;
 
-            const [photosRes, videosRes, docsRes, eventsRes, spousesRes, peopleRes] = await Promise.all([
+            const [photosRes, videosRes, docsRes, eventsRes, spousesRes, peopleRes, foldersRes] = await Promise.all([
                 fetch(`/api/photos/person/${pid}`),
                 fetch(`/api/videos/person/${pid}`),
                 fetch(`/api/documents/person/${pid}`),
                 fetch(`/api/people/${pid}/events`),
                 fetch(`/api/people/${pid}/spouses`),
-                fetch('/api/people')
+                fetch('/api/people'),
+                fetch(`/api/media-folders/person/${pid}`)
             ]);
 
             const photosData = await photosRes.json();
@@ -351,14 +369,16 @@
             const eventsData = await eventsRes.json();
             const spousesData = await spousesRes.json();
             const peopleData = await peopleRes.json();
+            const foldersData = await foldersRes.json();
 
             this.photos(photosData.value || photosData || []);
             this.videos(videosData.value || videosData || []);
             this.documents(docsData.value || docsData || []);
             this.events(eventsData.value || eventsData || []);
+            this.mediaFolders(foldersData.value || foldersData || []);
 
             const rawPeople = peopleData.value || peopleData || [];
-            this.allPeople(rawPeople.filter(p => p.id !== pid).map(p => ({
+            this.allPeople(rawPeople.map(p => ({
                 id: p.id,
                 fullName: p.fullName || `${p.givenNames} ${p.familyName}`
             })));
@@ -1012,6 +1032,22 @@
 
             const anno = Annotorious.createImageAnnotator(img);
             this._lightboxAnno = anno;
+            this.lightboxSelectedAnnotationId(null);
+
+            anno.on?.('selectionChanged', (selection) => {
+                const selected = Array.isArray(selection) && selection.length > 0 ? selection[0] : null;
+                this.lightboxSelectedAnnotationId(selected?.id || null);
+            });
+
+            anno.on?.('createAnnotation', (annotation) => {
+                const existing = this._getAnnotationComment(annotation);
+                if (existing) return;
+                const text = prompt('Annotation text:', '');
+                if (text && text.trim()) {
+                    const updated = this._setAnnotationComment(annotation, text.trim());
+                    anno.updateAnnotation?.(annotation, updated);
+                }
+            });
 
             const data = this._lightboxPhotoData;
             if (data?.annotationsJson) {
@@ -1020,6 +1056,64 @@
                     await anno.setAnnotations(annotations);
                 } catch (e) { console.warn('Failed to parse annotations', e); }
             }
+        };
+
+        setAnnotationTool = (tool) => {
+            if (!this._lightboxAnno) return;
+            if (tool === 'rectangle') {
+                this._lightboxAnno.setDrawingTool?.('rectangle');
+                this._lightboxAnno.setDrawingEnabled?.(true);
+                return;
+            }
+            if (tool === 'polygon') {
+                this._lightboxAnno.setDrawingTool?.('polygon');
+                this._lightboxAnno.setDrawingEnabled?.(true);
+            }
+        };
+
+        editSelectedAnnotationText = async () => {
+            if (!this._lightboxAnno) return;
+            const selected = await this._getSelectedAnnotation();
+            if (!selected) { toast.info('Select an annotation first.'); return; }
+            const current = this._getAnnotationComment(selected) || '';
+            const text = prompt('Annotation text:', current);
+            if (text == null) return;
+            const updated = this._setAnnotationComment(selected, text.trim());
+            this._lightboxAnno.updateAnnotation?.(selected, updated);
+        };
+
+        deleteSelectedAnnotation = async () => {
+            if (!this._lightboxAnno) return;
+            const selected = await this._getSelectedAnnotation();
+            if (!selected) { toast.info('Select an annotation first.'); return; }
+            if (!confirm('Delete selected annotation?')) return;
+            this._lightboxAnno.removeAnnotation?.(selected.id);
+            this.lightboxSelectedAnnotationId(null);
+        };
+
+        _getSelectedAnnotation = async () => {
+            if (!this._lightboxAnno) return null;
+            const id = this.lightboxSelectedAnnotationId();
+            if (!id) return null;
+            const all = await this._lightboxAnno.getAnnotations();
+            return all.find(a => a.id === id) || null;
+        };
+
+        _getAnnotationComment = (annotation) => {
+            const bodies = Array.isArray(annotation?.body) ? annotation.body : (annotation?.body ? [annotation.body] : []);
+            const body = bodies.find(b => (b.purpose === 'commenting' || b.purpose === 'describing') && typeof b.value === 'string');
+            return body?.value || '';
+        };
+
+        _setAnnotationComment = (annotation, text) => {
+            const clone = structuredClone(annotation);
+            const bodies = Array.isArray(clone.body) ? clone.body : (clone.body ? [clone.body] : []);
+            const filtered = bodies.filter(b => !(b.purpose === 'commenting' || b.purpose === 'describing'));
+            if (text) {
+                filtered.push({ type: 'TextualBody', purpose: 'commenting', value: text });
+            }
+            clone.body = filtered;
+            return clone;
         };
 
         saveLightboxAnnotations = async () => {
@@ -1048,6 +1142,7 @@
             this.editPhotoDay(photo.dayTaken);
             this.editPhotoTagsText((photo.tags || []).join(', '));
             this.editPhotoSelectedEventIds(photo.eventIds || []);
+            this.editPhotoFolderId(photo.folderId ?? null);
             const el = document.getElementById('editPhotoModal');
             if (el) bootstrap.Modal.getOrCreateInstance(el).show();
         };
@@ -1084,7 +1179,8 @@
                 monthTaken: this.editPhotoMonth() || null,
                 dayTaken: this.editPhotoDay() || null,
                 tags,
-                eventIds: this.editPhotoSelectedEventIds()
+                eventIds: this.editPhotoSelectedEventIds(),
+                folderId: this.editPhotoFolderId() || null
             };
 
             try {
@@ -1109,6 +1205,7 @@
             this.photoMonthTaken(null);
             this.photoDayTaken(null);
             this.photoSelectedEventIds([]);
+            this.photoFolderId(null);
             this.initTagify('photoTags');
         };
         cancelPhotoUpload = () => this.isUploadingPhoto(false);
@@ -1116,6 +1213,7 @@
         showVideoUpload = () => {
             this.isUploadingVideo(true);
             this.videoSelectedEventIds([]);
+            this.videoFolderId(null);
             this.initTagify('videoTags');
         };
         cancelVideoUpload = () => this.isUploadingVideo(false);
@@ -1125,6 +1223,43 @@
             this.initTagify('documentTags');
         };
         cancelDocumentUpload = () => this.isUploadingDocument(false);
+
+        showAddFolder = () => {
+            this.isAddingFolder(true);
+            this.newFolderName('');
+            this.newFolderDescription('');
+        };
+
+        cancelAddFolder = () => {
+            this.isAddingFolder(false);
+            this.newFolderName('');
+            this.newFolderDescription('');
+        };
+
+        createMediaFolder = async () => {
+            const name = (this.newFolderName() || '').trim();
+            if (!name) { toast.error('Folder name is required.'); return; }
+
+            try {
+                const res = await fetch('/api/media-folders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        description: this.newFolderDescription() || null
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const folder = data.value || data;
+                    this.mediaFolders([...this.mediaFolders(), folder].sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+                    this.cancelAddFolder();
+                    toast.success('Folder created.');
+                } else {
+                    toast.error('Failed to create folder.');
+                }
+            } catch { toast.error('Error creating folder.'); }
+        };
 
         initTagify = (inputId) => {
             setTimeout(async () => {
@@ -1160,6 +1295,7 @@
             if (y != null && y !== '') formData.append('yearTaken', String(y));
             if (mo != null && mo !== '') formData.append('monthTaken', String(mo));
             if (d != null && d !== '') formData.append('dayTaken', String(d));
+            if (this.photoFolderId() != null && this.photoFolderId() !== '') formData.append('folderId', String(this.photoFolderId()));
 
             const response = await fetch('/api/photos', { method: 'POST', body: formData });
             if (response.ok) {
@@ -1170,6 +1306,7 @@
                 this.photoMonthTaken(null);
                 this.photoDayTaken(null);
                 this.photoSelectedEventIds([]);
+                this.photoFolderId(null);
                 await this.loadContent();
                 toast.success('Photo uploaded!');
             } else toast.error('Failed to upload photo.');
@@ -1184,6 +1321,7 @@
             formData.append('title', this.videoTitle());
             formData.append('description', this.videoDescription());
             formData.append('tags', this.getTagValues('videoTags').join(','));
+            if (this.videoFolderId() != null && this.videoFolderId() !== '') formData.append('folderId', String(this.videoFolderId()));
 
             const response = await fetch('/api/videos', { method: 'POST', body: formData });
             if (response.ok) {
@@ -1191,9 +1329,47 @@
                 this.videoTitle('');
                 this.videoDescription('');
                 this.videoSelectedEventIds([]);
+                this.videoFolderId(null);
                 await this.loadContent();
                 toast.success('Video uploaded!');
             } else toast.error('Failed to upload video.');
+        };
+
+        startEditVideo = (video) => {
+            this.editingVideoId(video.id);
+            this.editVideoTitle(video.title || '');
+            this.editVideoDescription(video.description || '');
+            this.editVideoTagsText((video.tags || []).join(', '));
+            this.editVideoFolderId(video.folderId ?? null);
+            const el = document.getElementById('editVideoModal');
+            if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+        };
+
+        saveEditVideo = async () => {
+            const id = this.editingVideoId();
+            if (!id) return;
+
+            const tags = this.editVideoTagsText().split(',').map(t => t.trim()).filter(Boolean);
+            const body = {
+                title: this.editVideoTitle(),
+                description: this.editVideoDescription() || null,
+                tags,
+                folderId: this.editVideoFolderId() || null
+            };
+
+            try {
+                const res = await fetch(`/api/videos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('editVideoModal'))?.hide();
+                    this.editingVideoId(null);
+                    await this.loadContent();
+                    toast.success('Video updated!');
+                } else toast.error('Failed to update video.');
+            } catch { toast.error('Error updating video.'); }
         };
 
         uploadDocument = async () => {

@@ -9,7 +9,7 @@ public interface IPhotoService
 
     Task<Result<PhotoDto>> GetByIdAsync(int id);
 
-    Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags, short? yearTaken = null, byte? monthTaken = null, byte? dayTaken = null);
+    Task<Result<PhotoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, int uploadedByPersonId, List<string>? tags, short? yearTaken = null, byte? monthTaken = null, byte? dayTaken = null, int? folderId = null);
 
     Task<Result<PhotoDto>> UpdateAsync(int id, PhotoUpdateRequest request, string currentUserId, bool isAdmin);
 

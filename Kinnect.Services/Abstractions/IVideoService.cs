@@ -9,7 +9,9 @@ public interface IVideoService
 
     Task<Result<VideoDto>> GetByIdAsync(int id);
 
-    Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags);
+    Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags, int? folderId = null);
+
+    Task<Result<VideoDto>> UpdateAsync(int id, VideoUpdateRequest request, string currentUserId, bool isAdmin);
 
     Task<Result> UpdateTagsAsync(int id, List<string> tags);
 

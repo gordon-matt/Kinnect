@@ -348,12 +348,28 @@
                 <!-- Media tab: Photos + Videos -->
                 <div class="tab-pane fade" id="mediaTab">
                     <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-sm btn-outline-secondary" data-bind="click: showAddFolder, visible: !isAddingFolder()">
+                            <i class="bi bi-folder-plus"></i> New Folder
+                        </button>
                         <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload, visible: !isUploadingPhoto()">
                             <i class="bi bi-image"></i> Upload Photo
                         </button>
                         <button class="btn btn-sm btn-outline-primary" data-bind="click: showVideoUpload, visible: !isUploadingVideo()">
                             <i class="bi bi-film"></i> Upload Video
                         </button>
+                    </div>
+
+                    <div data-bind="visible: isAddingFolder" class="card mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-folder-plus"></i> New Folder</span>
+                            <button type="button" class="btn-close btn-sm" data-bind="click: cancelAddFolder"></button>
+                        </div>
+                        <div class="card-body">
+                            <input type="text" class="form-control mb-2" placeholder="Folder name (e.g. Wedding)" data-bind="value: newFolderName" />
+                            <input type="text" class="form-control mb-2" placeholder="Description (optional)" data-bind="value: newFolderDescription" />
+                            <button class="btn btn-primary btn-sm" data-bind="click: createMediaFolder">Create Folder</button>
+                            <button class="btn btn-secondary btn-sm ms-1" data-bind="click: cancelAddFolder">Cancel</button>
+                        </div>
                     </div>
 
                     <!-- Photo upload form -->
@@ -381,6 +397,10 @@
                                 </div>
                             </div>
                             <input id="photoTags" class="form-control mb-2" placeholder="Tags" />
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">Folder</label>
+                                <select class="form-select form-select-sm" data-bind="options: mediaFolders, value: photoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
+                            </div>
                             <div data-bind="visible: events().length > 0" class="mb-2">
                                 <label class="form-label form-label-sm">Link to events</label>
                                 <div class="border rounded p-2" style="max-height:120px;overflow-y:auto;" data-bind="foreach: events">
@@ -409,6 +429,10 @@
                             <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: videoTitle" />
                             <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: videoDescription" />
                             <input id="videoTags" class="form-control mb-2" placeholder="Tags" />
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">Folder</label>
+                                <select class="form-select form-select-sm" data-bind="options: mediaFolders, value: videoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
+                            </div>
                             <div data-bind="visible: events().length > 0" class="mb-2">
                                 <label class="form-label form-label-sm">Link to events</label>
                                 <div class="border rounded p-2" style="max-height:120px;overflow-y:auto;" data-bind="foreach: events">
@@ -430,7 +454,7 @@
                     <div data-bind="visible: photos().length > 0">
                         <h6 class="text-muted small text-uppercase mb-2">Photos</h6>
                         <div class="row" data-bind="foreach: photos">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <div class="card">
                                     <a href="#" class="d-block" data-bind="click: function() { $root.openPhotoLightbox($data); return false; }">
                                         <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover; cursor:pointer;" role="button" />
@@ -456,8 +480,11 @@
                         <h6 class="text-muted small text-uppercase mb-2">Videos</h6>
                         <div data-bind="foreach: videos">
                             <div class="card mb-2">
-                                <div class="card-body">
-                                    <i class="bi bi-film"></i> <span data-bind="text: title"></span>
+                                <div class="card-body d-flex justify-content-between align-items-center">
+                                    <div><i class="bi bi-film"></i> <span data-bind="text: title"></span></div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit" data-bind="click: function() { $root.startEditVideo($data); }">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -511,7 +538,7 @@
             <div class="modal-body p-0">
                 <div class="d-flex flex-column flex-lg-row" style="min-height:60vh;">
                     <!-- Image area -->
-                    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-2" style="overflow:hidden;">
+                    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-2" style="overflow:visible;">
                         <img id="lightboxAnnotatableImage" data-bind="attr: { src: photoLightboxUrl }" class="img-fluid rounded" style="max-height:80vh; max-width:100%;" alt="" />
                     </div>
                     <!-- Side panel -->
@@ -548,7 +575,20 @@
                         <hr class="border-secondary my-3" />
 
                         <h6 class="text-white-50 small text-uppercase mb-2">Annotations</h6>
-                        <p class="text-white-50 small">Draw a box on the image to add a note. Click an existing annotation to edit or delete it.</p>
+                        <div class="d-grid gap-1 mb-2">
+                            <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('rectangle'); }">
+                                <i class="bi bi-bounding-box"></i> Rectangle
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('polygon'); }">
+                                <i class="bi bi-pentagon"></i> Polygon
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" data-bind="click: editSelectedAnnotationText">
+                                <i class="bi bi-chat-left-text"></i> Edit Text
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-bind="click: deleteSelectedAnnotation">
+                                <i class="bi bi-trash"></i> Delete Selected
+                            </button>
+                        </div>
                         <button class="btn btn-sm btn-outline-light w-100" data-bind="click: saveLightboxAnnotations">
                             <i class="bi bi-floppy"></i> Save annotations
                         </button>
@@ -594,6 +634,10 @@
                     <label class="form-label">Tags (comma-separated)</label>
                     <input type="text" class="form-control" data-bind="value: editPhotoTagsText" />
                 </div>
+                <div class="mb-2">
+                    <label class="form-label">Folder</label>
+                    <select class="form-select" data-bind="options: mediaFolders, value: editPhotoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
+                </div>
                 <!-- item 11: event associations -->
                 <div data-bind="visible: events().length > 0" class="mb-2">
                     <label class="form-label">Linked events</label>
@@ -611,6 +655,40 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" data-bind="click: saveEditPhoto">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit video -->
+<div class="modal fade" id="editVideoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" data-bind="value: editVideoTitle" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" rows="2" data-bind="value: editVideoDescription"></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Tags (comma-separated)</label>
+                    <input type="text" class="form-control" data-bind="value: editVideoTagsText" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Folder</label>
+                    <select class="form-select" data-bind="options: mediaFolders, value: editVideoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" data-bind="click: saveEditVideo">Save</button>
             </div>
         </div>
     </div>

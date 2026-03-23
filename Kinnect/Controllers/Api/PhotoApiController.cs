@@ -36,7 +36,8 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
         [FromForm] string? tags,
         [FromForm] int? yearTaken,
         [FromForm] int? monthTaken,
-        [FromForm] int? dayTaken)
+        [FromForm] int? dayTaken,
+        [FromForm] int? folderId)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
@@ -55,7 +56,7 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
         byte? mo = monthTaken is >= 1 and <= 12 ? (byte)monthTaken.Value : null;
         byte? d = dayTaken is >= 1 and <= 31 ? (byte)dayTaken.Value : null;
 
-        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList, y, mo, d);
+        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList, y, mo, d, folderId);
         return result.IsSuccess ? Ok(result.Value) : BadRequest();
     }
 

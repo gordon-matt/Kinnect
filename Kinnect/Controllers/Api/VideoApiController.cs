@@ -12,6 +12,8 @@ namespace Kinnect.Controllers.Api;
 [Authorize]
 public class VideoApiController(IVideoService videoService, IPersonService personService, IUserContextService userContextService, IFileStorageService fileStorageService) : ControllerBase
 {
+    private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
+
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}")]
     public async Task<Result<IEnumerable<VideoDto>>> GetByPerson(int personId)
@@ -28,7 +30,7 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
 
     [HttpPost]
     [RequestSizeLimit(524_288_000)]
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string title, [FromForm] string? description, [FromForm] string? tags)
+    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string title, [FromForm] string? description, [FromForm] string? tags, [FromForm] int? folderId)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
@@ -43,8 +45,19 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 
-        var result = await videoService.CreateAsync(title, description, filePath, null, null, personResult.Value.Id, tagList);
+        var result = await videoService.CreateAsync(title, description, filePath, null, null, personResult.Value.Id, tagList, folderId);
         return result.IsSuccess ? Ok(result.Value) : BadRequest();
+    }
+
+    [TranslateResultToActionResult]
+    [HttpPut("{id:int}")]
+    public async Task<Result<VideoDto>> Update(int id, [FromBody] VideoUpdateRequest request)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await videoService.UpdateAsync(id, request, userId, IsAdmin);
     }
 
     [TranslateResultToActionResult]
