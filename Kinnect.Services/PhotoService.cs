@@ -6,14 +6,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kinnect.Services;
 
-public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> tagRepository, IRepository<PhotoTag> photoTagRepository) : IPhotoService
+public class PhotoService(
+    IRepository<Photo> photoRepository,
+    IRepository<Tag> tagRepository,
+    IRepository<PhotoTag> photoTagRepository,
+    IRepository<PersonPhoto> personPhotoRepository) : IPhotoService
 {
     public async Task<Result<IEnumerable<PhotoDto>>> GetByPersonAsync(int personId)
     {
         var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
         {
-            Query = x => x.UploadedByPersonId == personId,
-            Include = q => q.Include(p => p.UploadedBy).Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+            Query = x => x.UploadedByPersonId == personId
+                      || x.PersonPhotos.Any(pp => pp.PersonId == personId),
+            Include = q => q
+                .Include(p => p.UploadedBy)
+                .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+                .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
 
         return Result.Success(photos.OrderByDescending(p => p.CreatedAtUtc).Select(MapToDto));
@@ -24,7 +32,10 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(p => p.UploadedBy).Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+            Include = q => q
+                .Include(p => p.UploadedBy)
+                .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+                .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
         var photo = photos.FirstOrDefault();
 
@@ -65,14 +76,17 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(p => p.UploadedBy).Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+            Include = q => q
+                .Include(p => p.UploadedBy)
+                .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
+                .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
         var photo = photos.FirstOrDefault();
 
         if (photo is null)
             return Result.NotFound("Photo not found.");
 
-        if (!CanEditPhotoMetadata(photo.UploadedBy, currentUserId, isAdmin))
+        if (!CanEditPhoto(photo.UploadedBy, currentUserId, isAdmin))
             return Result.Forbidden();
 
         photo.Title = request.Title;
@@ -80,21 +94,97 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         photo.YearTaken = request.YearTaken;
         photo.MonthTaken = request.MonthTaken;
         photo.DayTaken = request.DayTaken;
+        photo.FolderId = request.FolderId;
 
         await photoRepository.UpdateAsync(photo);
 
         if (request.Tags is not null)
             await SyncTagsAsync(id, request.Tags);
 
+        if (request.PersonIds is not null)
+            await SyncPersonTagsAsync(id, request.PersonIds);
+
         return await GetByIdAsync(id);
     }
 
-    private static bool CanEditPhotoMetadata(Person uploadedBy, string currentUserId, bool isAdmin)
+    public async Task<Result> SaveAnnotationsAsync(int photoId, string? annotationsJson, string currentUserId, bool isAdmin)
     {
-        if (isAdmin)
-            return true;
-        if (uploadedBy.UserId == null)
-            return true;
+        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        {
+            Query = x => x.Id == photoId,
+            Include = q => q.Include(p => p.UploadedBy)
+        });
+        var photo = photos.FirstOrDefault();
+
+        if (photo is null)
+            return Result.NotFound("Photo not found.");
+
+        if (!CanEditPhoto(photo.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
+
+        photo.AnnotationsJson = annotationsJson;
+        await photoRepository.UpdateAsync(photo);
+        return Result.Success();
+    }
+
+    public async Task<Result> TagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin)
+    {
+        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        {
+            Query = x => x.Id == photoId,
+            Include = q => q.Include(p => p.UploadedBy)
+        });
+        var photo = photos.FirstOrDefault();
+
+        if (photo is null)
+            return Result.NotFound("Photo not found.");
+
+        if (!CanEditPhoto(photo.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
+
+        var existing = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
+        {
+            Query = x => x.PhotoId == photoId && x.PersonId == personId
+        });
+
+        if (!existing.Any())
+        {
+            await personPhotoRepository.InsertAsync(new PersonPhoto { PhotoId = photoId, PersonId = personId });
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> UntagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin)
+    {
+        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        {
+            Query = x => x.Id == photoId,
+            Include = q => q.Include(p => p.UploadedBy)
+        });
+        var photo = photos.FirstOrDefault();
+
+        if (photo is null)
+            return Result.NotFound("Photo not found.");
+
+        if (!CanEditPhoto(photo.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
+
+        var links = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
+        {
+            Query = x => x.PhotoId == photoId && x.PersonId == personId
+        });
+
+        foreach (var link in links)
+            await personPhotoRepository.DeleteAsync(link);
+
+        return Result.Success();
+    }
+
+    private static bool CanEditPhoto(Person uploadedBy, string currentUserId, bool isAdmin)
+    {
+        if (isAdmin) return true;
+        if (uploadedBy.UserId == null) return true;
         return uploadedBy.UserId == currentUserId;
     }
 
@@ -126,9 +216,7 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         });
 
         foreach (var pt in existing)
-        {
             await photoTagRepository.DeleteAsync(pt);
-        }
 
         foreach (string tagName in tagNames.Distinct())
         {
@@ -148,6 +236,22 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         }
     }
 
+    private async Task SyncPersonTagsAsync(int photoId, List<int> personIds)
+    {
+        var existing = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
+        {
+            Query = x => x.PhotoId == photoId
+        });
+
+        foreach (var pp in existing)
+            await personPhotoRepository.DeleteAsync(pp);
+
+        foreach (var personId in personIds.Distinct())
+        {
+            await personPhotoRepository.InsertAsync(new PersonPhoto { PhotoId = photoId, PersonId = personId });
+        }
+    }
+
     private static PhotoDto MapToDto(Photo p) => new()
     {
         Id = p.Id,
@@ -161,6 +265,11 @@ public class PhotoService(IRepository<Photo> photoRepository, IRepository<Tag> t
         YearTaken = p.YearTaken,
         MonthTaken = p.MonthTaken,
         DayTaken = p.DayTaken,
-        Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList()
+        AnnotationsJson = p.AnnotationsJson,
+        FolderId = p.FolderId,
+        Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList(),
+        TaggedPeople = p.PersonPhotos
+            .Select(pp => new TaggedPersonInfo(pp.PersonId, $"{pp.Person.GivenNames} {pp.Person.FamilyName}"))
+            .ToList()
     };
 }

@@ -94,6 +94,21 @@ class ViewProfileViewModel {
         });
 
         this.photoLightboxUrl = ko.observable(null);
+        this.lightboxPhotoId = ko.observable(null);
+        this.lightboxPhotoTitle = ko.observable('');
+        this.lightboxPhotoDate = ko.observable('');
+        this.lightboxTaggedPeople = ko.observableArray([]);
+        this.lightboxPersonTagQuery = ko.observable('');
+        this.lightboxPersonTagResults = ko.observableArray([]);
+        this._lightboxAnno = null;
+        this._lightboxPhotoData = null;
+        this._lightboxPersonTagTimer = null;
+        this._allPeople = [];
+
+        this.lightboxPersonTagQuery.subscribe(() => {
+            clearTimeout(this._lightboxPersonTagTimer);
+            this._lightboxPersonTagTimer = setTimeout(() => this._runLightboxPersonTagSearch(), 250);
+        });
 
         this.editingEventId = ko.observable(null);
         this.editEventType = ko.observable('BIRT');
@@ -118,6 +133,17 @@ class ViewProfileViewModel {
 
     loadProfile = async () => {
         try {
+            // Load all people for person-tagging autocomplete
+            fetch('/api/people').then(async r => {
+                if (r.ok) {
+                    const d = await r.json();
+                    this._allPeople = (d.value || d || []).map(p => ({
+                        id: p.id,
+                        fullName: p.fullName || `${p.givenNames} ${p.familyName}`
+                    }));
+                }
+            });
+
             const personRes = await fetch(`/api/people/${this.personId}`);
             const personResult = await personRes.json();
             const person = personResult.value || personResult;
@@ -231,10 +257,110 @@ class ViewProfileViewModel {
         return icons[eventType] || 'bi-calendar-event';
     }
 
-    openPhotoLightbox = (photo) => {
+    openPhotoLightbox = async (photo) => {
         this.photoLightboxUrl('/uploads/' + photo.filePath);
+        this.lightboxPhotoId(photo.id);
+        this.lightboxPhotoTitle(photo.title || '');
+        this.lightboxPhotoDate(this.formatPhotoDate(photo));
+        this.lightboxTaggedPeople(photo.taggedPeople || []);
+        this.lightboxPersonTagQuery('');
+        this.lightboxPersonTagResults([]);
+
         const el = document.getElementById('photoLightboxModal');
         if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+
+        try {
+            const res = await fetch(`/api/photos/${photo.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                const full = data.value || data;
+                this.lightboxTaggedPeople(full.taggedPeople || []);
+                this._lightboxPhotoData = full;
+            }
+        } catch { /* non-fatal */ }
+    };
+
+    _runLightboxPersonTagSearch = () => {
+        const q = this.lightboxPersonTagQuery().replace(/^#/, '').toLowerCase().trim();
+        if (q.length < 1) { this.lightboxPersonTagResults([]); return; }
+        const taggedIds = new Set(this.lightboxTaggedPeople().map(p => p.personId));
+        const results = this._allPeople
+            .filter(p => !taggedIds.has(p.id) && p.fullName.toLowerCase().includes(q))
+            .slice(0, 6);
+        this.lightboxPersonTagResults(results);
+    };
+
+    tagPersonFromLightbox = async (person) => {
+        const pid = this.lightboxPhotoId();
+        if (!pid) return;
+        try {
+            const res = await fetch(`/api/photos/${pid}/tag-person/${person.id}`, { method: 'POST' });
+            if (res.ok) {
+                this.lightboxTaggedPeople.push({ personId: person.id, name: person.fullName });
+                this.lightboxPersonTagQuery('');
+                this.lightboxPersonTagResults([]);
+            } else toast.error('Could not tag person.');
+        } catch { toast.error('Error tagging person.'); }
+    };
+
+    untagPersonFromLightbox = async (personId) => {
+        const pid = this.lightboxPhotoId();
+        if (!pid) return;
+        try {
+            const res = await fetch(`/api/photos/${pid}/tag-person/${personId}`, { method: 'DELETE' });
+            if (res.ok) {
+                this.lightboxTaggedPeople(this.lightboxTaggedPeople().filter(p => p.personId !== personId));
+            } else toast.error('Could not remove tag.');
+        } catch { toast.error('Error removing tag.'); }
+    };
+
+    initLightboxAnnotorious = async () => {
+        if (this._lightboxAnno) {
+            try { this._lightboxAnno.destroy(); } catch { /* ignore */ }
+            this._lightboxAnno = null;
+        }
+
+        if (typeof Annotorious === 'undefined') return;
+
+        const img = document.getElementById('lightboxAnnotatableImage');
+        if (!img || !img.src) return;
+
+        if (!img.complete) {
+            await new Promise(resolve => img.addEventListener('load', resolve, { once: true }));
+        }
+
+        const anno = Annotorious.createImageAnnotator(img);
+        this._lightboxAnno = anno;
+
+        const data = this._lightboxPhotoData;
+        if (data?.annotationsJson) {
+            try {
+                const annotations = JSON.parse(data.annotationsJson);
+                await anno.setAnnotations(annotations);
+            } catch (e) { console.warn('Failed to parse annotations', e); }
+        }
+
+        if (!this.canEdit()) {
+            // Disable drawing in read-only mode — only show existing annotations
+            anno.setDrawingEnabled(false);
+        }
+    };
+
+    saveLightboxAnnotations = async () => {
+        const pid = this.lightboxPhotoId();
+        if (!pid || !this._lightboxAnno) return;
+
+        try {
+            const annotations = await this._lightboxAnno.getAnnotations();
+            const body = { annotationsJson: JSON.stringify(annotations) };
+            const res = await fetch(`/api/photos/${pid}/annotations`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) toast.success('Annotations saved!');
+            else toast.error('Failed to save annotations.');
+        } catch { toast.error('Error saving annotations.'); }
     };
 
     startEditPhoto = (photo) => {
@@ -325,5 +451,17 @@ class ViewProfileViewModel {
 document.addEventListener('DOMContentLoaded', async () => {
     const vm = new ViewProfileViewModel(viewPersonId, isAdmin);
     ko.applyBindings(vm);
+
+    const lightboxModal = document.getElementById('photoLightboxModal');
+    if (lightboxModal) {
+        lightboxModal.addEventListener('shown.bs.modal', () => vm.initLightboxAnnotorious());
+        lightboxModal.addEventListener('hidden.bs.modal', () => {
+            if (vm._lightboxAnno) {
+                try { vm._lightboxAnno.destroy(); } catch { /* ignore */ }
+                vm._lightboxAnno = null;
+            }
+        });
+    }
+
     await vm.loadProfile();
 });

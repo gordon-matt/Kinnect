@@ -13,4 +13,14 @@ public class PhotoUpdateRequest
     public byte? DayTaken { get; set; }
 
     public List<string>? Tags { get; set; }
+
+    /// <summary>Person IDs to tag in this photo (syncs PersonPhotos).</summary>
+    public List<int>? PersonIds { get; set; }
+
+    public int? FolderId { get; set; }
+}
+
+public class SaveAnnotationsRequest
+{
+    public string? AnnotationsJson { get; set; }
 }

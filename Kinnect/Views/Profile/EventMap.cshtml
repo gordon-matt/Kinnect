@@ -14,6 +14,15 @@
         #eventMap { height: calc(100vh - 200px); min-height: 400px; }
         .event-popup strong { display: block; }
         .leaflet-tooltip { white-space: nowrap; }
+        #eventTypeFilter {
+            min-width: 150px;
+            max-height: calc(100vh - 240px);
+            overflow-y: auto;
+            background: rgba(255,255,255,0.95);
+            border-radius: .375rem;
+            padding: .5rem .625rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        }
     </style>
 }
 
@@ -24,7 +33,15 @@
     <h4 class="mb-0">Event map — @personName</h4>
 </div>
 
-<div id="eventMap" class="rounded border"></div>
+<div class="position-relative">
+    <div id="eventMap" class="rounded border"></div>
+    <div id="eventTypeFilter" class="position-absolute top-0 start-0 m-2" style="z-index:1000;">
+        <p class="fw-semibold small mb-2 text-muted text-uppercase" style="font-size:.7rem; letter-spacing:.05em;">Filter events</p>
+        <div id="eventTypeChecks"></div>
+    </div>
+</div>
+
+<div id="noLocSummary" class="mt-2"></div>
 <p class="text-muted small mt-1">Events with a known location are shown as map pins. Dated events are connected by a line in chronological order.</p>
 
 @section Scripts {

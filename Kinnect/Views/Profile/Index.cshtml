@@ -6,9 +6,11 @@
 @section Styles {
     <environment include="Development">
         <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+        <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.css" />
     </environment>
     <environment exclude="Development">
         <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
+        <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.min.css" />
     </environment>
     <style>
         .profile-map-search { z-index: 1000; max-height: 200px; overflow-y: auto; }
@@ -179,10 +181,7 @@
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#timelineTab">Timeline</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#photosTab">Photos</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#videosTab">Videos</button>
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#mediaTab">Media</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documentsTab">Documents</button>
@@ -346,14 +345,23 @@
                     </div>
                 </div>
 
-                <!-- Photos tab (items 9, 10, 11) -->
-                <div class="tab-pane fade" id="photosTab">
-                    <div class="mb-3">
-                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload">
-                            <i class="bi bi-upload"></i> Upload Photo
+                <!-- Media tab: Photos + Videos -->
+                <div class="tab-pane fade" id="mediaTab">
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload, visible: !isUploadingPhoto()">
+                            <i class="bi bi-image"></i> Upload Photo
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showVideoUpload, visible: !isUploadingVideo()">
+                            <i class="bi bi-film"></i> Upload Video
                         </button>
                     </div>
+
+                    <!-- Photo upload form -->
                     <div data-bind="visible: isUploadingPhoto" class="card mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-image"></i> New Photo</span>
+                            <button type="button" class="btn-close btn-sm" data-bind="click: cancelPhotoUpload"></button>
+                        </div>
                         <div class="card-body">
                             <input type="file" accept="image/*" class="form-control mb-2" id="photoFile" />
                             <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: photoTitle" />
@@ -373,7 +381,6 @@
                                 </div>
                             </div>
                             <input id="photoTags" class="form-control mb-2" placeholder="Tags" />
-                            <!-- item 11: event associations -->
                             <div data-bind="visible: events().length > 0" class="mb-2">
                                 <label class="form-label form-label-sm">Link to events</label>
                                 <div class="border rounded p-2" style="max-height:120px;overflow-y:auto;" data-bind="foreach: events">
@@ -387,44 +394,21 @@
                                 </div>
                             </div>
                             <button class="btn btn-primary btn-sm" data-bind="click: uploadPhoto">Upload</button>
-                            <button class="btn btn-secondary btn-sm" data-bind="click: cancelPhotoUpload">Cancel</button>
+                            <button class="btn btn-secondary btn-sm ms-1" data-bind="click: cancelPhotoUpload">Cancel</button>
                         </div>
                     </div>
-                    <div class="row" data-bind="foreach: photos">
-                        <div class="col-md-4 mb-3">
-                            <div class="card">
-                                <a href="#" class="d-block" data-bind="click: function() { $root.openPhotoLightbox($data); return false; }">
-                                    <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover; cursor:pointer;" role="button" />
-                                </a>
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-start gap-1">
-                                        <div>
-                                            <small class="fw-semibold" data-bind="text: title"></small>
-                                            <div class="text-muted small" data-bind="visible: yearTaken || monthTaken || dayTaken, text: $root.formatPhotoDate($data)"></div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="click: function() { $root.startEditPhoto($data); }">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="tab-pane fade" id="videosTab">
-                    <div class="mb-3">
-                        <button class="btn btn-sm btn-outline-primary" data-bind="click: showVideoUpload">
-                            <i class="bi bi-upload"></i> Upload Video
-                        </button>
-                    </div>
+                    <!-- Video upload form -->
                     <div data-bind="visible: isUploadingVideo" class="card mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-film"></i> New Video</span>
+                            <button type="button" class="btn-close btn-sm" data-bind="click: cancelVideoUpload"></button>
+                        </div>
                         <div class="card-body">
                             <input type="file" accept="video/*" class="form-control mb-2" id="videoFile" />
                             <input type="text" class="form-control mb-2" placeholder="Title" data-bind="value: videoTitle" />
                             <input type="text" class="form-control mb-2" placeholder="Description" data-bind="value: videoDescription" />
                             <input id="videoTags" class="form-control mb-2" placeholder="Tags" />
-                            <!-- item 11: event associations for video -->
                             <div data-bind="visible: events().length > 0" class="mb-2">
                                 <label class="form-label form-label-sm">Link to events</label>
                                 <div class="border rounded p-2" style="max-height:120px;overflow-y:auto;" data-bind="foreach: events">
@@ -438,15 +422,49 @@
                                 </div>
                             </div>
                             <button class="btn btn-primary btn-sm" data-bind="click: uploadVideo">Upload</button>
-                            <button class="btn btn-secondary btn-sm" data-bind="click: cancelVideoUpload">Cancel</button>
+                            <button class="btn btn-secondary btn-sm ms-1" data-bind="click: cancelVideoUpload">Cancel</button>
                         </div>
                     </div>
-                    <div data-bind="foreach: videos">
-                        <div class="card mb-2">
-                            <div class="card-body">
-                                <i class="bi bi-film"></i> <span data-bind="text: title"></span>
+
+                    <!-- Photos grid -->
+                    <div data-bind="visible: photos().length > 0">
+                        <h6 class="text-muted small text-uppercase mb-2">Photos</h6>
+                        <div class="row" data-bind="foreach: photos">
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <a href="#" class="d-block" data-bind="click: function() { $root.openPhotoLightbox($data); return false; }">
+                                        <img data-bind="attr: { src: '/uploads/' + (thumbnailPath || filePath) }" class="card-img-top" alt="" style="height:200px; object-fit:cover; cursor:pointer;" role="button" />
+                                    </a>
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-start gap-1">
+                                            <div>
+                                                <small class="fw-semibold" data-bind="text: title"></small>
+                                                <div class="text-muted small" data-bind="visible: yearTaken || monthTaken || dayTaken, text: $root.formatPhotoDate($data)"></div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="click: function() { $root.startEditPhoto($data); }">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Videos list -->
+                    <div data-bind="visible: videos().length > 0" class="mt-2">
+                        <h6 class="text-muted small text-uppercase mb-2">Videos</h6>
+                        <div data-bind="foreach: videos">
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <i class="bi bi-film"></i> <span data-bind="text: title"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-bind="visible: photos().length === 0 && videos().length === 0" class="text-muted text-center py-3">
+                        No media uploaded yet.
                     </div>
                 </div>
 
@@ -479,15 +497,63 @@
     </div>
 </div>
 
-<!-- Photo lightbox -->
+<!-- Photo lightbox with Annotorious + person tagging -->
 <div class="modal fade" id="photoLightboxModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-0">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary py-2">
+                <div class="flex-grow-1 me-2">
+                    <span class="fw-semibold" data-bind="text: lightboxPhotoTitle"></span>
+                    <small class="ms-2 text-white-50" data-bind="text: lightboxPhotoDate"></small>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center p-2">
-                <img data-bind="attr: { src: photoLightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
+            <div class="modal-body p-0">
+                <div class="d-flex flex-column flex-lg-row" style="min-height:60vh;">
+                    <!-- Image area -->
+                    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-2" style="overflow:hidden;">
+                        <img id="lightboxAnnotatableImage" data-bind="attr: { src: photoLightboxUrl }" class="img-fluid rounded" style="max-height:80vh; max-width:100%;" alt="" />
+                    </div>
+                    <!-- Side panel -->
+                    <div class="border-start border-secondary p-3" style="min-width:220px; max-width:280px; overflow-y:auto;">
+                        <h6 class="text-white-50 small text-uppercase mb-2">People in this photo</h6>
+                        <div data-bind="foreach: lightboxTaggedPeople">
+                            <div class="d-flex align-items-center mb-1">
+                                <a class="text-white text-decoration-none small" data-bind="text: name, attr: { href: '/Profile/View/' + personId }"></a>
+                                <button class="btn btn-sm p-0 ms-auto text-danger" title="Remove tag"
+                                        data-bind="click: function() { $root.untagPersonFromLightbox(personId); }">
+                                    <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div data-bind="visible: lightboxTaggedPeople().length === 0" class="text-white-50 small mb-2">Nobody tagged yet.</div>
+
+                        <!-- Person tagging input -->
+                        <div class="mt-2 position-relative">
+                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
+                                   id="lightboxPersonTagInput"
+                                   placeholder="#Type a name to tag…"
+                                   autocomplete="off"
+                                   data-bind="textInput: lightboxPersonTagQuery" />
+                            <div data-bind="visible: lightboxPersonTagResults().length > 0"
+                                 class="list-group shadow"
+                                 style="position:absolute; z-index:1100; width:100%; top:100%;">
+                                <div data-bind="foreach: lightboxPersonTagResults">
+                                    <button class="list-group-item list-group-item-action py-1 small"
+                                            data-bind="text: fullName, click: function() { $root.tagPersonFromLightbox($data); }"></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-secondary my-3" />
+
+                        <h6 class="text-white-50 small text-uppercase mb-2">Annotations</h6>
+                        <p class="text-white-50 small">Draw a box on the image to add a note. Click an existing annotation to edit or delete it.</p>
+                        <button class="btn btn-sm btn-outline-light w-100" data-bind="click: saveLightboxAnnotations">
+                            <i class="bi bi-floppy"></i> Save annotations
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -655,9 +721,11 @@
     </script>
     <environment include="Development">
         <script src="~/lib/leaflet/dist/leaflet.js"></script>
+        <script src="~/lib/annotorious/annotorious/dist/annotorious.js"></script>
     </environment>
     <environment exclude="Development">
         <script src="~/lib/leaflet/dist/leaflet.min.js"></script>
+        <script src="~/lib/annotorious/annotorious/dist/annotorious.min.js"></script>
     </environment>
     <script src="~/js/profile.js" asp-append-version="true"></script>
 }

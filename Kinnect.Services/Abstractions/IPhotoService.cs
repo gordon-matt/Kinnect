@@ -15,5 +15,11 @@ public interface IPhotoService
 
     Task<Result> UpdateTagsAsync(int id, List<string> tags);
 
+    Task<Result> SaveAnnotationsAsync(int photoId, string? annotationsJson, string currentUserId, bool isAdmin);
+
+    Task<Result> TagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin);
+
+    Task<Result> UntagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin);
+
     Task<Result> DeleteAsync(int id, string currentUserId);
 }

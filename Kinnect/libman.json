@@ -183,6 +183,18 @@
         "dist/images/marker-icon.png",
         "dist/images/marker-shadow.png"
       ]
+    },
+    {
+      "library": "@annotorious/annotorious@3.8.0",
+      "destination": "wwwroot/lib/annotorious/annotorious/",
+      "files": [
+        "README.md",
+        "dist/annotorious.min.css",
+        "dist/annotorious.min.js",
+        "dist/annotorious.js",
+        "dist/annotorious.css",
+        "dist/annotorious.js.map"
+      ]
     }
   ]
 }

@@ -18,7 +18,11 @@ public class Video : BaseEntity<int>
 
     public DateTime CreatedAtUtc { get; set; }
 
+    public int? FolderId { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
+
+    public virtual MediaFolder? Folder { get; set; }
 
     public virtual ICollection<VideoTag> VideoTags { get; set; } = [];
 }
@@ -37,5 +41,10 @@ public class VideoMap : IEntityTypeConfiguration<Video>
             .WithMany()
             .HasForeignKey(m => m.UploadedByPersonId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(m => m.Folder)
+            .WithMany(m => m.Videos)
+            .HasForeignKey(m => m.FolderId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -1,5 +1,7 @@
 namespace Kinnect.Models;
 
+public record TaggedPersonInfo(int PersonId, string Name);
+
 public class PhotoDto
 {
     public int Id { get; set; }
@@ -24,9 +26,15 @@ public class PhotoDto
 
     public byte? DayTaken { get; set; }
 
+    public string? AnnotationsJson { get; set; }
+
+    public int? FolderId { get; set; }
+
     public List<string> Tags { get; set; } = [];
 
     public List<int> EventIds { get; set; } = [];
+
+    public List<TaggedPersonInfo> TaggedPeople { get; set; } = [];
 
     public string? DateTakenDisplay
     {

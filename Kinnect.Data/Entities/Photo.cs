@@ -23,7 +23,14 @@ public class Photo : BaseEntity<int>
 
     public byte? DayTaken { get; set; }
 
+    /// <summary>Stores Annotorious W3C Web Annotation JSON for image annotations.</summary>
+    public string? AnnotationsJson { get; set; }
+
+    public int? FolderId { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
+
+    public virtual MediaFolder? Folder { get; set; }
 
     public virtual ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
 
@@ -48,5 +55,10 @@ public class PhotoMap : IEntityTypeConfiguration<Photo>
             .WithMany()
             .HasForeignKey(m => m.UploadedByPersonId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(m => m.Folder)
+            .WithMany(m => m.Photos)
+            .HasForeignKey(m => m.FolderId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

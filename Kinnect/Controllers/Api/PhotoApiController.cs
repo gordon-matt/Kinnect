@@ -78,6 +78,39 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
     }
 
     [TranslateResultToActionResult]
+    [HttpPut("{id:int}/annotations")]
+    public async Task<Result> SaveAnnotations(int id, [FromBody] SaveAnnotationsRequest request)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await photoService.SaveAnnotationsAsync(id, request.AnnotationsJson, userId, IsAdmin);
+    }
+
+    [TranslateResultToActionResult]
+    [HttpPost("{id:int}/tag-person/{personId:int}")]
+    public async Task<Result> TagPerson(int id, int personId)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await photoService.TagPersonAsync(id, personId, userId, IsAdmin);
+    }
+
+    [TranslateResultToActionResult]
+    [HttpDelete("{id:int}/tag-person/{personId:int}")]
+    public async Task<Result> UntagPerson(int id, int personId)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        return await photoService.UntagPersonAsync(id, personId, userId, IsAdmin);
+    }
+
+    [TranslateResultToActionResult]
     [HttpDelete("{id:int}")]
     public async Task<Result> Delete(int id)
     {
