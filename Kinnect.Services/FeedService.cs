@@ -46,6 +46,7 @@ public class FeedService(IRepository<Post> postRepository, IRepository<Photo> ph
             Title = p.Title,
             ThumbnailPath = p.ThumbnailPath ?? p.FilePath,
             FilePath = p.FilePath,
+            AnnotationsJson = p.AnnotationsJson,
             CreatedAtUtc = p.CreatedAtUtc
         }));
 

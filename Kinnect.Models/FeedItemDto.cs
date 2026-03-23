@@ -20,5 +20,7 @@ public class FeedItemDto
 
     public string? FilePath { get; set; }
 
+    public string? AnnotationsJson { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 }

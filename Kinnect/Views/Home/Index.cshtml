@@ -2,6 +2,15 @@
     ViewData["Title"] = "Home";
 }
 
+@section Styles {
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.min.css" />
+    </environment>
+}
+
 <div class="row">
     <div class="col-md-8 mx-auto">
         <div class="card mb-4">
@@ -51,7 +60,7 @@
                     <!-- ko if: type() === 'photo' -->
                     <p class="card-text fw-semibold" data-bind="text: title"></p>
                     <a href="#" data-bind="click: function(data, event) { $root.openLightbox($data); return false; }">
-                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt=""
+                        <img data-bind="attr: { src: '/uploads/' + filePath() }" class="img-fluid rounded" alt=""
                              style="cursor:pointer; max-height:400px; object-fit:cover;" />
                     </a>
                     <!-- /ko -->
@@ -87,13 +96,25 @@
                 <span class="text-white fw-semibold" data-bind="text: lightboxTitle, visible: lightboxTitle()"></span>
                 <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center p-2">
-                <img data-bind="attr: { src: lightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
+            <div class="modal-body p-2">
+                <div class="form-check mb-2" data-bind="visible: lightboxHasAnnotations">
+                    <input class="form-check-input" type="checkbox" id="homeLightboxShowAnnotations" data-bind="checked: lightboxShowAnnotations" />
+                    <label class="form-check-label text-white small" for="homeLightboxShowAnnotations">Show annotations</label>
+                </div>
+                <div id="homeLightboxImageArea" class="text-center">
+                    <img id="homeLightboxImage" data-bind="attr: { src: lightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <environment include="Development">
+        <script src="~/lib/annotorious/annotorious/dist/annotorious.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/annotorious/annotorious/dist/annotorious.min.js"></script>
+    </environment>
     <script src="~/js/home.js" asp-append-version="true"></script>
 }
