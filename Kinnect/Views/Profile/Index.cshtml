@@ -348,8 +348,11 @@
                 <!-- Media tab: Photos + Videos -->
                 <div class="tab-pane fade" id="mediaTab">
                     <div class="d-flex gap-2 mb-3">
-                        <button class="btn btn-sm btn-outline-secondary" data-bind="click: showAddFolder, visible: !isAddingFolder()">
+                        <button class="btn btn-sm btn-outline-secondary" data-bind="click: showAddFolder, visible: !isAddingFolder() && !inMediaFolder()">
                             <i class="bi bi-folder-plus"></i> New Folder
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" data-bind="click: goBackFromFolder, visible: inMediaFolder">
+                            <i class="bi bi-arrow-left"></i> Go Back
                         </button>
                         <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload, visible: !isUploadingPhoto()">
                             <i class="bi bi-image"></i> Upload Photo
@@ -359,7 +362,9 @@
                         </button>
                     </div>
 
-                    <div data-bind="visible: isAddingFolder" class="card mb-3">
+                    <h6 class="text-muted small text-uppercase mb-2" data-bind="visible: inMediaFolder">Folder: <span data-bind="text: currentMediaFolderName"></span></h6>
+
+                    <div data-bind="visible: isAddingFolder() && !inMediaFolder()" class="card mb-3">
                         <div class="card-header py-2 d-flex justify-content-between align-items-center">
                             <span class="fw-semibold"><i class="bi bi-folder-plus"></i> New Folder</span>
                             <button type="button" class="btn-close btn-sm" data-bind="click: cancelAddFolder"></button>
@@ -369,6 +374,23 @@
                             <input type="text" class="form-control mb-2" placeholder="Description (optional)" data-bind="value: newFolderDescription" />
                             <button class="btn btn-primary btn-sm" data-bind="click: createMediaFolder">Create Folder</button>
                             <button class="btn btn-secondary btn-sm ms-1" data-bind="click: cancelAddFolder">Cancel</button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3" data-bind="visible: !inMediaFolder() && mediaFolders().length > 0, foreach: mediaFolders">
+                        <div class="col-md-3 col-sm-4 col-6 mb-3">
+                            <a href="#" class="text-decoration-none" data-bind="click: function() { $root.openMediaFolder($data); return false; }">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <img src="~/img/Folder.png" alt="Folder" style="width:64px;height:64px;object-fit:contain;" />
+                                        <div class="fw-semibold small mt-2" data-bind="text: name"></div>
+                                        <div class="text-muted small">
+                                            <span data-bind="text: $root.folderPhotoCount(id)"></span> photos ·
+                                            <span data-bind="text: $root.folderVideoCount(id)"></span> videos
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
                         </div>
                     </div>
 
@@ -451,9 +473,9 @@
                     </div>
 
                     <!-- Photos grid -->
-                    <div data-bind="visible: photos().length > 0">
-                        <h6 class="text-muted small text-uppercase mb-2">Photos</h6>
-                        <div class="row" data-bind="foreach: photos">
+                    <div data-bind="visible: visiblePhotos().length > 0">
+                        <h6 class="text-muted small text-uppercase mb-2" data-bind="text: inMediaFolder() ? 'Photos' : 'Ungrouped Photos'"></h6>
+                        <div class="row" data-bind="foreach: visiblePhotos">
                             <div class="col-md-3 mb-3">
                                 <div class="card">
                                     <a href="#" class="d-block" data-bind="click: function() { $root.openPhotoLightbox($data); return false; }">
@@ -476,9 +498,9 @@
                     </div>
 
                     <!-- Videos list -->
-                    <div data-bind="visible: videos().length > 0" class="mt-2">
-                        <h6 class="text-muted small text-uppercase mb-2">Videos</h6>
-                        <div data-bind="foreach: videos">
+                    <div data-bind="visible: visibleVideos().length > 0" class="mt-2">
+                        <h6 class="text-muted small text-uppercase mb-2" data-bind="text: inMediaFolder() ? 'Videos' : 'Ungrouped Videos'"></h6>
+                        <div data-bind="foreach: visibleVideos">
                             <div class="card mb-2">
                                 <div class="card-body d-flex justify-content-between align-items-center">
                                     <div><i class="bi bi-film"></i> <span data-bind="text: title"></span></div>
@@ -490,7 +512,7 @@
                         </div>
                     </div>
 
-                    <div data-bind="visible: photos().length === 0 && videos().length === 0" class="text-muted text-center py-3">
+                    <div data-bind="visible: visiblePhotos().length === 0 && visibleVideos().length === 0 && (inMediaFolder() || mediaFolders().length === 0)" class="text-muted text-center py-3">
                         No media uploaded yet.
                     </div>
                 </div>
@@ -538,7 +560,7 @@
             <div class="modal-body p-0">
                 <div class="d-flex flex-column flex-lg-row" style="min-height:60vh;">
                     <!-- Image area -->
-                    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-2" style="overflow:visible;">
+                    <div id="lightboxImageArea" class="flex-grow-1 d-flex align-items-center justify-content-center p-2" style="overflow:visible;">
                         <img id="lightboxAnnotatableImage" data-bind="attr: { src: photoLightboxUrl }" class="img-fluid rounded" style="max-height:80vh; max-width:100%;" alt="" />
                     </div>
                     <!-- Side panel -->

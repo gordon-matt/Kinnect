@@ -43,8 +43,26 @@ class ViewProfileViewModel {
         this.videos = ko.observableArray([]);
         this.documents = ko.observableArray([]);
         this.mediaFolders = ko.observableArray([]);
+        this.currentMediaFolderId = ko.observable(null);
         this.events = ko.observableArray([]);
         this.spouses = ko.observableArray([]);
+        this.inMediaFolder = ko.computed(() => this.currentMediaFolderId() != null);
+        this.currentMediaFolderName = ko.computed(() => {
+            const id = this.currentMediaFolderId();
+            if (id == null) return '';
+            const folder = this.mediaFolders().find(f => f.id === id);
+            return folder?.name || '';
+        });
+        this.visiblePhotos = ko.computed(() => {
+            const folderId = this.currentMediaFolderId();
+            if (folderId == null) return this.photos().filter(p => p.folderId == null);
+            return this.photos().filter(p => p.folderId === folderId);
+        });
+        this.visibleVideos = ko.computed(() => {
+            const folderId = this.currentMediaFolderId();
+            if (folderId == null) return this.videos().filter(v => v.folderId == null);
+            return this.videos().filter(v => v.folderId === folderId);
+        });
 
         // Merged timeline with spouse events (item 1)
         this.timelineItems = ko.computed(() => {
@@ -106,6 +124,9 @@ class ViewProfileViewModel {
         this._lightboxPersonTagTimer = null;
         this._allPeople = [];
         this.lightboxSelectedAnnotationId = ko.observable(null);
+        this._annotationHoverLabelEl = null;
+        this._lastMouseX = 0;
+        this._lastMouseY = 0;
 
         this.lightboxPersonTagQuery.subscribe(() => {
             clearTimeout(this._lightboxPersonTagTimer);
@@ -302,6 +323,17 @@ class ViewProfileViewModel {
         this.lightboxPersonTagResults(results);
     };
 
+    openMediaFolder = (folder) => {
+        this.currentMediaFolderId(folder.id);
+    };
+
+    goBackFromFolder = () => {
+        this.currentMediaFolderId(null);
+    };
+
+    folderPhotoCount = (folderId) => this.photos().filter(p => p.folderId === folderId).length;
+    folderVideoCount = (folderId) => this.videos().filter(v => v.folderId === folderId).length;
+
     tagPersonFromLightbox = async (person) => {
         const pid = this.lightboxPhotoId();
         if (!pid) return;
@@ -344,10 +376,21 @@ class ViewProfileViewModel {
         const anno = Annotorious.createImageAnnotator(img);
         this._lightboxAnno = anno;
         this.lightboxSelectedAnnotationId(null);
+        this._ensureAnnotationHoverLabel();
 
         anno.on?.('selectionChanged', (selection) => {
             const selected = Array.isArray(selection) && selection.length > 0 ? selection[0] : null;
             this.lightboxSelectedAnnotationId(selected?.id || null);
+        });
+
+        anno.on?.('mouseEnterAnnotation', (annotation) => {
+            const label = this._getAnnotationComment(annotation);
+            if (!label) return;
+            this._showAnnotationHoverLabel(label);
+        });
+
+        anno.on?.('mouseLeaveAnnotation', () => {
+            this._hideAnnotationHoverLabel();
         });
 
         if (this.canEdit()) {
@@ -357,7 +400,7 @@ class ViewProfileViewModel {
                 const text = prompt('Annotation text:', '');
                 if (text && text.trim()) {
                     const updated = this._setAnnotationComment(annotation, text.trim());
-                    anno.updateAnnotation?.(annotation, updated);
+                    this._applyAnnotationUpdate(anno, annotation, updated);
                 }
             });
         }
@@ -397,7 +440,7 @@ class ViewProfileViewModel {
         const text = prompt('Annotation text:', current);
         if (text == null) return;
         const updated = this._setAnnotationComment(selected, text.trim());
-        this._lightboxAnno.updateAnnotation?.(selected, updated);
+        this._applyAnnotationUpdate(this._lightboxAnno, selected, updated);
     };
 
     deleteSelectedAnnotation = async () => {
@@ -418,18 +461,81 @@ class ViewProfileViewModel {
     };
 
     _getAnnotationComment = (annotation) => {
-        const bodies = Array.isArray(annotation?.body) ? annotation.body : (annotation?.body ? [annotation.body] : []);
+        const rawBodies = annotation?.bodies ?? annotation?.body;
+        const bodies = Array.isArray(rawBodies) ? rawBodies : (rawBodies ? [rawBodies] : []);
         const body = bodies.find(b => (b.purpose === 'commenting' || b.purpose === 'describing') && typeof b.value === 'string');
         return body?.value || '';
     };
 
     _setAnnotationComment = (annotation, text) => {
         const clone = structuredClone(annotation);
-        const bodies = Array.isArray(clone.body) ? clone.body : (clone.body ? [clone.body] : []);
+        const rawBodies = clone.bodies ?? clone.body;
+        const bodies = Array.isArray(rawBodies) ? rawBodies : (rawBodies ? [rawBodies] : []);
         const filtered = bodies.filter(b => !(b.purpose === 'commenting' || b.purpose === 'describing'));
         if (text) filtered.push({ type: 'TextualBody', purpose: 'commenting', value: text });
-        clone.body = filtered;
+        clone.bodies = filtered;
+        if (clone.body !== undefined) delete clone.body;
         return clone;
+    };
+
+    _applyAnnotationUpdate = (anno, oldAnnotation, updatedAnnotation) => {
+        if (!anno?.updateAnnotation) return;
+        try {
+            if (anno.updateAnnotation.length >= 2) {
+                anno.updateAnnotation(oldAnnotation, updatedAnnotation);
+            } else {
+                anno.updateAnnotation(updatedAnnotation);
+            }
+        } catch {
+            try {
+                anno.removeAnnotation?.(oldAnnotation.id);
+                anno.addAnnotation?.(updatedAnnotation);
+            } catch { /* ignore */ }
+        }
+    };
+
+    _ensureAnnotationHoverLabel = () => {
+        if (this._annotationHoverLabelEl) return;
+
+        const area = document.getElementById('lightboxImageArea');
+        if (!area) return;
+
+        const el = document.createElement('div');
+        el.style.position = 'fixed';
+        el.style.zIndex = '3000';
+        el.style.pointerEvents = 'none';
+        el.style.display = 'none';
+        el.style.maxWidth = '260px';
+        el.style.padding = '4px 8px';
+        el.style.borderRadius = '4px';
+        el.style.fontSize = '12px';
+        el.style.lineHeight = '1.3';
+        el.style.background = 'rgba(0,0,0,0.8)';
+        el.style.color = '#fff';
+        document.body.appendChild(el);
+        this._annotationHoverLabelEl = el;
+
+        area.addEventListener('mousemove', (e) => {
+            this._lastMouseX = e.clientX;
+            this._lastMouseY = e.clientY;
+            if (this._annotationHoverLabelEl && this._annotationHoverLabelEl.style.display !== 'none') {
+                this._annotationHoverLabelEl.style.left = `${this._lastMouseX + 14}px`;
+                this._annotationHoverLabelEl.style.top = `${this._lastMouseY + 14}px`;
+            }
+        });
+    };
+
+    _showAnnotationHoverLabel = (text) => {
+        if (!this._annotationHoverLabelEl) return;
+        this._annotationHoverLabelEl.textContent = text;
+        this._annotationHoverLabelEl.style.left = `${this._lastMouseX + 14}px`;
+        this._annotationHoverLabelEl.style.top = `${this._lastMouseY + 14}px`;
+        this._annotationHoverLabelEl.style.display = 'block';
+    };
+
+    _hideAnnotationHoverLabel = () => {
+        if (!this._annotationHoverLabelEl) return;
+        this._annotationHoverLabelEl.style.display = 'none';
     };
 
     saveLightboxAnnotations = async () => {
