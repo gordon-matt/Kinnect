@@ -1,32 +1,31 @@
-using Kinnect.Services.Abstractions;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace Kinnect.Controllers;
 
 [Authorize]
 public class ProfileController(IPersonService personService, IUserContextService userContextService) : Controller
 {
-    public IActionResult Index()
-    {
-        return View();
-    }
+    public IActionResult Index() => View();
 
     public async Task<IActionResult> Edit(int id)
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
+        {
             return Challenge();
+        }
 
         var personResult = await personService.GetByIdAsync(id);
         if (!personResult.IsSuccess)
+        {
             return NotFound();
+        }
 
         var person = personResult.Value;
         bool isAdmin = User.IsInRole(Constants.Roles.Administrator);
         bool canEdit = isAdmin || person.UserId == null || person.UserId == userId;
         if (!canEdit)
+        {
             return Forbid();
+        }
 
         ViewData["EditPersonId"] = id;
         ViewData["Title"] = "Edit profile";
@@ -44,7 +43,9 @@ public class ProfileController(IPersonService personService, IUserContextService
     {
         var personResult = await personService.GetByIdAsync(id);
         if (!personResult.IsSuccess)
+        {
             return NotFound();
+        }
 
         ViewData["PersonId"] = id;
         ViewData["PersonName"] = personResult.Value.FullName;

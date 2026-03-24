@@ -1,7 +1,3 @@
-using Kinnect.Services.Abstractions;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace Kinnect.Controllers;
 
 [Authorize]
@@ -19,7 +15,9 @@ public class FamilyTreeController(IPersonService personService, IUserContextServ
         {
             var result = await personService.GetByUserIdAsync(userId);
             if (result.IsSuccess)
+            {
                 myPersonId = result.Value.Id;
+            }
         }
 
         ViewData["MyPersonId"] = myPersonId;

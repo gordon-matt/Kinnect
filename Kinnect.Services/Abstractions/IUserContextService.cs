@@ -4,7 +4,7 @@ public interface IUserContextService
 {
     string? GetCurrentUserId();
 
-    bool IsAuthenticated();
-
     bool IsAdmin();
+
+    bool IsAuthenticated();
 }

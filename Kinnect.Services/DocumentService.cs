@@ -1,38 +1,18 @@
-using Ardalis.Result;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-
 namespace Kinnect.Services;
 
-public class DocumentService(IRepository<Document> documentRepository, IRepository<Tag> tagRepository, IRepository<DocumentTag> documentTagRepository) : IDocumentService
+public class DocumentService(
+    IRepository<Document> documentRepository,
+    IRepository<Tag> tagRepository,
+    IRepository<DocumentTag> documentTagRepository) : IDocumentService
 {
-    public async Task<Result<IEnumerable<DocumentDto>>> GetByPersonAsync(int personId)
-    {
-        var documents = await documentRepository.FindAsync(new SearchOptions<Document>
-        {
-            Query = x => x.UploadedByPersonId == personId,
-            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
-        });
-
-        return Result.Success(documents.OrderByDescending(d => d.CreatedAtUtc).Select(MapToDto));
-    }
-
-    public async Task<Result<DocumentDto>> GetByIdAsync(int id)
-    {
-        var documents = await documentRepository.FindAsync(new SearchOptions<Document>
-        {
-            Query = x => x.Id == id,
-            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
-        });
-        var document = documents.FirstOrDefault();
-
-        if (document is null)
-            return Result.NotFound("Document not found.");
-
-        return Result.Success(MapToDto(document));
-    }
-
-    public async Task<Result<DocumentDto>> CreateAsync(string title, string? description, string filePath, string contentType, long fileSize, int uploadedByPersonId, List<string>? tags)
+    public async Task<Result<DocumentDto>> CreateAsync(
+        string title,
+        string? description,
+        string filePath,
+        string contentType,
+        long fileSize,
+        int uploadedByPersonId,
+        List<string>? tags)
     {
         var document = new Document
         {
@@ -66,25 +46,66 @@ public class DocumentService(IRepository<Document> documentRepository, IReposito
         });
     }
 
+    public async Task<Result> DeleteAsync(int id, string currentUserId)
+    {
+        var document = await documentRepository.FindOneAsync(id);
+        if (document is null)
+        {
+            return Result.NotFound("Document not found.");
+        }
+
+        await documentRepository.DeleteAsync(document);
+        return Result.Success();
+    }
+
+    public async Task<Result<DocumentDto>> GetByIdAsync(int id)
+    {
+        var documents = await documentRepository.FindAsync(new SearchOptions<Document>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
+        });
+        var document = documents.FirstOrDefault();
+
+        return document is null ? (Result<DocumentDto>)Result.NotFound("Document not found.") : Result.Success(MapToDto(document));
+    }
+
+    public async Task<Result<IEnumerable<DocumentDto>>> GetByPersonAsync(int personId)
+    {
+        var documents = await documentRepository.FindAsync(new SearchOptions<Document>
+        {
+            Query = x => x.UploadedByPersonId == personId,
+            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
+        });
+
+        return Result.Success(documents.OrderByDescending(d => d.CreatedAtUtc).Select(MapToDto));
+    }
+
     public async Task<Result> UpdateTagsAsync(int id, List<string> tags)
     {
         var document = await documentRepository.FindOneAsync(id);
         if (document is null)
+        {
             return Result.NotFound("Document not found.");
+        }
 
         await SyncTagsAsync(id, tags);
         return Result.Success();
     }
 
-    public async Task<Result> DeleteAsync(int id, string currentUserId)
+    private static DocumentDto MapToDto(Document d) => new()
     {
-        var document = await documentRepository.FindOneAsync(id);
-        if (document is null)
-            return Result.NotFound("Document not found.");
-
-        await documentRepository.DeleteAsync(document);
-        return Result.Success();
-    }
+        Id = d.Id,
+        Title = d.Title,
+        FilePath = d.FilePath,
+        Description = d.Description,
+        ContentType = d.ContentType,
+        FileSize = d.FileSize,
+        UploadedByPersonId = d.UploadedByPersonId,
+        UploadedByName = $"{d.UploadedBy.GivenNames} {d.UploadedBy.FamilyName}",
+        CreatedAtUtc = d.CreatedAtUtc,
+        Tags = d.DocumentTags.Select(dt => dt.Tag.Name).ToList()
+    };
 
     private async Task SyncTagsAsync(int documentId, List<string> tagNames)
     {
@@ -115,18 +136,4 @@ public class DocumentService(IRepository<Document> documentRepository, IReposito
             await documentTagRepository.InsertAsync(new DocumentTag { DocumentId = documentId, TagId = tag.Id });
         }
     }
-
-    private static DocumentDto MapToDto(Document d) => new()
-    {
-        Id = d.Id,
-        Title = d.Title,
-        FilePath = d.FilePath,
-        Description = d.Description,
-        ContentType = d.ContentType,
-        FileSize = d.FileSize,
-        UploadedByPersonId = d.UploadedByPersonId,
-        UploadedByName = $"{d.UploadedBy.GivenNames} {d.UploadedBy.FamilyName}",
-        CreatedAtUtc = d.CreatedAtUtc,
-        Tags = d.DocumentTags.Select(dt => dt.Tag.Name).ToList()
-    };
 }

@@ -1,7 +1,3 @@
-using Ardalis.Result;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-
 namespace Kinnect.Services;
 
 public class TagService(IRepository<Tag> tagRepository) : ITagService

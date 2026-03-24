@@ -36,16 +36,9 @@ public class PhotoDto
 
     public List<TaggedPersonInfo> TaggedPeople { get; set; } = [];
 
-    public string? DateTakenDisplay
-    {
-        get
-        {
-            if (YearTaken == null) return null;
-            if (MonthTaken != null && DayTaken != null)
-                return $"{YearTaken:D4}-{MonthTaken:D2}-{DayTaken:D2}";
-            if (MonthTaken != null)
-                return $"{YearTaken:D4}-{MonthTaken:D2}";
-            return YearTaken.Value.ToString("D4");
-        }
-    }
+    public string? DateTakenDisplay => YearTaken == null
+        ? null
+        : MonthTaken != null && DayTaken != null
+            ? $"{YearTaken:D4}-{MonthTaken:D2}-{DayTaken:D2}"
+            : MonthTaken != null ? $"{YearTaken:D4}-{MonthTaken:D2}" : YearTaken.Value.ToString("D4");
 }

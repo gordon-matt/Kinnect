@@ -12,10 +12,3 @@ public class MediaFolderDto
 
     public DateTime CreatedAtUtc { get; set; }
 }
-
-public class CreateMediaFolderRequest
-{
-    public string Name { get; set; } = null!;
-
-    public string? Description { get; set; }
-}

@@ -1,12 +1,3 @@
-using Ardalis.Result;
-using Ardalis.Result.AspNetCore;
-using Extenso.Data.Entity;
-using Kinnect.Data.Entities;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace Kinnect.Controllers.Api;
 
 [ApiController]
@@ -45,15 +36,21 @@ public class MediaFolderApiController(
     public async Task<Result<MediaFolderDto>> Create([FromBody] CreateMediaFolderRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
+        {
             return Result.Invalid(new ValidationError("Name is required."));
+        }
 
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
+        {
             return Result.Unauthorized();
+        }
 
         var personResult = await personService.GetByUserIdAsync(userId);
         if (!personResult.IsSuccess)
+        {
             return Result.Forbidden();
+        }
 
         var folder = new MediaFolder
         {
@@ -80,20 +77,28 @@ public class MediaFolderApiController(
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
+        {
             return Result.Unauthorized();
+        }
 
         var folder = await mediaFolderRepository.FindOneAsync(id);
         if (folder is null)
+        {
             return Result.NotFound("Folder not found.");
+        }
 
         if (!IsAdmin)
         {
             var personResult = await personService.GetByUserIdAsync(userId);
             if (!personResult.IsSuccess)
+            {
                 return Result.Forbidden();
+            }
 
             if (folder.CreatedByPersonId != personResult.Value.Id)
+            {
                 return Result.Forbidden();
+            }
         }
 
         await mediaFolderRepository.DeleteAsync(folder);

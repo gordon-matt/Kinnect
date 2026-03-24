@@ -1,6 +1,3 @@
-using Ardalis.Result;
-using Kinnect.Models;
-
 namespace Kinnect.Services.Abstractions;
 
 public interface ITagService

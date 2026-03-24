@@ -76,7 +76,9 @@ internal static class ServiceCollectionExtensions
                         options.Events.OnRedirectToIdentityProvider = context =>
                         {
                             if (!string.IsNullOrWhiteSpace(publicOrigin))
+                            {
                                 context.ProtocolMessage.RedirectUri = publicOrigin + "/signin-oidc";
+                            }
 
                             if (useBackchannel && !string.IsNullOrEmpty(keycloakAuthority))
                             {
@@ -165,11 +167,8 @@ internal static class ServiceCollectionExtensions
             services.AddSingleton<IFileStorageService, FileStorageService>();
         }
 
-        public void KinnectAddImageProcessing(IConfiguration configuration)
-        {
-            services.Configure<ImageProcessingOptions>(
+        public void KinnectAddImageProcessing(IConfiguration configuration) => services.Configure<ImageProcessingOptions>(
                 configuration.GetSection("ImageProcessing"));
-        }
 
         public void KinnectAddUserInfoService(IConfiguration configuration)
         {
@@ -177,9 +176,13 @@ internal static class ServiceCollectionExtensions
             bool useKeycloak = authProvider.Equals("Keycloak", StringComparison.OrdinalIgnoreCase);
 
             if (useKeycloak)
+            {
                 services.AddScoped<IUserInfoService, KeycloakUserInfoService>();
+            }
             else
+            {
                 services.AddScoped<IUserInfoService, AspNetIdentityUserInfoService>();
+            }
         }
     }
 }

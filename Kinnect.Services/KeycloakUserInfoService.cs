@@ -17,27 +17,57 @@ public class KeycloakUserInfoService(IConfiguration configuration, ILogger<Keycl
 {
     private record KeycloakAdminConfig(string BaseUrl, string Realm, string ClientId, string ClientSecret);
 
-    private KeycloakAdminConfig? GetAdminConfig()
+    public async Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
+        CancellationToken cancellationToken = default)
     {
-        string? authority = configuration["Authentication:Keycloak:Authority"];
-        if (string.IsNullOrWhiteSpace(authority)) return null;
+        try
+        {
+            return await FetchAllUsersAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(ex, "Failed to retrieve all Keycloak users");
+            }
 
-        string baseUrl = ExtractBaseUrl(authority);
-        string realm = ExtractRealm(authority);
+            return [];
+        }
+    }
 
-        if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(realm)) return null;
+    public async Task<IReadOnlyDictionary<string, UserInfo>> GetUserInfoAsync(
+        IEnumerable<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Distinct().ToHashSet();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<string, UserInfo>();
+        }
 
-        string clientId = configuration["Authentication:Keycloak:AdminClientId"]
-            ?? configuration["Authentication:Keycloak:ClientId"]
-            ?? string.Empty;
+        try
+        {
+            var allUsers = await FetchAllUsersAsync(cancellationToken);
+            return allUsers
+                .Where(u => ids.Contains(u.UserId))
+                .ToDictionary(u => u.UserId);
+        }
+        catch (Exception ex)
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(ex, "Falling back to raw user IDs for Keycloak user info");
+            }
 
-        string clientSecret = configuration["Authentication:Keycloak:AdminClientSecret"]
-            ?? configuration["Authentication:Keycloak:ClientSecret"]
-            ?? string.Empty;
+            // Graceful fallback: return raw user IDs so subscriber lists still render
+            return ids.ToDictionary(id => id, id => new UserInfo(id, id, string.Empty));
+        }
+    }
 
-        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret)) return null;
-
-        return new KeycloakAdminConfig(baseUrl, realm, clientId, clientSecret);
+    private static string BuildDisplayName(KcUser user)
+    {
+        string fullName = $"{user.FirstName} {user.LastName}".Trim();
+        return !string.IsNullOrEmpty(fullName) ? fullName : user.UserName ?? user.Id ?? string.Empty;
     }
 
     private static string ExtractBaseUrl(string authority)
@@ -50,6 +80,84 @@ public class KeycloakUserInfoService(IConfiguration configuration, ILogger<Keycl
     {
         var match = Regex.Match(authority, @"/realms/([^/?#]+)");
         return match.Success ? match.Groups[1].Value : string.Empty;
+    }
+
+    private async Task<IReadOnlyList<UserInfo>> FetchAllUsersAsync(CancellationToken cancellationToken)
+    {
+        var config = GetAdminConfig();
+        if (config is null)
+        {
+            return [];
+        }
+
+        string? token = await GetAdminTokenAsync(config, cancellationToken);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return [];
+        }
+
+        try
+        {
+            var client = new KeycloakClient(config.BaseUrl);
+            var response = await client.Users.ListUserAsync(
+                config.Realm,
+                token,
+                new KcUserFilter { Max = 1000 },
+                cancellationToken);
+
+            if (response.IsError || response.Response is null)
+            {
+                if (logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning("Failed to list Keycloak users: {Error}", response.ErrorMessage);
+                }
+
+                return [];
+            }
+
+            return response.Response
+                .Where(u => u.Id is not null)
+                .Select(u => new UserInfo(u.Id!, BuildDisplayName(u), u.Email ?? string.Empty))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(ex, "Exception listing Keycloak users");
+            }
+
+            return [];
+        }
+    }
+
+    private KeycloakAdminConfig? GetAdminConfig()
+    {
+        string? authority = configuration["Authentication:Keycloak:Authority"];
+        if (string.IsNullOrWhiteSpace(authority))
+        {
+            return null;
+        }
+
+        string baseUrl = ExtractBaseUrl(authority);
+        string realm = ExtractRealm(authority);
+
+        if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(realm))
+        {
+            return null;
+        }
+
+        string clientId = configuration["Authentication:Keycloak:AdminClientId"]
+            ?? configuration["Authentication:Keycloak:ClientId"]
+            ?? string.Empty;
+
+        string clientSecret = configuration["Authentication:Keycloak:AdminClientSecret"]
+            ?? configuration["Authentication:Keycloak:ClientSecret"]
+            ?? string.Empty;
+
+        return string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret)
+            ? null
+            : new KeycloakAdminConfig(baseUrl, realm, clientId, clientSecret);
     }
 
     private async Task<string?> GetAdminTokenAsync(KeycloakAdminConfig config, CancellationToken cancellationToken)
@@ -69,7 +177,10 @@ public class KeycloakUserInfoService(IConfiguration configuration, ILogger<Keycl
             if (response.IsError || response.Response is null)
             {
                 if (logger.IsEnabled(LogLevel.Warning))
+                {
                     logger.LogWarning("Failed to obtain Keycloak admin token: {Error}", response.ErrorMessage);
+                }
+
                 return null;
             }
 
@@ -78,91 +189,11 @@ public class KeycloakUserInfoService(IConfiguration configuration, ILogger<Keycl
         catch (Exception ex)
         {
             if (logger.IsEnabled(LogLevel.Warning))
-                logger.LogWarning(ex, "Exception obtaining Keycloak admin token");
-            return null;
-        }
-    }
-
-    private async Task<IReadOnlyList<UserInfo>> FetchAllUsersAsync(CancellationToken cancellationToken)
-    {
-        var config = GetAdminConfig();
-        if (config is null) return [];
-
-        string? token = await GetAdminTokenAsync(config, cancellationToken);
-        if (string.IsNullOrWhiteSpace(token)) return [];
-
-        try
-        {
-            var client = new KeycloakClient(config.BaseUrl);
-            var response = await client.Users.ListUserAsync(
-                config.Realm,
-                token,
-                new KcUserFilter { Max = 1000 },
-                cancellationToken);
-
-            if (response.IsError || response.Response is null)
             {
-                if (logger.IsEnabled(LogLevel.Warning))
-                    logger.LogWarning("Failed to list Keycloak users: {Error}", response.ErrorMessage);
-                return [];
+                logger.LogWarning(ex, "Exception obtaining Keycloak admin token");
             }
 
-            return response.Response
-                .Where(u => u.Id is not null)
-                .Select(u => new UserInfo(u.Id!, BuildDisplayName(u), u.Email ?? string.Empty))
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            if (logger.IsEnabled(LogLevel.Warning))
-                logger.LogWarning(ex, "Exception listing Keycloak users");
-            return [];
-        }
-    }
-
-    private static string BuildDisplayName(KcUser user)
-    {
-        string fullName = $"{user.FirstName} {user.LastName}".Trim();
-        if (!string.IsNullOrEmpty(fullName)) return fullName;
-        return user.UserName ?? user.Id ?? string.Empty;
-    }
-
-    public async Task<IReadOnlyDictionary<string, UserInfo>> GetUserInfoAsync(
-        IEnumerable<string> userIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = userIds.Distinct().ToHashSet();
-        if (ids.Count == 0) return new Dictionary<string, UserInfo>();
-
-        try
-        {
-            var allUsers = await FetchAllUsersAsync(cancellationToken);
-            return allUsers
-                .Where(u => ids.Contains(u.UserId))
-                .ToDictionary(u => u.UserId);
-        }
-        catch (Exception ex)
-        {
-            if (logger.IsEnabled(LogLevel.Warning))
-                logger.LogWarning(ex, "Falling back to raw user IDs for Keycloak user info");
-
-            // Graceful fallback: return raw user IDs so subscriber lists still render
-            return ids.ToDictionary(id => id, id => new UserInfo(id, id, string.Empty));
-        }
-    }
-
-    public async Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await FetchAllUsersAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            if (logger.IsEnabled(LogLevel.Warning))
-                logger.LogWarning(ex, "Failed to retrieve all Keycloak users");
-            return [];
+            return null;
         }
     }
 }

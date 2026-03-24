@@ -1,22 +1,14 @@
 namespace Kinnect.Models;
 
-public class PersonDto
+public class PersonEditRequest
 {
-    public int Id { get; set; }
-
-    public string? UserId { get; set; }
-
     public string FamilyName { get; set; } = null!;
 
     public string GivenNames { get; set; } = null!;
 
-    public string FullName => $"{GivenNames} {FamilyName}";
-
     public bool IsMale { get; set; }
 
     public string? Bio { get; set; }
-
-    public string? ProfileImagePath { get; set; }
 
     public double? Latitude { get; set; }
 
@@ -33,8 +25,4 @@ public class PersonDto
     public string? Religion { get; set; }
 
     public string? Note { get; set; }
-
-    public string? GedcomId { get; set; }
-
-    public bool HasAccount => UserId != null;
 }

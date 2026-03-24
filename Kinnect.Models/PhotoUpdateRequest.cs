@@ -19,8 +19,3 @@ public class PhotoUpdateRequest
 
     public int? FolderId { get; set; }
 }
-
-public class SaveAnnotationsRequest
-{
-    public string? AnnotationsJson { get; set; }
-}

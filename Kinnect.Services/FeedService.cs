@@ -1,7 +1,3 @@
-using Ardalis.Result;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-
 namespace Kinnect.Services;
 
 public class FeedService(IRepository<Post> postRepository, IRepository<Photo> photoRepository, IRepository<Video> videoRepository) : IFeedService

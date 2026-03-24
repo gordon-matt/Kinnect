@@ -1,4 +1,3 @@
-using Kinnect.Services.Abstractions;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -9,6 +8,19 @@ namespace Kinnect.Services;
 public class FileStorageService(IConfiguration configuration, IOptions<ImageProcessingOptions> imageOptions) : IFileStorageService
 {
     private string BasePath => configuration["FileStorage:BasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+
+    public void DeleteFile(string relativePath)
+    {
+        string fullPath = Path.Combine(BasePath, relativePath);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+    }
+
+    public string GetBaseUploadPath() => BasePath;
+
+    public string GetFullPath(string relativePath) => Path.Combine(BasePath, relativePath);
 
     public async Task<string> SaveFileAsync(Stream fileStream, string category, string fileName)
     {
@@ -70,17 +82,4 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
         return (mainRelative, thumbRelative);
     }
-
-    public void DeleteFile(string relativePath)
-    {
-        string fullPath = Path.Combine(BasePath, relativePath);
-        if (File.Exists(fullPath))
-        {
-            File.Delete(fullPath);
-        }
-    }
-
-    public string GetFullPath(string relativePath) => Path.Combine(BasePath, relativePath);
-
-    public string GetBaseUploadPath() => BasePath;
 }

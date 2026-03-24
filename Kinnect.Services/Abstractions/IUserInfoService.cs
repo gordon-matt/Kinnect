@@ -14,17 +14,17 @@ public record UserInfo(string UserId, string Username, string Email);
 public interface IUserInfoService
 {
     /// <summary>
+    /// Returns all users known to the auth provider. Used by admin features
+    /// (e.g. assigning channels to specific users).
+    /// </summary>
+    Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns a dictionary keyed by user ID containing basic profile information
     /// for the given set of user IDs. Missing users are simply omitted.
     /// </summary>
     Task<IReadOnlyDictionary<string, UserInfo>> GetUserInfoAsync(
         IEnumerable<string> userIds,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Returns all users known to the auth provider. Used by admin features
-    /// (e.g. assigning channels to specific users).
-    /// </summary>
-    Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
         CancellationToken cancellationToken = default);
 }

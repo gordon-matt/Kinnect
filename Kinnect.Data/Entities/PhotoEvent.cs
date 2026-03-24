@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
 namespace Kinnect.Data.Entities;
 
 public class PhotoEvent

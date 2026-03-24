@@ -1,8 +1,10 @@
 ﻿global using Ardalis.Result;
+global using Ardalis.Result.AspNetCore;
 global using Extenso.Data.Entity;
 global using Kinnect.Data.Entities;
 global using Kinnect.Models;
+global using Kinnect.Services;
 global using Kinnect.Services.Abstractions;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.EntityFrameworkCore;
-global using Microsoft.Extensions.Configuration;
-global using Microsoft.Extensions.Logging;

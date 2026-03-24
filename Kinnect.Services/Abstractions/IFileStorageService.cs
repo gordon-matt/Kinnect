@@ -2,6 +2,12 @@ namespace Kinnect.Services.Abstractions;
 
 public interface IFileStorageService
 {
+    void DeleteFile(string relativePath);
+
+    string GetBaseUploadPath();
+
+    string GetFullPath(string relativePath);
+
     Task<string> SaveFileAsync(Stream fileStream, string category, string fileName);
 
     /// <summary>
@@ -9,10 +15,4 @@ public interface IFileStorageService
     /// Returns (imagePath, thumbnailPath).
     /// </summary>
     Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category);
-
-    void DeleteFile(string relativePath);
-
-    string GetFullPath(string relativePath);
-
-    string GetBaseUploadPath();
 }

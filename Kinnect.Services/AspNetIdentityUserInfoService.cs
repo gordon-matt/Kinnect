@@ -8,8 +8,18 @@ namespace Kinnect.Services;
 /// </summary>
 public class AspNetIdentityUserInfoService(IDbContextFactory dbContextFactory) : IUserInfoService
 {
+    public async Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var context = (ApplicationDbContext)dbContextFactory.GetContext();
+        return await context.Users
+            .OrderBy(u => u.UserName)
+            .Select(u => new UserInfo(u.Id, u.UserName ?? u.Id, u.Email ?? string.Empty))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyDictionary<string, UserInfo>> GetUserInfoAsync(
-        IEnumerable<string> userIds,
+            IEnumerable<string> userIds,
         CancellationToken cancellationToken = default)
     {
         var ids = userIds.ToHashSet();
@@ -25,15 +35,5 @@ public class AspNetIdentityUserInfoService(IDbContextFactory dbContextFactory) :
             .ToListAsync(cancellationToken);
 
         return users.ToDictionary(u => u.UserId);
-    }
-
-    public async Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
-        CancellationToken cancellationToken = default)
-    {
-        using var context = (ApplicationDbContext)dbContextFactory.GetContext();
-        return await context.Users
-            .OrderBy(u => u.UserName)
-            .Select(u => new UserInfo(u.Id, u.UserName ?? u.Id, u.Email ?? string.Empty))
-            .ToListAsync(cancellationToken);
     }
 }

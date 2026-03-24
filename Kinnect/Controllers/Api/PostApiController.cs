@@ -1,10 +1,3 @@
-using Ardalis.Result;
-using Ardalis.Result.AspNetCore;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace Kinnect.Controllers.Api;
 
 [ApiController]
@@ -14,24 +7,17 @@ public class PostApiController(IPostService postService, IPersonService personSe
 {
     [TranslateResultToActionResult]
     [HttpGet]
-    public async Task<Result<IEnumerable<PostDto>>> GetRecent([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-    {
-        return await postService.GetRecentAsync(page, pageSize);
-    }
+    public async Task<Result<IEnumerable<PostDto>>> GetRecent([FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
+        await postService.GetRecentAsync(page, pageSize);
 
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}")]
-    public async Task<Result<IEnumerable<PostDto>>> GetByPerson(int personId)
-    {
-        return await postService.GetByPersonAsync(personId);
-    }
+    public async Task<Result<IEnumerable<PostDto>>> GetByPerson(int personId) => await postService.GetByPersonAsync(personId);
 
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}/paged")]
-    public async Task<Result<PagedItems<PostDto>>> GetByPersonPaged(int personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
-    {
-        return await postService.GetByPersonPagedAsync(personId, page, pageSize);
-    }
+    public async Task<Result<PagedItems<PostDto>>> GetByPersonPaged(int personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
+        await postService.GetByPersonPagedAsync(personId, page, pageSize);
 
     [TranslateResultToActionResult]
     [HttpPost]
@@ -39,13 +25,12 @@ public class PostApiController(IPostService postService, IPersonService personSe
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
+        {
             return Result.Unauthorized();
+        }
 
         var personResult = await personService.GetByUserIdAsync(userId);
-        if (!personResult.IsSuccess)
-            return Result.Forbidden();
-
-        return await postService.CreateAsync(request, personResult.Value.Id);
+        return !personResult.IsSuccess ? (Result<PostDto>)Result.Forbidden() : await postService.CreateAsync(request, personResult.Value.Id);
     }
 
     [TranslateResultToActionResult]
@@ -53,10 +38,7 @@ public class PostApiController(IPostService postService, IPersonService personSe
     public async Task<Result<PostDto>> Update(int id, [FromBody] PostEditRequest request)
     {
         string? userId = userContextService.GetCurrentUserId();
-        if (userId is null)
-            return Result.Unauthorized();
-
-        return await postService.UpdateAsync(id, request, userId);
+        return userId is null ? (Result<PostDto>)Result.Unauthorized() : await postService.UpdateAsync(id, request, userId);
     }
 
     [TranslateResultToActionResult]
@@ -64,9 +46,6 @@ public class PostApiController(IPostService postService, IPersonService personSe
     public async Task<Result> Delete(int id)
     {
         string? userId = userContextService.GetCurrentUserId();
-        if (userId is null)
-            return Result.Unauthorized();
-
-        return await postService.DeleteAsync(id, userId);
+        return userId is null ? Result.Unauthorized() : await postService.DeleteAsync(id, userId);
     }
 }

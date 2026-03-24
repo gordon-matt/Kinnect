@@ -1,38 +1,40 @@
-using Ardalis.Result;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-
 namespace Kinnect.Services;
 
 public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPersonEventService
 {
-    public async Task<Result<IEnumerable<PersonEventDto>>> GetByPersonAsync(int personId)
+    public async Task<Result<PersonEventDto>> CopyToPersonAsync(int sourceEventId, int targetPersonId)
     {
-        var events = await eventRepository.FindAsync(new SearchOptions<PersonEvent>
+        var source = await eventRepository.FindOneAsync(sourceEventId);
+        if (source is null)
         {
-            Query = x => x.PersonId == personId
-        });
+            return Result.NotFound("Event not found.");
+        }
 
-        return Result.Success(events
-            .Where(e => !PersonEventType.IsNonTimelineEventType(e.EventType))
-            .OrderBy(e => e.Year ?? 9999)
-            .ThenBy(e => e.Month ?? 0)
-            .ThenBy(e => e.Day ?? 0)
-            .Select(MapToDto));
-    }
+        var copy = new PersonEvent
+        {
+            PersonId = targetPersonId,
+            EventType = source.EventType,
+            Year = source.Year,
+            Month = source.Month,
+            Day = source.Day,
+            Place = source.Place,
+            Latitude = source.Latitude,
+            Longitude = source.Longitude,
+            Description = source.Description,
+            Note = source.Note,
+            CreatedAtUtc = DateTime.UtcNow
+        };
 
-    public async Task<Result<PersonEventDto>> GetByIdAsync(int id)
-    {
-        var evt = await eventRepository.FindOneAsync(id);
-        return evt is null
-            ? Result.NotFound("Event not found.")
-            : Result.Success(MapToDto(evt));
+        await eventRepository.InsertAsync(copy);
+        return Result.Success(MapToDto(copy));
     }
 
     public async Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request)
     {
         if (PersonEventType.IsNonTimelineEventType(request.EventType))
+        {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
+        }
 
         var evt = new PersonEvent
         {
@@ -53,14 +55,53 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         return Result.Success(MapToDto(evt));
     }
 
+    public async Task<Result> DeleteAsync(int id)
+    {
+        var evt = await eventRepository.FindOneAsync(id);
+        if (evt is null)
+        {
+            return Result.NotFound("Event not found.");
+        }
+
+        await eventRepository.DeleteAsync(evt);
+        return Result.Success();
+    }
+
+    public async Task<Result<PersonEventDto>> GetByIdAsync(int id)
+    {
+        var evt = await eventRepository.FindOneAsync(id);
+        return evt is null
+            ? Result.NotFound("Event not found.")
+            : Result.Success(MapToDto(evt));
+    }
+
+    public async Task<Result<IEnumerable<PersonEventDto>>> GetByPersonAsync(int personId)
+    {
+        var events = await eventRepository.FindAsync(new SearchOptions<PersonEvent>
+        {
+            Query = x => x.PersonId == personId
+        });
+
+        return Result.Success(events
+            .Where(e => !PersonEventType.IsNonTimelineEventType(e.EventType))
+            .OrderBy(e => e.Year ?? 9999)
+            .ThenBy(e => e.Month ?? 0)
+            .ThenBy(e => e.Day ?? 0)
+            .Select(MapToDto));
+    }
+
     public async Task<Result<PersonEventDto>> UpdateAsync(int id, PersonEventRequest request)
     {
         var evt = await eventRepository.FindOneAsync(id);
         if (evt is null)
+        {
             return Result.NotFound("Event not found.");
+        }
 
         if (PersonEventType.IsNonTimelineEventType(request.EventType))
+        {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
+        }
 
         evt.EventType = request.EventType.ToUpperInvariant();
         evt.Year = request.Year;
@@ -74,41 +115,6 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
 
         await eventRepository.UpdateAsync(evt);
         return Result.Success(MapToDto(evt));
-    }
-
-    public async Task<Result> DeleteAsync(int id)
-    {
-        var evt = await eventRepository.FindOneAsync(id);
-        if (evt is null)
-            return Result.NotFound("Event not found.");
-
-        await eventRepository.DeleteAsync(evt);
-        return Result.Success();
-    }
-
-    public async Task<Result<PersonEventDto>> CopyToPersonAsync(int sourceEventId, int targetPersonId)
-    {
-        var source = await eventRepository.FindOneAsync(sourceEventId);
-        if (source is null)
-            return Result.NotFound("Event not found.");
-
-        var copy = new PersonEvent
-        {
-            PersonId = targetPersonId,
-            EventType = source.EventType,
-            Year = source.Year,
-            Month = source.Month,
-            Day = source.Day,
-            Place = source.Place,
-            Latitude = source.Latitude,
-            Longitude = source.Longitude,
-            Description = source.Description,
-            Note = source.Note,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        await eventRepository.InsertAsync(copy);
-        return Result.Success(MapToDto(copy));
     }
 
     private static PersonEventDto MapToDto(PersonEvent e) => new()

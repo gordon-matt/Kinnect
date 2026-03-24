@@ -1,10 +1,3 @@
-using Ardalis.Result;
-using Ardalis.Result.AspNetCore;
-using Kinnect.Models;
-using Kinnect.Services.Abstractions;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
 namespace Kinnect.Controllers.Api;
 
 [ApiController]
@@ -16,17 +9,11 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
 
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}")]
-    public async Task<Result<IEnumerable<VideoDto>>> GetByPerson(int personId)
-    {
-        return await videoService.GetByPersonAsync(personId);
-    }
+    public async Task<Result<IEnumerable<VideoDto>>> GetByPerson(int personId) => await videoService.GetByPersonAsync(personId);
 
     [TranslateResultToActionResult]
     [HttpGet("{id:int}")]
-    public async Task<Result<VideoDto>> GetById(int id)
-    {
-        return await videoService.GetByIdAsync(id);
-    }
+    public async Task<Result<VideoDto>> GetById(int id) => await videoService.GetByIdAsync(id);
 
     [HttpPost]
     [RequestSizeLimit(524_288_000)]
@@ -34,11 +21,15 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
     {
         string? userId = userContextService.GetCurrentUserId();
         if (userId is null)
+        {
             return Unauthorized();
+        }
 
         var personResult = await personService.GetByUserIdAsync(userId);
         if (!personResult.IsSuccess)
+        {
             return Forbid();
+        }
 
         using var stream = file.OpenReadStream();
         string filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Videos, file.FileName);
@@ -54,27 +45,18 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
     public async Task<Result<VideoDto>> Update(int id, [FromBody] VideoUpdateRequest request)
     {
         string? userId = userContextService.GetCurrentUserId();
-        if (userId is null)
-            return Result.Unauthorized();
-
-        return await videoService.UpdateAsync(id, request, userId, IsAdmin);
+        return userId is null ? (Result<VideoDto>)Result.Unauthorized() : await videoService.UpdateAsync(id, request, userId, IsAdmin);
     }
 
     [TranslateResultToActionResult]
     [HttpPut("{id:int}/tags")]
-    public async Task<Result> UpdateTags(int id, [FromBody] List<string> tags)
-    {
-        return await videoService.UpdateTagsAsync(id, tags);
-    }
+    public async Task<Result> UpdateTags(int id, [FromBody] List<string> tags) => await videoService.UpdateTagsAsync(id, tags);
 
     [TranslateResultToActionResult]
     [HttpDelete("{id:int}")]
     public async Task<Result> Delete(int id)
     {
         string? userId = userContextService.GetCurrentUserId();
-        if (userId is null)
-            return Result.Unauthorized();
-
-        return await videoService.DeleteAsync(id, userId, IsAdmin);
+        return userId is null ? Result.Unauthorized() : await videoService.DeleteAsync(id, userId, IsAdmin);
     }
 }
