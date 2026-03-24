@@ -21,5 +21,5 @@ public interface IPhotoService
 
     Task<Result> UntagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin);
 
-    Task<Result> DeleteAsync(int id, string currentUserId);
+    Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin);
 }

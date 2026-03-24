@@ -75,6 +75,6 @@ public class VideoApiController(IVideoService videoService, IPersonService perso
         if (userId is null)
             return Result.Unauthorized();
 
-        return await videoService.DeleteAsync(id, userId);
+        return await videoService.DeleteAsync(id, userId, IsAdmin);
     }
 }

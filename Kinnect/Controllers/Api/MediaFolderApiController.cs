@@ -17,6 +17,8 @@ public class MediaFolderApiController(
     IUserContextService userContextService,
     IPersonService personService) : ControllerBase
 {
+    private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
+
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}")]
     public async Task<Result<IEnumerable<MediaFolderDto>>> GetByPerson(int personId)
@@ -70,5 +72,31 @@ public class MediaFolderApiController(
             CreatedByPersonId = folder.CreatedByPersonId,
             CreatedAtUtc = folder.CreatedAtUtc
         });
+    }
+
+    [TranslateResultToActionResult]
+    [HttpDelete("{id:int}")]
+    public async Task<Result> Delete(int id)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        if (userId is null)
+            return Result.Unauthorized();
+
+        var folder = await mediaFolderRepository.FindOneAsync(id);
+        if (folder is null)
+            return Result.NotFound("Folder not found.");
+
+        if (!IsAdmin)
+        {
+            var personResult = await personService.GetByUserIdAsync(userId);
+            if (!personResult.IsSuccess)
+                return Result.Forbidden();
+
+            if (folder.CreatedByPersonId != personResult.Value.Id)
+                return Result.Forbidden();
+        }
+
+        await mediaFolderRepository.DeleteAsync(folder);
+        return Result.Success();
     }
 }

@@ -228,11 +228,19 @@ public class PhotoService(
         return Result.Success();
     }
 
-    public async Task<Result> DeleteAsync(int id, string currentUserId)
+    public async Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin)
     {
-        var photo = await photoRepository.FindOneAsync(id);
+        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(p => p.UploadedBy)
+        });
+        var photo = photos.FirstOrDefault();
         if (photo is null)
             return Result.NotFound("Photo not found.");
+
+        if (!CanEditPhoto(photo.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
 
         await photoRepository.DeleteAsync(photo);
         return Result.Success();

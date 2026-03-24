@@ -119,6 +119,6 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
         if (userId is null)
             return Result.Unauthorized();
 
-        return await photoService.DeleteAsync(id, userId);
+        return await photoService.DeleteAsync(id, userId, IsAdmin);
     }
 }

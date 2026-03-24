@@ -1427,6 +1427,69 @@
             return this.isOwnedMedia(item);
         };
 
+        canManageFolder = (folder) => {
+            if (!folder) return false;
+            if (this.isAdminUser) return true;
+            return folder.createdByPersonId === this.personId();
+        };
+
+        deleteMediaFolder = async (folder, _vm, event) => {
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            if (!folder?.id || !this.canManageFolder(folder)) return;
+            if (!confirm(`Delete folder "${folder.name || 'Folder'}"? Media will become ungrouped.`)) return;
+
+            try {
+                const res = await fetch(`/api/media-folders/${folder.id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    toast.error('Failed to delete folder.');
+                    return;
+                }
+
+                if (this.currentMediaFolderId() === folder.id) this.currentMediaFolderId(null);
+                await this.loadContent();
+                toast.success('Folder deleted.');
+            } catch {
+                toast.error('Error deleting folder.');
+            }
+        };
+
+        deletePhoto = async (photo) => {
+            if (!photo?.id || !this.canEditMedia(photo)) return;
+            if (!confirm(`Delete photo "${photo.title || 'Untitled'}"?`)) return;
+
+            try {
+                const res = await fetch(`/api/photos/${photo.id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    toast.error('Failed to delete photo.');
+                    return;
+                }
+
+                await this.loadContent();
+                toast.success('Photo deleted.');
+            } catch {
+                toast.error('Error deleting photo.');
+            }
+        };
+
+        deleteVideo = async (video) => {
+            if (!video?.id || !this.canEditMedia(video)) return;
+            if (!confirm(`Delete video "${video.title || 'Untitled'}"?`)) return;
+
+            try {
+                const res = await fetch(`/api/videos/${video.id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    toast.error('Failed to delete video.');
+                    return;
+                }
+
+                await this.loadContent();
+                toast.success('Video deleted.');
+            } catch {
+                toast.error('Error deleting video.');
+            }
+        };
+
         initTagify = (inputId) => {
             setTimeout(async () => {
                 const input = document.getElementById(inputId);

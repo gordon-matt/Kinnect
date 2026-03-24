@@ -15,5 +15,5 @@ public interface IVideoService
 
     Task<Result> UpdateTagsAsync(int id, List<string> tags);
 
-    Task<Result> DeleteAsync(int id, string currentUserId);
+    Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin);
 }

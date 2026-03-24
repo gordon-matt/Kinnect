@@ -103,11 +103,19 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         return Result.Success();
     }
 
-    public async Task<Result> DeleteAsync(int id, string currentUserId)
+    public async Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin)
     {
-        var video = await videoRepository.FindOneAsync(id);
+        var videos = await videoRepository.FindAsync(new SearchOptions<Video>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(v => v.UploadedBy)
+        });
+        var video = videos.FirstOrDefault();
         if (video is null)
             return Result.NotFound("Video not found.");
+
+        if (!CanEditVideo(video.UploadedBy, currentUserId, isAdmin))
+            return Result.Forbidden();
 
         await videoRepository.DeleteAsync(video);
         return Result.Success();
