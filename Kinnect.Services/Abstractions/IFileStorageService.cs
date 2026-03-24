@@ -8,7 +8,7 @@ public interface IFileStorageService
     /// Saves an image, optionally shrinking it and always generating a thumbnail.
     /// Returns (imagePath, thumbnailPath).
     /// </summary>
-    Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category, string fileName);
+    Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category);
 
     void DeleteFile(string relativePath);
 

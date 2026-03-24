@@ -24,7 +24,7 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
         return relativePath.Replace('\\', '/');
     }
 
-    public async Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category, string fileName)
+    public async Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category)
     {
         var opts = imageOptions.Value;
 

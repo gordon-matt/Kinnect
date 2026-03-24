@@ -48,7 +48,7 @@ public class PhotoApiController(IPhotoService photoService, IPersonService perso
             return Forbid();
 
         using var stream = file.OpenReadStream();
-        var (filePath, thumbnailPath) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos, file.FileName);
+        var (filePath, thumbnailPath) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos);
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 

@@ -163,7 +163,7 @@ public class PersonApiController(
             return Result.Unauthorized();
 
         using var stream = file.OpenReadStream();
-        var (imagePath, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.ProfileImages, file.FileName);
+        var (imagePath, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.ProfileImages);
         var updateResult = await personService.UpdateProfileImageAsync(id, imagePath, userId, IsAdmin);
         if (!updateResult.IsSuccess)
             return Result.Forbidden();
