@@ -19,4 +19,10 @@ public class PersonSpouseUpdateRequest
     public byte? EngagementMonth { get; set; }
 
     public byte? EngagementDay { get; set; }
+
+    public bool HasEngagement { get; set; }
+
+    public bool HasMarriage { get; set; }
+
+    public bool HasDivorce { get; set; }
 }

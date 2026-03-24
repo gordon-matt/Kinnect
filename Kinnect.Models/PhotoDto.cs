@@ -28,6 +28,10 @@ public class PhotoDto
 
     public string? AnnotationsJson { get; set; }
 
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public int? FolderId { get; set; }
 
     public List<string> Tags { get; set; } = [];

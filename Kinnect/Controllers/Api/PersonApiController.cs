@@ -86,7 +86,7 @@ public class PersonApiController(
         }
 
         using var stream = file.OpenReadStream();
-        var (imagePath, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.ProfileImages);
+        var (imagePath, _, _, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.ProfileImages);
         var updateResult = await personService.UpdateProfileImageAsync(id, imagePath, userId, IsAdmin);
         return !updateResult.IsSuccess ? (Result<object>)Result.Forbidden() : Result.Success<object>(new { imagePath });
     }

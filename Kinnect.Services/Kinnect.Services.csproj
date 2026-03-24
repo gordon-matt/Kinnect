@@ -10,6 +10,7 @@
     <PackageReference Include="Ardalis.Result" Version="10.1.0" />
     <PackageReference Include="GeneGenie.Gedcom" Version="1.0.3" />
     <PackageReference Include="Keycloak.NETCore.Client" Version="1.0.2" />
+    <PackageReference Include="MetadataExtractor" Version="2.9.2" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Xabe.FFmpeg" Version="6.0.2" />
   </ItemGroup>

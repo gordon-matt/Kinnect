@@ -218,7 +218,10 @@ public class PersonService(
                     DivorceDay = link.DivorceDay,
                     EngagementYear = link.EngagementYear,
                     EngagementMonth = link.EngagementMonth,
-                    EngagementDay = link.EngagementDay
+                    EngagementDay = link.EngagementDay,
+                    HasEngagement = link.HasEngagement,
+                    HasMarriage = link.HasMarriage,
+                    HasDivorce = link.HasDivorce
                 };
         }).Where(x => x != null).Cast<PersonSpouseDetailDto>()
             .OrderBy(s => s.FamilyName).ThenBy(s => s.GivenNames)
@@ -473,15 +476,18 @@ public class PersonService(
             return Result.NotFound("Spouse relationship not found.");
         }
 
-        link.MarriageYear = request.MarriageYear;
-        link.MarriageMonth = request.MarriageMonth;
-        link.MarriageDay = request.MarriageDay;
-        link.DivorceYear = request.DivorceYear;
-        link.DivorceMonth = request.DivorceMonth;
-        link.DivorceDay = request.DivorceDay;
-        link.EngagementYear = request.EngagementYear;
-        link.EngagementMonth = request.EngagementMonth;
-        link.EngagementDay = request.EngagementDay;
+        link.HasEngagement = request.HasEngagement;
+        link.EngagementYear = request.HasEngagement ? request.EngagementYear : null;
+        link.EngagementMonth = request.HasEngagement ? request.EngagementMonth : null;
+        link.EngagementDay = request.HasEngagement ? request.EngagementDay : null;
+        link.HasMarriage = request.HasMarriage;
+        link.MarriageYear = request.HasMarriage ? request.MarriageYear : null;
+        link.MarriageMonth = request.HasMarriage ? request.MarriageMonth : null;
+        link.MarriageDay = request.HasMarriage ? request.MarriageDay : null;
+        link.HasDivorce = request.HasDivorce;
+        link.DivorceYear = request.HasDivorce ? request.DivorceYear : null;
+        link.DivorceMonth = request.HasDivorce ? request.DivorceMonth : null;
+        link.DivorceDay = request.HasDivorce ? request.DivorceDay : null;
 
         await spouseRepository.UpdateAsync(link);
         return Result.Success();

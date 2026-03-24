@@ -123,7 +123,7 @@
                         </div>
 
                         <h6 class="mt-4">Spouse relationships</h6>
-                        <p class="text-muted small">Engagement, marriage and divorce dates apply to both people in the couple.</p>
+                        <p class="text-muted small">Tick the boxes below to record engagement, marriage, or divorce details for each couple.</p>
                         <div data-bind="visible: spouses().length === 0" class="text-muted small mb-2">No spouse links recorded.</div>
                         <div data-bind="foreach: spouses" class="mb-3">
                             <div class="card mb-2">
@@ -131,7 +131,21 @@
                                     <div class="fw-semibold mb-2">
                                         <a data-bind="attr: { href: '/Profile/View/' + spousePersonId }, text: displayName"></a>
                                     </div>
-                                    <div class="row g-2 small">
+                                    <div class="d-flex flex-wrap gap-3 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" data-bind="checked: hasEngagement, attr: { id: 'chkEnga_' + spousePersonId }" />
+                                            <label class="form-check-label small" data-bind="attr: { for: 'chkEnga_' + spousePersonId }">Add Engagement</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" data-bind="checked: hasMarriage, attr: { id: 'chkMarr_' + spousePersonId }" />
+                                            <label class="form-check-label small" data-bind="attr: { for: 'chkMarr_' + spousePersonId }">Add Marriage</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" data-bind="checked: hasDivorce, attr: { id: 'chkDiv_' + spousePersonId }" />
+                                            <label class="form-check-label small" data-bind="attr: { for: 'chkDiv_' + spousePersonId }">Add Divorce</label>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 small" data-bind="visible: hasEngagement">
                                         <div class="col-12 text-muted fw-semibold">Engagement</div>
                                         <div class="col-4">
                                             <input type="number" class="form-control form-control-sm" placeholder="Year" data-bind="value: engagementYear" />
@@ -142,6 +156,8 @@
                                         <div class="col-4">
                                             <select class="form-select form-select-sm" data-bind="options: engagementDayOptions, value: engagementDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                                         </div>
+                                    </div>
+                                    <div class="row g-2 small" data-bind="visible: hasMarriage">
                                         <div class="col-12 text-muted fw-semibold">Marriage</div>
                                         <div class="col-4">
                                             <input type="number" class="form-control form-control-sm" placeholder="Year" data-bind="value: marriageYear" />
@@ -152,6 +168,8 @@
                                         <div class="col-4">
                                             <select class="form-select form-select-sm" data-bind="options: marriageDayOptions, value: marriageDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
                                         </div>
+                                    </div>
+                                    <div class="row g-2 small" data-bind="visible: hasDivorce">
                                         <div class="col-12 text-muted fw-semibold">Divorce</div>
                                         <div class="col-4">
                                             <input type="number" class="form-control form-control-sm" placeholder="Year" data-bind="value: divorceYear" />

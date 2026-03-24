@@ -31,6 +31,10 @@ class ViewProfileViewModel {
         this.fullName = ko.observable('');
         this.profileImagePath = ko.observable(null);
         this.bio = ko.observable(null);
+        this.note = ko.observable(null);
+        this.isMale = ko.observable(null);
+        this.latitude = ko.observable(null);
+        this.longitude = ko.observable(null);
         this.birthInfo = ko.observable('');
         this.occupation = ko.observable(null);
         this.education = ko.observable(null);
@@ -200,6 +204,10 @@ class ViewProfileViewModel {
             this.fullName(`${person.givenNames} ${person.familyName}`);
             this.profileImagePath(person.profileImagePath);
             this.bio(person.bio);
+            this.note(person.note);
+            this.isMale(person.isMale ?? null);
+            this.latitude(person.latitude ?? null);
+            this.longitude(person.longitude ?? null);
             this.occupation(person.occupation);
             this.education(person.education);
             this.religion(person.religion);
@@ -249,6 +257,9 @@ class ViewProfileViewModel {
             this.spouses(spouseList.map(s => ({
                 spousePersonId: s.spousePersonId,
                 displayName: `${s.givenNames} ${s.familyName}`.trim(),
+                hasEngagement: s.hasEngagement ?? false,
+                hasMarriage: s.hasMarriage ?? false,
+                hasDivorce: s.hasDivorce ?? false,
                 marriageYear: s.marriageYear ?? null,
                 marriageMonth: s.marriageMonth ?? null,
                 marriageDay: s.marriageDay ?? null,
@@ -261,6 +272,22 @@ class ViewProfileViewModel {
             })));
 
             this.birthInfo(this.formatBirthHeader(this.events()));
+
+            // Initialise readonly location map if coordinates are available
+            const lat = this.latitude();
+            const lng = this.longitude();
+            if (lat != null && lng != null) {
+                setTimeout(() => {
+                    const mapEl = document.getElementById('viewProfileMap');
+                    if (!mapEl || mapEl._leafletInitialised) return;
+                    mapEl._leafletInitialised = true;
+                    const map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    L.marker([lat, lng]).addTo(map);
+                }, 50);
+            }
         } catch (err) {
             console.error('Error loading profile:', err);
         } finally {

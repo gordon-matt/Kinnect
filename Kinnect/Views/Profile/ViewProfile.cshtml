@@ -63,6 +63,55 @@
                         <i class="bi bi-heart text-muted me-1"></i>
                         <span data-bind="text: religion" class="text-muted small"></span>
                     </div>
+                    <div data-bind="if: isMale() != null" class="mt-1">
+                        <i class="bi bi-gender-ambiguous text-muted me-1"></i>
+                        <span data-bind="text: isMale() ? 'Male' : 'Female'" class="text-muted small"></span>
+                    </div>
+                    <div data-bind="if: note" class="mt-3">
+                        <h6>Notes</h6>
+                        <p data-bind="text: note" class="text-muted small mb-0"></p>
+                    </div>
+                    <div data-bind="if: latitude() != null && longitude() != null" class="mt-3">
+                        <h6>Last Known Location</h6>
+                        <div id="viewProfileMap" style="height:200px;border-radius:.375rem;z-index:1;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spouse Relationships (readonly) -->
+            <div data-bind="visible: spouses().length > 0" class="card mb-4">
+                <div class="card-body">
+                    <h6 class="mb-3">Spouse Relationships</h6>
+                    <div data-bind="foreach: spouses">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <div class="fw-semibold mb-1">
+                                <a data-bind="attr: { href: '/Profile/View/' + spousePersonId }, text: displayName"></a>
+                            </div>
+                            <div class="row g-1 small text-muted">
+                                <!-- ko if: hasEngagement -->
+                                <div class="col-12">
+                                    <i class="bi bi-gem me-1"></i>
+                                    <strong>Engaged:</strong>
+                                    <span data-bind="text: engagementYear ? (engagementYear + (engagementMonth ? '-' + String(engagementMonth).padStart(2,'0') + (engagementDay ? '-' + String(engagementDay).padStart(2,'0') : '') : '')) : 'Date unknown'"></span>
+                                </div>
+                                <!-- /ko -->
+                                <!-- ko if: hasMarriage -->
+                                <div class="col-12">
+                                    <i class="bi bi-heart-fill me-1"></i>
+                                    <strong>Married:</strong>
+                                    <span data-bind="text: marriageYear ? (marriageYear + (marriageMonth ? '-' + String(marriageMonth).padStart(2,'0') + (marriageDay ? '-' + String(marriageDay).padStart(2,'0') : '') : '')) : 'Date unknown'"></span>
+                                </div>
+                                <!-- /ko -->
+                                <!-- ko if: hasDivorce -->
+                                <div class="col-12">
+                                    <i class="bi bi-scissors me-1"></i>
+                                    <strong>Divorced:</strong>
+                                    <span data-bind="text: divorceYear ? (divorceYear + (divorceMonth ? '-' + String(divorceMonth).padStart(2,'0') + (divorceDay ? '-' + String(divorceDay).padStart(2,'0') : '') : '')) : 'Date unknown'"></span>
+                                </div>
+                                <!-- /ko -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -535,9 +584,11 @@
 
 @section Styles {
     <environment include="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
         <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.css" />
     </environment>
     <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
         <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.min.css" />
     </environment>
 }
@@ -548,9 +599,11 @@
         const isAdmin = @(isAdmin ? "true" : "false");
     </script>
     <environment include="Development">
+        <script src="~/lib/leaflet/dist/leaflet.js"></script>
         <script src="~/lib/annotorious/annotorious/dist/annotorious.js"></script>
     </environment>
     <environment exclude="Development">
+        <script src="~/lib/leaflet/dist/leaflet.min.js"></script>
         <script src="~/lib/annotorious/annotorious/dist/annotorious.min.js"></script>
     </environment>
     <script src="~/js/view-profile.js" asp-append-version="true"></script>

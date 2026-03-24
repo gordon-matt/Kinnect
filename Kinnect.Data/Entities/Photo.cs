@@ -24,6 +24,12 @@ public class Photo : BaseEntity<int>
     /// <summary>Stores Annotorious W3C Web Annotation JSON for image annotations.</summary>
     public string? AnnotationsJson { get; set; }
 
+    /// <summary>GPS latitude extracted from EXIF data at upload time, if available.</summary>
+    public double? Latitude { get; set; }
+
+    /// <summary>GPS longitude extracted from EXIF data at upload time, if available.</summary>
+    public double? Longitude { get; set; }
+
     public int? FolderId { get; set; }
 
     public virtual Person UploadedBy { get; set; } = null!;

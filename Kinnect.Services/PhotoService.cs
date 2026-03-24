@@ -16,7 +16,9 @@ public class PhotoService(
         short? yearTaken = null,
         byte? monthTaken = null,
         byte? dayTaken = null,
-        int? folderId = null)
+        int? folderId = null,
+        double? latitude = null,
+        double? longitude = null)
     {
         var photo = new Photo
         {
@@ -29,7 +31,9 @@ public class PhotoService(
             YearTaken = yearTaken,
             MonthTaken = monthTaken,
             DayTaken = dayTaken,
-            FolderId = folderId
+            FolderId = folderId,
+            Latitude = latitude,
+            Longitude = longitude
         };
 
         await photoRepository.InsertAsync(photo);
@@ -284,6 +288,8 @@ public class PhotoService(
         MonthTaken = p.MonthTaken,
         DayTaken = p.DayTaken,
         AnnotationsJson = p.AnnotationsJson,
+        Latitude = p.Latitude,
+        Longitude = p.Longitude,
         FolderId = p.FolderId,
         Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList(),
         TaggedPeople = p.PersonPhotos

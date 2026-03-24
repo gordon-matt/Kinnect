@@ -443,6 +443,9 @@
                 const row = {
                     spousePersonId: s.spousePersonId,
                     displayName: `${s.givenNames} ${s.familyName}`.trim(),
+                    hasEngagement: ko.observable(s.hasEngagement ?? false),
+                    hasMarriage: ko.observable(s.hasMarriage ?? false),
+                    hasDivorce: ko.observable(s.hasDivorce ?? false),
                     marriageYear: ko.observable(s.marriageYear ?? null),
                     marriageMonth: ko.observable(s.marriageMonth ?? null),
                     marriageDay: ko.observable(s.marriageDay ?? null),
@@ -537,16 +540,22 @@
         saveSpouseRow = async (row) => {
             const pid = this.personId();
             if (!pid) return;
+            const hasEnga = ko.unwrap(row.hasEngagement);
+            const hasMarr = ko.unwrap(row.hasMarriage);
+            const hasDiv  = ko.unwrap(row.hasDivorce);
             const body = {
-                marriageYear: this.numOrNull(row.marriageYear),
-                marriageMonth: this.numOrNull(row.marriageMonth),
-                marriageDay: this.numOrNull(row.marriageDay),
-                divorceYear: this.numOrNull(row.divorceYear),
-                divorceMonth: this.numOrNull(row.divorceMonth),
-                divorceDay: this.numOrNull(row.divorceDay),
-                engagementYear: this.numOrNull(row.engagementYear),
-                engagementMonth: this.numOrNull(row.engagementMonth),
-                engagementDay: this.numOrNull(row.engagementDay)
+                hasEngagement: hasEnga,
+                engagementYear: hasEnga ? this.numOrNull(row.engagementYear) : null,
+                engagementMonth: hasEnga ? this.numOrNull(row.engagementMonth) : null,
+                engagementDay: hasEnga ? this.numOrNull(row.engagementDay) : null,
+                hasMarriage: hasMarr,
+                marriageYear: hasMarr ? this.numOrNull(row.marriageYear) : null,
+                marriageMonth: hasMarr ? this.numOrNull(row.marriageMonth) : null,
+                marriageDay: hasMarr ? this.numOrNull(row.marriageDay) : null,
+                hasDivorce: hasDiv,
+                divorceYear: hasDiv ? this.numOrNull(row.divorceYear) : null,
+                divorceMonth: hasDiv ? this.numOrNull(row.divorceMonth) : null,
+                divorceDay: hasDiv ? this.numOrNull(row.divorceDay) : null
             };
             try {
                 const res = await fetch(`/api/people/${pid}/spouse/${row.spousePersonId}`, {
@@ -564,6 +573,9 @@
                         const r = {
                             spousePersonId: s.spousePersonId,
                             displayName: `${s.givenNames} ${s.familyName}`.trim(),
+                            hasEngagement: ko.observable(s.hasEngagement ?? false),
+                            hasMarriage: ko.observable(s.hasMarriage ?? false),
+                            hasDivorce: ko.observable(s.hasDivorce ?? false),
                             marriageYear: ko.observable(s.marriageYear ?? null),
                             marriageMonth: ko.observable(s.marriageMonth ?? null),
                             marriageDay: ko.observable(s.marriageDay ?? null),

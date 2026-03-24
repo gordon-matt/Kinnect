@@ -165,10 +165,15 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<IFeedService, FeedService>();
             services.AddScoped<IGedcomService, GedcomService>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
+            services.AddScoped<IVideoProcessingService, VideoProcessingService>();
         }
 
-        public void KinnectAddImageProcessing(IConfiguration configuration) => services.Configure<ImageProcessingOptions>(
-                configuration.GetSection("ImageProcessing"));
+        public void KinnectAddImageProcessing(IConfiguration configuration)
+        {
+            services.Configure<ImageProcessingOptions>(configuration.GetSection("ImageProcessing"));
+            services.Configure<DocumentProcessingOptions>(configuration.GetSection("DocumentProcessing"));
+            services.Configure<VideoProcessingOptions>(configuration.GetSection("VideoProcessing"));
+        }
 
         public void KinnectAddUserInfoService(IConfiguration configuration)
         {

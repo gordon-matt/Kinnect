@@ -12,7 +12,8 @@ public interface IFileStorageService
 
     /// <summary>
     /// Saves an image, optionally shrinking it and always generating a thumbnail.
-    /// Returns (imagePath, thumbnailPath).
+    /// Also extracts GPS coordinates from EXIF metadata if present.
+    /// Returns (ImagePath, ThumbnailPath, Latitude, Longitude).
     /// </summary>
-    Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category);
+    Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category);
 }

@@ -16,6 +16,14 @@ services:
       ImageProcessing__ThumbnailWidth: "400"
       ImageProcessing__ThumbnailHeight: "400"
       ImageProcessing__ThumbnailQuality: "70"
+      DocumentProcessing__AllowedExtensions: ".pdf,.jpg,.jpeg,.png,.gif,.webp"
+      DocumentProcessing__MaxFileSizeBytes: "5242880"
+      DocumentProcessing__AutoShrinkDocuments: "true"
+      VideoProcessing__AutoShrinkVideos: "true"
+      VideoProcessing__MaxWidth: "1280"
+      VideoProcessing__MaxHeight: "720"
+      VideoProcessing__Crf: "28"
+      VideoProcessing__AudioBitrate: "128000"
       # SeedAdmin__Email: admin@example.com
       # SeedAdmin__Password: "${ADMIN_PASSWORD}"
       # SeedAdmin__FirstName: Admin

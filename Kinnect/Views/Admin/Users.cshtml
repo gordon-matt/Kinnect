@@ -1,0 +1,144 @@
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<div class="row">
+    <div class="col-12">
+        <h4 class="mb-4"><i class="bi bi-people"></i> User Management</h4>
+
+        <div data-bind="visible: loading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading…</span>
+            </div>
+        </div>
+
+        <div data-bind="visible: !loading()">
+            <div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="chkShowPending" data-bind="checked: showOnlyPending" />
+                    <label class="form-check-label" for="chkShowPending">Show only pending approval</label>
+                </div>
+                <span class="badge bg-warning text-dark" data-bind="visible: pendingCount() > 0, text: pendingCount() + ' pending'"></span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Linked Person</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody data-bind="foreach: filteredUsers">
+                        <tr>
+                            <td data-bind="text: email"></td>
+                            <td>
+                                <!-- ko if: isPendingApproval -->
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Approval</span>
+                                <!-- /ko -->
+                                <!-- ko ifnot: isPendingApproval -->
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                <!-- /ko -->
+                            </td>
+                            <td>
+                                <!-- ko if: personId -->
+                                <a data-bind="attr: { href: '/Profile/View/' + personId }, text: personName"></a>
+                                <!-- /ko -->
+                                <!-- ko ifnot: personId -->
+                                <span class="text-muted small">Not linked</span>
+                                <!-- /ko -->
+                            </td>
+                            <td class="text-end">
+                                <!-- ko if: isPendingApproval -->
+                                <button class="btn btn-sm btn-success" data-bind="click: $root.approveUser">
+                                    <i class="bi bi-check-lg"></i> Approve
+                                </button>
+                                <!-- /ko -->
+                                <!-- ko ifnot: isPendingApproval -->
+                                <button class="btn btn-sm btn-outline-warning" data-bind="click: $root.lockUser">
+                                    <i class="bi bi-lock"></i> Lock
+                                </button>
+                                <!-- /ko -->
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-muted text-center py-3" data-bind="visible: filteredUsers().length === 0">
+                No users found.
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            function AdminUsersViewModel() {
+                this.loading = ko.observable(true);
+                this.users = ko.observableArray([]);
+                this.showOnlyPending = ko.observable(false);
+
+                this.pendingCount = ko.computed(() =>
+                    this.users().filter(u => u.isPendingApproval).length
+                );
+
+                this.filteredUsers = ko.computed(() =>
+                    this.showOnlyPending()
+                        ? this.users().filter(u => u.isPendingApproval)
+                        : this.users()
+                );
+
+                this.load = async () => {
+                    try {
+                        const res = await fetch('/api/admin/users');
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.users(data);
+                        }
+                    } finally {
+                        this.loading(false);
+                    }
+                };
+
+                this.approveUser = async (user) => {
+                    try {
+                        const res = await fetch(`/api/admin/users/${user.userId}/approve`, { method: 'POST' });
+                        if (res.ok) {
+                            toast.success(`${user.email} approved.`);
+                            user.isPendingApproval = false;
+                            this.users.valueHasMutated();
+                        } else {
+                            toast.error('Could not approve user.');
+                        }
+                    } catch {
+                        toast.error('Error approving user.');
+                    }
+                };
+
+                this.lockUser = async (user) => {
+                    if (!confirm(`Lock account for ${user.email}?`)) return;
+                    try {
+                        const res = await fetch(`/api/admin/users/${user.userId}/lock`, { method: 'POST' });
+                        if (res.ok) {
+                            toast.success(`${user.email} locked.`);
+                            user.isPendingApproval = true;
+                            this.users.valueHasMutated();
+                        } else {
+                            toast.error('Could not lock user.');
+                        }
+                    } catch {
+                        toast.error('Error locking user.');
+                    }
+                };
+
+                this.load();
+            }
+
+            ko.applyBindings(new AdminUsersViewModel());
+        })();
+    </script>
+}

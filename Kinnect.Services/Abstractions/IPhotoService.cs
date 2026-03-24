@@ -12,7 +12,9 @@ public interface IPhotoService
         short? yearTaken = null,
         byte? monthTaken = null,
         byte? dayTaken = null,
-        int? folderId = null);
+        int? folderId = null,
+        double? latitude = null,
+        double? longitude = null);
 
     Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin);
 

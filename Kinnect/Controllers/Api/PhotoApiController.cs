@@ -43,7 +43,7 @@ public class PhotoApiController(
         }
 
         using var stream = file.OpenReadStream();
-        var (filePath, thumbnailPath) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos);
+        var (filePath, thumbnailPath, exifLat, exifLng) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos);
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 
@@ -51,7 +51,7 @@ public class PhotoApiController(
         byte? mo = monthTaken is >= 1 and <= 12 ? (byte)monthTaken.Value : null;
         byte? d = dayTaken is >= 1 and <= 31 ? (byte)dayTaken.Value : null;
 
-        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList, y, mo, d, folderId);
+        var result = await photoService.CreateAsync(title, description, filePath, thumbnailPath, personResult.Value.Id, tagList, y, mo, d, folderId, exifLat, exifLng);
         return result.IsSuccess ? Ok(result.Value) : BadRequest();
     }
 

@@ -1,0 +1,22 @@
+@page
+@model Kinnect.Areas.Identity.Pages.Account.RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Registration Submitted";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center py-5">
+        <div class="mb-4">
+            <i class="bi bi-hourglass-split text-warning" style="font-size: 4rem;"></i>
+        </div>
+        <h3 class="mb-3">Registration submitted</h3>
+        <p class="text-muted">
+            Your account has been created and is <strong>pending admin approval</strong>.
+            An administrator will review your request and link your account to a family member record.
+            You will be able to log in once your account is approved.
+        </p>
+        <a href="/auth/login" class="btn btn-primary mt-3">
+            <i class="bi bi-box-arrow-in-right"></i> Go to Login
+        </a>
+    </div>
+</div>

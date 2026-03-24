@@ -1,7 +1,10 @@
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
+using Directory = System.IO.Directory;
 
 namespace Kinnect.Services;
 
@@ -36,13 +39,38 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
         return relativePath.Replace('\\', '/');
     }
 
-    public async Task<(string ImagePath, string? ThumbnailPath)> SaveImageAsync(Stream fileStream, string category)
+    public async Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category)
     {
         var opts = imageOptions.Value;
 
         // Buffer the stream so we can read it multiple times
         using var buffer = new MemoryStream();
         await fileStream.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        // Extract GPS coordinates from EXIF before decoding the image
+        double? latitude = null;
+        double? longitude = null;
+        try
+        {
+            buffer.Position = 0;
+            var directories = ImageMetadataReader.ReadMetadata(buffer);
+            var gps = directories.OfType<GpsDirectory>().FirstOrDefault();
+            if (gps != null)
+            {
+                var location = gps.GetGeoLocation();
+                if (location is { } loc)
+                {
+                    latitude = loc.Latitude;
+                    longitude = loc.Longitude;
+                }
+            }
+        }
+        catch
+        {
+            // EXIF extraction is best-effort; don't fail the upload
+        }
+
         buffer.Position = 0;
 
         string datePart = DateTime.UtcNow.ToString("yyyy/MM");
@@ -80,6 +108,6 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
         await thumbImage.SaveAsync(thumbFull, new JpegEncoder { Quality = opts.ThumbnailQuality });
 
-        return (mainRelative, thumbRelative);
+        return (mainRelative, thumbRelative, latitude, longitude);
     }
 }
