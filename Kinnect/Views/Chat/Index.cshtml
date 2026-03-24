@@ -16,14 +16,14 @@
 </div>
 
 <!-- Loading spinner -->
-<div class="d-flex flex-column justify-content-center align-items-center chat-loading" data-bind="visible: isLoading()">
+<div class="d-flex flex-column justify-content-center align-items-center chat-loading d-none">
     <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading&hellip;</span>
     </div>
 </div>
 
 <!-- Chat app shell -->
-<div class="chat-app" data-bind="visible: !isLoading()">
+<div class="chat-app">
 
     <!-- Sidebar: rooms & direct messages -->
     <div class="chat-sidebar">
@@ -245,8 +245,8 @@
 
 @section Scripts {
     <script>
-        const chatInitialPrivateUserId = @Html.Raw(initialPrivateUserId != null ? $"\"{initialPrivateUserId}\"" : "null");
-        const chatInitialPrivateUserName = @Html.Raw(initialPrivateUserName != null ? $"\"{initialPrivateUserName.Replace("\"", "\\\"")}\"" : "null");
+        const chatInitialPrivateUserId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserId));
+        const chatInitialPrivateUserName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserName));
     </script>
     <script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
     <script src="~/js/chat.js" asp-append-version="true"></script>

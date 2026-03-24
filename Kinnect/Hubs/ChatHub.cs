@@ -96,18 +96,14 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var user = await dbContext.Users.FindAsync(CurrentUserId);
-        if (user is null)
-        {
-            await base.OnConnectedAsync();
-            return;
-        }
+        string userId = CurrentUserId;
+        string userName = Context.User?.Identity?.Name ?? userId;
 
         var conn = new ConnectedUser
         {
-            UserId = CurrentUserId,
-            UserName = user.UserName ?? CurrentUserId,
-            FullName = GetFullName(CurrentUserId),
+            UserId = userId,
+            UserName = userName,
+            FullName = GetFullName(userId),
             ConnectionId = Context.ConnectionId,
             CurrentRoom = string.Empty
         };
@@ -136,7 +132,10 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    private string CurrentUserId => Context.UserIdentifier
+    private string CurrentUserId =>
+        Context.UserIdentifier
+        ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? Context.User?.FindFirst("sub")?.Value
         ?? throw new InvalidOperationException("User is not authenticated.");
 
     private string GetFullName(string userId)

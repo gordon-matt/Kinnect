@@ -314,14 +314,21 @@
                     viewModel.chatRooms((data || []).map(d => new ChatRoom(d)));
 
                     // If redirected from a profile page, open private chat
-                    if (chatInitialPrivateUserId) {
+                    if (typeof chatInitialPrivateUserId !== 'undefined' && chatInitialPrivateUserId) {
                         viewModel.startPrivateChatWith(chatInitialPrivateUserId, chatInitialPrivateUserName || chatInitialPrivateUserId);
                     } else if (viewModel.chatRooms().length > 0) {
                         viewModel.joinRoom(viewModel.chatRooms()[0]);
                     }
+                })
+                .catch(err => {
+                    console.error('Failed to load chat rooms:', err);
+                    viewModel.onError('Failed to load chat rooms.');
                 });
         })
-        .catch(err => console.error('SignalR connection error:', err));
+        .catch(err => {
+            console.error('SignalR connection error:', err);
+            viewModel.onError('SignalR connection failed.');
+        });
 
     // Delete message modal: capture message id
     document.addEventListener('show.bs.modal', function (e) {
