@@ -71,18 +71,19 @@
             this.documents = ko.observableArray([]);
             this.mediaFolders = ko.observableArray([]);
             this.currentMediaFolderId = ko.observable(null);
+            this.currentUserPersonId = ko.observable(null);
             this.isAdminUser = !!window.profileIsAdmin;
             this.events = ko.observableArray([]);
             this.spouses = ko.observableArray([]);
 
             this.inMediaFolder = ko.computed(() => this.currentMediaFolderId() != null);
-            this.ownedPhotos = ko.computed(() => this.photos().filter(p => this.isOwnedMedia(p)));
-            this.ownedVideos = ko.computed(() => this.videos().filter(v => this.isOwnedMedia(v)));
-            this.taggedPhotos = ko.computed(() => this.photos().filter(p => !this.isOwnedMedia(p)));
-            this.taggedVideos = ko.computed(() => this.videos().filter(v => !this.isOwnedMedia(v)));
+            this.ownedPhotos = ko.computed(() => this.photos().filter(p => this.isProfileOwnedMedia(p)));
+            this.ownedVideos = ko.computed(() => this.videos().filter(v => this.isProfileOwnedMedia(v)));
+            this.taggedPhotos = ko.computed(() => this.photos().filter(p => !this.isProfileOwnedMedia(p)));
+            this.taggedVideos = ko.computed(() => this.videos().filter(v => !this.isProfileOwnedMedia(v)));
             this.hasTaggedMedia = ko.computed(() =>
-                this.photos().some(p => !this.isOwnedMedia(p)) ||
-                this.videos().some(v => !this.isOwnedMedia(v)));
+                this.photos().some(p => !this.isProfileOwnedMedia(p)) ||
+                this.videos().some(v => !this.isProfileOwnedMedia(v)));
             this.currentMediaFolderName = ko.computed(() => {
                 const id = this.currentMediaFolderId();
                 if (id == null) return '';
@@ -359,6 +360,20 @@
                 this._personSnapshot = person;
 
                 this.personId(person.id);
+                if (this._explicitPersonId == null) {
+                    this.currentUserPersonId(person.id);
+                } else {
+                    try {
+                        const meRes = await fetch('/api/people/me');
+                        if (meRes.ok) {
+                            const meResult = await meRes.json();
+                            const me = meResult.value || meResult;
+                            this.currentUserPersonId(me.id ?? null);
+                        }
+                    } catch {
+                        this.currentUserPersonId(null);
+                    }
+                }
                 this.givenNames(person.givenNames);
                 this.familyName(person.familyName);
                 this.isMaleStr(person.isMale ? 'true' : 'false');
@@ -1414,23 +1429,23 @@
         taggedPhotoCount = () => this.taggedPhotos().length;
         taggedVideoCount = () => this.taggedVideos().length;
 
-        isOwnedMedia = (item) => {
+        isProfileOwnedMedia = (item) => {
             if (!item) return false;
-            // Ownership grouping is strictly by uploader == viewed profile person.
-            // Admins can edit, but media should still appear under the correct owner/tagged bucket.
             return item.uploadedByPersonId === this.personId();
         };
 
         canEditMedia = (item) => {
             if (!item) return false;
             if (this.isAdminUser) return true;
-            return this.isOwnedMedia(item);
+            const meId = this.currentUserPersonId();
+            return meId != null && item.uploadedByPersonId === meId;
         };
 
         canManageFolder = (folder) => {
             if (!folder) return false;
             if (this.isAdminUser) return true;
-            return folder.createdByPersonId === this.personId();
+            const meId = this.currentUserPersonId();
+            return meId != null && folder.createdByPersonId === meId;
         };
 
         deleteMediaFolder = async (folder, _vm, event) => {
