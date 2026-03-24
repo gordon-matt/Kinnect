@@ -32,6 +32,14 @@
         EMIG: 'Emigration', IMMI: 'Immigration', NATU: 'Naturalization',
         MARB: 'Marriage Banns', MARL: 'Marriage Licence', RESI: 'Residence', EVEN: 'Custom Event'
     };
+    const getEventDisplayLabel = (ev) => {
+        if (ev?.eventType === 'RESI') {
+            const place = (ev.place || '').trim();
+            if (place) return place;
+        }
+
+        return ev?.eventTypeLabel || ev?.eventType || 'Event';
+    };
 
     const presentTypes = [...new Set(events.map(ev => ev.eventType))].sort();
     const activeTypes = new Set(presentTypes);
@@ -93,14 +101,15 @@
                     : String(ev.year))
                 : 'Date unknown';
 
+            const displayLabel = getEventDisplayLabel(ev);
             const popupHtml = `
-                <strong>${ev.eventTypeLabel || ev.eventType}</strong>
+                <strong>${displayLabel}</strong>
                 <div>${dateStr}</div>
                 ${ev.place ? `<div><i class='bi bi-geo-alt'></i> ${ev.place}</div>` : ''}
                 ${ev.description ? `<div class='text-muted'>${ev.description}</div>` : ''}
             `;
 
-            const tooltipLabel = `${ev.eventTypeLabel || ev.eventType}${ev.year ? ' (' + ev.year + ')' : ''}`;
+            const tooltipLabel = `${displayLabel}${ev.year ? ' (' + ev.year + ')' : ''}`;
             L.marker([lat, lng])
                 .addTo(markerLayer)
                 .bindPopup(popupHtml)
@@ -119,7 +128,7 @@
                             const d = ev.year
                                 ? (ev.month ? `${ev.year}-${String(ev.month).padStart(2,'0')}` : String(ev.year))
                                 : '';
-                            return `<li>${ev.eventTypeLabel || ev.eventType}${d ? ' (' + d + ')' : ''}${ev.place ? ' — ' + ev.place : ''}</li>`;
+                            return `<li>${getEventDisplayLabel(ev)}${d ? ' (' + d + ')' : ''}${ev.place ? ' — ' + ev.place : ''}</li>`;
                         }).join('')}
                     </ul>`;
             } else {

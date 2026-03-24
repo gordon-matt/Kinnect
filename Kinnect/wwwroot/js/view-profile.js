@@ -123,6 +123,7 @@ class ViewProfileViewModel {
                 return (a.day ?? 0) - (b.day ?? 0);
             });
         });
+        this.hasEventMapItems = ko.computed(() => this.timelineItems().length > 0);
 
         this.photoLightboxUrl = ko.observable(null);
         this.lightboxPhotoId = ko.observable(null);

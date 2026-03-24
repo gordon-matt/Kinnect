@@ -96,6 +96,11 @@
 
                 <div class="tab-pane fade" id="timelineTab">
                     <div data-bind="visible: timelineItems().length === 0" class="text-muted text-center py-3">No life events recorded.</div>
+                    <div class="mb-3">
+                        <a class="btn btn-sm btn-outline-secondary" data-bind="visible: hasEventMapItems, attr: { href: '/Profile/EventMap/' + personId }">
+                            <i class="bi bi-map"></i> View Map
+                        </a>
+                    </div>
                     <div class="timeline" data-bind="foreach: timelineItems">
                         <div class="d-flex mb-3">
                             <div class="timeline-icon me-3 flex-shrink-0">
@@ -555,12 +560,30 @@
         document.getElementById('linkUserModal')?.addEventListener('show.bs.modal', async () => {
             const select = document.getElementById('userSelect');
             select.innerHTML = '<option value="">Loading...</option>';
-            const res = await fetch('/api/people/users');
-            if (res.ok) {
-                const users = await res.json();
-                select.innerHTML = '<option value="">-- Select a user --</option>' +
-                    users.map(u => `<option value="${u.userId}">${u.username} (${u.email})</option>`).join('');
+            const [usersRes, peopleRes] = await Promise.all([
+                fetch('/api/people/users'),
+                fetch('/api/people')
+            ]);
+
+            if (!usersRes.ok || !peopleRes.ok) {
+                select.innerHTML = '<option value="">Failed to load users</option>';
+                return;
             }
+
+            const [users, peopleResult] = await Promise.all([
+                usersRes.json(),
+                peopleRes.json()
+            ]);
+            const people = peopleResult?.value || peopleResult || [];
+            const linkedUserIds = new Set(
+                people
+                    .filter(p => p?.userId)
+                    .map(p => p.userId)
+            );
+            const availableUsers = users.filter(u => u?.userId && !linkedUserIds.has(u.userId));
+
+            select.innerHTML = '<option value="">-- Select a user --</option>' +
+                availableUsers.map(u => `<option value="${u.userId}">${u.username} (${u.email})</option>`).join('');
         });
 
         async function linkUserAccount() {
