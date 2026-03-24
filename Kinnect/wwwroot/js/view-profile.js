@@ -40,6 +40,8 @@ class ViewProfileViewModel {
         this.education = ko.observable(null);
         this.religion = ko.observable(null);
         this.hasAccount = ko.observable(false);
+        this.isDeceased = ko.observable(false);
+        this.userId = ko.observable(null);
         this.canEdit = ko.observable(false);
         this.canEditOwn = ko.observable(false);
 
@@ -184,6 +186,11 @@ class ViewProfileViewModel {
         this.MONTHS = MONTHS;
     }
 
+    showNotSignedUpMessage = () => {
+        const name = this.fullName() || 'This person';
+        toast.info(`${name} is not yet signed up. Invite them to join.`);
+    };
+
     loadProfile = async () => {
         try {
             // Load all people for person-tagging autocomplete
@@ -212,6 +219,8 @@ class ViewProfileViewModel {
             this.education(person.education);
             this.religion(person.religion);
             this.hasAccount(!!person.userId);
+            this.isDeceased(!!person.isDeceased);
+            this.userId(person.userId ?? null);
 
             this.birthInfo('');
 

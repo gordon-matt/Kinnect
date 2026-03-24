@@ -144,6 +144,14 @@
       ]
     },
     {
+      "library": "@microsoft/signalr@8.0.7",
+      "destination": "wwwroot/lib/microsoft-signalr/",
+      "files": [
+        "dist/browser/signalr.js",
+        "dist/browser/signalr.min.js"
+      ]
+    },
+    {
       "library": "@yaireo/tagify@4.36.0",
       "destination": "wwwroot/lib/yaireo/tagify/",
       "files": [

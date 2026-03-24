@@ -76,6 +76,13 @@
                         </div>
                         <p class="text-muted small mb-3">Birth and death dates are managed on the <strong>Timeline</strong> tab as life events.</p>
                         <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isDeceasedCheck" data-bind="checked: isDeceased" />
+                                <label class="form-check-label" for="isDeceasedCheck">Deceased</label>
+                            </div>
+                            <div class="form-text text-muted">Checked automatically when a Death date is recorded on the Timeline. Can also be set manually without a date.</div>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">Bio</label>
                             <textarea class="form-control" rows="3" data-bind="value: bio"></textarea>
                         </div>

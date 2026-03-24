@@ -68,6 +68,7 @@ else
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddSignalR();
 builder.Services.AddEntityFrameworkRepository();
 
 builder.Services.KinnectAddHangfire(connectionString);
@@ -139,6 +140,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapStaticAssets();
 }
+
+app.MapHub<Kinnect.Hubs.ChatHub>("/chatHub");
 
 app.MapControllerRoute(
     name: "areas",

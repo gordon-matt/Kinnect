@@ -34,6 +34,20 @@
                                     <i class="bi bi-pencil"></i> Edit Profile
                                 </a>
                             </div>
+                            <!-- Send Message button: only show when not deceased and not viewing own profile -->
+                            <!-- ko if: !isDeceased() && !canEditOwn() -->
+                            <div data-bind="if: hasAccount">
+                                <a data-bind="attr: { href: '/Chat?withUser=' + userId() }" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-chat-dots"></i> Send Message
+                                </a>
+                            </div>
+                            <div data-bind="ifnot: hasAccount">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bind="click: showNotSignedUpMessage">
+                                    <i class="bi bi-chat-dots"></i> Send Message
+                                </button>
+                            </div>
+                            <!-- /ko -->
                             @if (isAdmin)
                             {
                                 <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#linkUserModal" data-bind="visible: !hasAccount()">

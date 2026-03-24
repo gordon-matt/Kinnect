@@ -36,5 +36,7 @@ public class PersonDto
 
     public string? GedcomId { get; set; }
 
+    public bool IsDeceased { get; set; }
+
     public bool HasAccount => UserId != null;
 }

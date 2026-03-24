@@ -30,6 +30,8 @@ public class Person : BaseEntity<int>
 
     public string? Note { get; set; }
 
+    public bool IsDeceased { get; set; }
+
     /// <summary>GEDCOM cross-reference ID used during import (e.g. @I1@).</summary>
     public string? GedcomId { get; set; }
 

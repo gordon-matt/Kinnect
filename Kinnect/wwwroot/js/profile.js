@@ -50,6 +50,7 @@
             this.education = ko.observable('');
             this.religion = ko.observable('');
             this.note = ko.observable('');
+            this.isDeceased = ko.observable(false);
 
             this.locationSearchQuery = ko.observable('');
             this.locationSearchResults = ko.observableArray([]);
@@ -385,6 +386,7 @@
                 this.education(person.education || '');
                 this.religion(person.religion || '');
                 this.note(person.note || '');
+                this.isDeceased(!!person.isDeceased);
 
                 await this.loadContent();
                 if (this._locationMap && this._locationMapMarker) {
@@ -508,7 +510,8 @@
                 occupation: this.occupation() || null,
                 education: this.education() || null,
                 religion: this.religion() || null,
-                note: this.note() || null
+                note: this.note() || null,
+                isDeceased: this.isDeceased()
             };
 
             try {
@@ -902,6 +905,11 @@
                     this.cancelAddEvent();
                     await this.loadContent();
                     toast.success('Event added!');
+                    // Auto-mark deceased when a death event with a year is recorded
+                    if (body.eventType === 'DEAT' && body.year && !this.isDeceased()) {
+                        this.isDeceased(true);
+                        toast.info('Person has been automatically marked as deceased.');
+                    }
                 } else {
                     toast.error('Failed to add event.');
                 }
@@ -957,6 +965,11 @@
                     this.editingEventId(null);
                     await this.loadContent();
                     toast.success('Event updated!');
+                    // Auto-mark deceased when a death event with a year is recorded
+                    if (body.eventType === 'DEAT' && body.year && !this.isDeceased()) {
+                        this.isDeceased(true);
+                        toast.info('Person has been automatically marked as deceased.');
+                    }
                 } else { toast.error('Failed to update event.'); }
             } catch { toast.error('Error updating event.'); }
         };

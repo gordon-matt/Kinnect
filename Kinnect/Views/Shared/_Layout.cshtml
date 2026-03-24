@@ -58,6 +58,11 @@
                                     <i class="bi bi-person-circle"></i> My Profile
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Chat" asp-action="Index">
+                                    <i class="bi bi-chat-dots"></i> Messages
+                                </a>
+                            </li>
                             @if (User.IsInRole("Administrator"))
                             {
                                 <li class="nav-item dropdown">

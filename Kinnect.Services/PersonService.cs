@@ -45,6 +45,7 @@ public class PersonService(
             Education = request.Education,
             Religion = request.Religion,
             Note = request.Note,
+            IsDeceased = request.IsDeceased,
             UserId = userId,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
@@ -335,6 +336,7 @@ public class PersonService(
         person.Education = snapshot.Education;
         person.Religion = snapshot.Religion;
         person.Note = snapshot.Note;
+        person.IsDeceased = snapshot.IsDeceased;
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
@@ -382,6 +384,7 @@ public class PersonService(
         person.Education = request.Education;
         person.Religion = request.Religion;
         person.Note = request.Note;
+        person.IsDeceased = request.IsDeceased;
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
@@ -510,7 +513,8 @@ public class PersonService(
         Education = p.Education,
         Religion = p.Religion,
         Note = p.Note,
-        GedcomId = p.GedcomId
+        GedcomId = p.GedcomId,
+        IsDeceased = p.IsDeceased
     };
 
     private async Task SaveVersionAsync(Person person, string currentUserId)
@@ -528,7 +532,8 @@ public class PersonService(
             Occupation = person.Occupation,
             Education = person.Education,
             Religion = person.Religion,
-            Note = person.Note
+            Note = person.Note,
+            IsDeceased = person.IsDeceased
         };
 
         await versionRepository.InsertAsync(new PersonVersion

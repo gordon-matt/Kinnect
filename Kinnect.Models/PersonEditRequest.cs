@@ -25,4 +25,6 @@ public class PersonEditRequest
     public string? Religion { get; set; }
 
     public string? Note { get; set; }
+
+    public bool IsDeceased { get; set; }
 }
