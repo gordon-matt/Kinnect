@@ -1,4 +1,3 @@
-using Kinnect.Data;
 using Kinnect.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -8,85 +7,75 @@ namespace Kinnect.Controllers.Api;
 [Route("api/chat-rooms")]
 [Authorize]
 public class ChatRoomsApiController(
-    ApplicationDbContext dbContext,
+    IChatService chatService,
+    IUserContextService userContextService,
     IHubContext<ChatHub> hubContext) : ControllerBase
 {
-    private string CurrentUserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-        ?? throw new InvalidOperationException("User is not authenticated.");
-
+    [TranslateResultToActionResult]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        var rooms = await dbContext.ChatRooms
-            .Include(r => r.Admin)
-            .OrderBy(r => r.Name)
-            .Select(r => new { r.Id, r.Name, adminUserId = r.AdminUserId, adminUserName = r.Admin.UserName })
-            .ToListAsync();
+    public async Task<Result<IEnumerable<ChatRoomDto>>> GetAll() =>
+        await chatService.GetRoomsAsync();
 
-        return Ok(rooms);
-    }
-
+    [TranslateResultToActionResult]
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> Get(int id)
-    {
-        var room = await dbContext.ChatRooms.Include(r => r.Admin).FirstOrDefaultAsync(r => r.Id == id);
-        if (room is null) return NotFound();
-        return Ok(new { room.Id, room.Name, adminUserId = room.AdminUserId });
-    }
+    public async Task<Result<ChatRoomDto>> Get(int id) =>
+        await chatService.GetRoomByIdAsync(id);
 
+    [TranslateResultToActionResult]
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ChatRoomRequest request)
+    public async Task<Result<ChatRoomDto>> Create([FromBody] ChatRoomUpsertRequest request)
     {
-        if (await dbContext.ChatRooms.AnyAsync(r => r.Name == request.Name))
-            return BadRequest("A room with that name already exists.");
-
-        var room = new ChatRoom
+        string? currentUserId = userContextService.GetCurrentUserId();
+        if (currentUserId is null)
         {
-            Name = request.Name,
-            AdminUserId = CurrentUserId,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        dbContext.ChatRooms.Add(room);
-        await dbContext.SaveChangesAsync();
+            return Result.Unauthorized();
+        }
 
-        var vm = new { room.Id, room.Name, adminUserId = room.AdminUserId };
-        await hubContext.Clients.All.SendAsync("addChatRoom", vm);
+        var result = await chatService.CreateRoomAsync(request.Name, currentUserId);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            await hubContext.Clients.All.SendAsync("addChatRoom", result.Value);
+        }
 
-        return CreatedAtAction(nameof(Get), new { id = room.Id }, vm);
+        return result;
     }
 
+    [TranslateResultToActionResult]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Edit(int id, [FromBody] ChatRoomRequest request)
+    public async Task<Result<ChatRoomDto>> Edit(int id, [FromBody] ChatRoomUpsertRequest request)
     {
-        var room = await dbContext.ChatRooms.FirstOrDefaultAsync(r => r.Id == id && r.AdminUserId == CurrentUserId);
-        if (room is null) return NotFound();
+        string? currentUserId = userContextService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Result.Unauthorized();
+        }
 
-        if (await dbContext.ChatRooms.AnyAsync(r => r.Name == request.Name && r.Id != id))
-            return BadRequest("A room with that name already exists.");
+        var result = await chatService.UpdateRoomAsync(id, request.Name, currentUserId);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            await hubContext.Clients.All.SendAsync("updateChatRoom", result.Value);
+        }
 
-        room.Name = request.Name;
-        await dbContext.SaveChangesAsync();
-
-        var vm = new { room.Id, room.Name, adminUserId = room.AdminUserId };
-        await hubContext.Clients.All.SendAsync("updateChatRoom", vm);
-
-        return Ok(vm);
+        return result;
     }
 
+    [TranslateResultToActionResult]
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<Result<ChatDeleteRoomDto>> Delete(int id)
     {
-        var room = await dbContext.ChatRooms.FirstOrDefaultAsync(r => r.Id == id && r.AdminUserId == CurrentUserId);
-        if (room is null) return NotFound();
+        string? currentUserId = userContextService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Result.Unauthorized();
+        }
 
-        dbContext.ChatRooms.Remove(room);
-        await dbContext.SaveChangesAsync();
+        var result = await chatService.DeleteRoomAsync(id, currentUserId);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            await hubContext.Clients.All.SendAsync("removeChatRoom", result.Value.RoomId);
+            await hubContext.Clients.Group(result.Value.RoomName).SendAsync("onRoomDeleted");
+        }
 
-        await hubContext.Clients.All.SendAsync("removeChatRoom", id);
-        await hubContext.Clients.Group(room.Name).SendAsync("onRoomDeleted");
-
-        return Ok();
+        return result;
     }
-
-    public sealed record ChatRoomRequest(string Name);
 }

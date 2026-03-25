@@ -1,11 +1,9 @@
-using System.Text.RegularExpressions;
-using Kinnect.Data;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Kinnect.Hubs;
 
 [Authorize]
-public partial class ChatHub(ApplicationDbContext dbContext) : Hub
+public class ChatHub(IChatService chatService) : Hub
 {
     // In-memory presence tracking keyed by ConnectionId
     private static readonly Dictionary<string, ConnectedUser> Connections = new();
@@ -13,36 +11,9 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
 
     public async Task SendPrivate(string toUserId, string message)
     {
-        message = message.Trim();
-        if (string.IsNullOrEmpty(message)) return;
-
-        var fromUser = await dbContext.Users.FindAsync(CurrentUserId);
-        var toUser = await dbContext.Users.FindAsync(toUserId);
-        if (fromUser is null || toUser is null) return;
-
-        var cleanContent = StripHtmlRegex().Replace(message, string.Empty);
-
-        var chatMessage = new ChatMessage
-        {
-            Content = cleanContent,
-            Timestamp = DateTime.UtcNow,
-            FromUserId = CurrentUserId,
-            ToUserId = toUserId
-        };
-        dbContext.ChatMessages.Add(chatMessage);
-        await dbContext.SaveChangesAsync();
-
-        string fromFullName = GetFullName(CurrentUserId);
-        var vm = new
-        {
-            id = chatMessage.Id,
-            content = chatMessage.Content,
-            timestamp = chatMessage.Timestamp,
-            fromUserId = chatMessage.FromUserId,
-            fromUserName = fromUser.UserName,
-            fromFullName,
-            toUserId = chatMessage.ToUserId
-        };
+        var result = await chatService.CreatePrivateMessageAsync(CurrentUserId, toUserId, message);
+        if (!result.IsSuccess || result.Value is null) return;
+        var vm = result.Value;
 
         // Deliver to recipient's active connection and back to sender
         string? recipientConnectionId = GetConnectionId(toUserId);
@@ -98,12 +69,15 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
     {
         string userId = CurrentUserId;
         string userName = Context.User?.Identity?.Name ?? userId;
+        var profileResult = await chatService.GetCurrentChatUserAsync(userId, userName);
 
         var conn = new ConnectedUser
         {
             UserId = userId,
             UserName = userName,
-            FullName = GetFullName(userId),
+            FullName = profileResult.IsSuccess && profileResult.Value is not null
+                ? profileResult.Value.FullName
+                : userName,
             ConnectionId = Context.ConnectionId,
             CurrentRoom = string.Empty
         };
@@ -138,18 +112,6 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
         ?? Context.User?.FindFirst("sub")?.Value
         ?? throw new InvalidOperationException("User is not authenticated.");
 
-    private string GetFullName(string userId)
-    {
-        var person = dbContext.People
-            .Where(p => p.UserId == userId)
-            .Select(p => new { p.GivenNames, p.FamilyName })
-            .FirstOrDefault();
-
-        return person is not null
-            ? $"{person.GivenNames} {person.FamilyName}".Trim()
-            : Context.User?.Identity?.Name ?? userId;
-    }
-
     private static string? GetConnectionId(string userId)
     {
         lock (ConnectionsLock)
@@ -175,6 +137,4 @@ public partial class ChatHub(ApplicationDbContext dbContext) : Hub
         public string? CurrentRoom { get; set; }
     }
 
-    [GeneratedRegex(@"<.*?>")]
-    private static partial Regex StripHtmlRegex();
 }

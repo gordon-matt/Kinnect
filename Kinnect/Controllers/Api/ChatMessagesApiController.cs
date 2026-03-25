@@ -1,4 +1,3 @@
-using Kinnect.Data;
 using Kinnect.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -8,158 +7,60 @@ namespace Kinnect.Controllers.Api;
 [Route("api/chat-messages")]
 [Authorize]
 public class ChatMessagesApiController(
-    ApplicationDbContext dbContext,
+    IChatService chatService,
+    IUserContextService userContextService,
     IHubContext<ChatHub> hubContext) : ControllerBase
 {
-    private string CurrentUserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-        ?? throw new InvalidOperationException("User is not authenticated.");
-
+    [TranslateResultToActionResult]
     [HttpGet("room/{roomId:int}")]
-    public async Task<IActionResult> GetRoomMessages(int roomId, [FromQuery] int take = 50)
-    {
-        var rawMessages = await dbContext.ChatMessages
-            .Where(m => m.ToRoomId == roomId)
-            .Include(m => m.FromUser)
-            .OrderByDescending(m => m.Timestamp)
-            .Take(take)
-            .OrderBy(m => m.Timestamp)
-            .Select(m => new
-            {
-                m.Id,
-                m.Content,
-                m.Timestamp,
-                m.FromUserId,
-                fromUserName = m.FromUser.UserName,
-                m.ToRoomId
-            })
-            .ToListAsync();
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessages(int roomId, [FromQuery] int take = 50) =>
+        await chatService.GetRoomMessagesAsync(roomId, take);
 
-        var userIds = rawMessages.Select(m => m.FromUserId).Distinct().ToList();
-        var fullNamesByUserId = await dbContext.People
-            .Where(p => p.UserId != null && userIds.Contains(p.UserId))
-            .Select(p => new { p.UserId, FullName = (p.GivenNames + " " + p.FamilyName).Trim() })
-            .ToDictionaryAsync(x => x.UserId!, x => x.FullName);
-
-        var messages = rawMessages.Select(m => new
-        {
-            m.Id,
-            m.Content,
-            m.Timestamp,
-            m.FromUserId,
-            m.fromUserName,
-            fromFullName = fullNamesByUserId.GetValueOrDefault(m.FromUserId) ?? m.fromUserName,
-            m.ToRoomId
-        });
-
-        return Ok(messages);
-    }
-
+    [TranslateResultToActionResult]
     [HttpGet("private/{otherUserId}")]
-    public async Task<IActionResult> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50)
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50)
     {
-        string me = CurrentUserId;
-        var rawMessages = await dbContext.ChatMessages
-            .Where(m => m.ToUserId != null &&
-                ((m.FromUserId == me && m.ToUserId == otherUserId) ||
-                 (m.FromUserId == otherUserId && m.ToUserId == me)))
-            .Include(m => m.FromUser)
-            .OrderByDescending(m => m.Timestamp)
-            .Take(take)
-            .OrderBy(m => m.Timestamp)
-            .Select(m => new
-            {
-                m.Id,
-                m.Content,
-                m.Timestamp,
-                m.FromUserId,
-                fromUserName = m.FromUser.UserName,
-                m.ToUserId
-            })
-            .ToListAsync();
-
-        var userIds = rawMessages.Select(m => m.FromUserId).Distinct().ToList();
-        var fullNamesByUserId = await dbContext.People
-            .Where(p => p.UserId != null && userIds.Contains(p.UserId))
-            .Select(p => new { p.UserId, FullName = (p.GivenNames + " " + p.FamilyName).Trim() })
-            .ToDictionaryAsync(x => x.UserId!, x => x.FullName);
-
-        var messages = rawMessages.Select(m => new
-        {
-            m.Id,
-            m.Content,
-            m.Timestamp,
-            m.FromUserId,
-            m.fromUserName,
-            fromFullName = fullNamesByUserId.GetValueOrDefault(m.FromUserId) ?? m.fromUserName,
-            m.ToUserId
-        });
-
-        return Ok(messages);
+        string? currentUserId = userContextService.GetCurrentUserId();
+        return currentUserId is null
+            ? (Result<IEnumerable<ChatMessageDto>>)Result.Unauthorized()
+            : await chatService.GetPrivateMessagesAsync(currentUserId, otherUserId, take);
     }
 
+    [TranslateResultToActionResult]
     [HttpPost("room")]
-    public async Task<IActionResult> PostToRoom([FromBody] RoomMessageRequest request)
+    public async Task<Result<ChatMessageDto>> PostToRoom([FromBody] ChatRoomMessageCreateRequest request)
     {
-        var room = await dbContext.ChatRooms.FindAsync(request.RoomId);
-        if (room is null) return BadRequest("Room not found.");
-
-        var msg = new ChatMessage
+        string? currentUserId = userContextService.GetCurrentUserId();
+        if (currentUserId is null)
         {
-            Content = System.Text.RegularExpressions.Regex.Replace(request.Content, @"<.*?>", string.Empty),
-            Timestamp = DateTime.UtcNow,
-            FromUserId = CurrentUserId,
-            ToRoomId = room.Id
-        };
-        dbContext.ChatMessages.Add(msg);
-        await dbContext.SaveChangesAsync();
-
-        var fromPerson = dbContext.People
-            .Where(p => p.UserId == CurrentUserId)
-            .Select(p => new { p.GivenNames, p.FamilyName })
-            .FirstOrDefault();
-        var fromUser = await dbContext.Users.FindAsync(CurrentUserId);
-        string fromFullName = fromPerson is not null
-            ? $"{fromPerson.GivenNames} {fromPerson.FamilyName}".Trim()
-            : fromUser?.UserName ?? CurrentUserId;
-
-        var vm = new
-        {
-            msg.Id,
-            msg.Content,
-            msg.Timestamp,
-            msg.FromUserId,
-            fromUserName = fromUser?.UserName,
-            fromFullName,
-            msg.ToRoomId
-        };
-
-        await hubContext.Clients.Group(room.Name).SendAsync("newMessage", vm);
-
-        return Ok(vm);
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var msg = await dbContext.ChatMessages
-            .FirstOrDefaultAsync(m => m.Id == id && m.FromUserId == CurrentUserId);
-        if (msg is null) return NotFound();
-
-        int? roomId = msg.ToRoomId;
-        string? roomName = null;
-        if (roomId.HasValue)
-        {
-            roomName = (await dbContext.ChatRooms.FindAsync(roomId.Value))?.Name;
+            return Result.Unauthorized();
         }
 
-        dbContext.ChatMessages.Remove(msg);
-        await dbContext.SaveChangesAsync();
+        var result = await chatService.CreateRoomMessageAsync(request.RoomId, request.Content, currentUserId);
+        if (result.IsSuccess && result.Value is not null && result.Value.ToRoomName is not null)
+        {
+            await hubContext.Clients.Group(result.Value.ToRoomName).SendAsync("newMessage", result.Value);
+        }
 
-        if (roomName is not null)
-            await hubContext.Clients.Group(roomName).SendAsync("removeChatMessage", id);
-
-        return Ok();
+        return result;
     }
 
-    public sealed record RoomMessageRequest(int RoomId, string Content);
+    [TranslateResultToActionResult]
+    [HttpDelete("{id:int}")]
+    public async Task<Result<ChatDeleteMessageDto>> Delete(int id)
+    {
+        string? currentUserId = userContextService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Result.Unauthorized();
+        }
+
+        var result = await chatService.DeleteMessageAsync(id, currentUserId);
+        if (result.IsSuccess && result.Value?.RoomName is not null)
+        {
+            await hubContext.Clients.Group(result.Value.RoomName).SendAsync("removeChatMessage", id);
+        }
+
+        return result;
+    }
 }
