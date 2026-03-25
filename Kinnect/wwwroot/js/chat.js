@@ -1,337 +1,372 @@
-'use strict';
+function formatChatTimestamp(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const diffDays = Math.floor((now - d) / 86400000);
+    const hh = d.getHours().toString().padStart(2, '0');
+    const mm = d.getMinutes().toString().padStart(2, '0');
+    if (diffDays === 0) return `${hh}:${mm}`;
+    if (diffDays === 1) return `Yesterday ${hh}:${mm}`;
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${hh}:${mm}`;
+}
 
-(function () {
-    // ── Helpers ──────────────────────────────────────────────────────────────
+function scrollChatToBottom(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) el.scrollTop = el.scrollHeight;
+}
 
-    function formatTimestamp(ts) {
-        const d = new Date(ts);
-        const now = new Date();
-        const diffDays = Math.floor((now - d) / 86400000);
-        const hh = d.getHours().toString().padStart(2, '0');
-        const mm = d.getMinutes().toString().padStart(2, '0');
-        if (diffDays === 0) return `${hh}:${mm}`;
-        if (diffDays === 1) return `Yesterday ${hh}:${mm}`;
-        return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${hh}:${mm}`;
-    }
-
-    function scrollToBottom(id) {
-        const el = document.getElementById(id);
-        if (el) el.scrollTop = el.scrollHeight;
-    }
-
-    // ── KO constructors ──────────────────────────────────────────────────────
-
-    function ChatRoom(data) {
+class ChatRoomRow {
+    constructor(data) {
         this.id = ko.observable(data.id);
         this.name = ko.observable(data.name);
         this.adminUserId = ko.observable(data.adminUserId);
     }
+}
 
-    function ChatMessage(data, myUserId) {
+class ChatMessageRow {
+    constructor(data, myUserId) {
         this.id = ko.observable(data.id);
         this.content = ko.observable(data.content);
         this.fromUserId = ko.observable(data.fromUserId);
         this.fromUserName = ko.observable(data.fromUserName || '');
         this.fromFullName = ko.observable(data.fromFullName || data.fromUserName || '?');
         this.timestamp = ko.observable(data.timestamp);
-        this.timestampDisplay = ko.pureComputed(() => formatTimestamp(this.timestamp()));
+        this.timestampDisplay = ko.pureComputed(() => formatChatTimestamp(this.timestamp()));
         this.isMine = ko.observable(data.fromUserId === myUserId);
     }
+}
 
-    function OnlineUser(data) {
+class OnlineUserRow {
+    constructor(data) {
         this.userId = ko.observable(data.userId);
         this.userName = ko.observable(data.userName || '');
         this.fullName = ko.observable(data.fullName || data.userName || '?');
         this.currentRoom = ko.observable(data.currentRoom || '');
     }
+}
 
-    function PrivateConversation(userId, fullName) {
+class PrivateConversationRow {
+    constructor(userId, fullName) {
         this.userId = ko.observable(userId);
         this.fullName = ko.observable(fullName || userId);
     }
+}
 
-    function ProfileInfo(data) {
+class ChatProfileInfo {
+    constructor(data) {
         this.userId = ko.observable(data.userId);
         this.userName = ko.observable(data.userName || '');
         this.fullName = ko.observable(data.fullName || data.userName || '?');
     }
+}
 
-    // ── ViewModel ────────────────────────────────────────────────────────────
+class ChatViewModel {
+    constructor(hub) {
+        this.hub = hub;
 
-    function ChatViewModel() {
-        var self = this;
+        this.isLoading = ko.observable(true);
+        this.serverInfoMessage = ko.observable('');
+        this.myProfile = ko.observable(null);
+        this.myUserId = ko.observable(null);
 
-        self.isLoading = ko.observable(true);
-        self.serverInfoMessage = ko.observable('');
-        self.myProfile = ko.observable(null);
-        self.myUserId = ko.observable(null);
+        this.chatRooms = ko.observableArray([]);
+        this.chatMessages = ko.observableArray([]);
+        this.onlineUsers = ko.observableArray([]);
+        this.privateConversations = ko.observableArray([]);
+        this.privateMessages = ko.observableArray([]);
 
-        self.chatRooms = ko.observableArray([]);
-        self.chatMessages = ko.observableArray([]);
-        self.onlineUsers = ko.observableArray([]);
-        self.privateConversations = ko.observableArray([]);
-        self.privateMessages = ko.observableArray([]);
+        this.activeRoomId = ko.observable(null);
+        this.activeRoomName = ko.observable(null);
+        this.activePrivateUserId = ko.observable(null);
+        this.activePrivateUserName = ko.observable(null);
 
-        self.activeRoomId = ko.observable(null);
-        self.activeRoomName = ko.observable(null);
-        self.activePrivateUserId = ko.observable(null);
-        self.activePrivateUserName = ko.observable(null);
+        this.messageText = ko.observable('');
+        this.privateMessageText = ko.observable('');
 
-        self.messageText = ko.observable('');
-        self.privateMessageText = ko.observable('');
-
-        self.isRoomAdmin = ko.pureComputed(() => {
-            const room = self.chatRooms().find(r => r.id() === self.activeRoomId());
-            return room && self.myUserId() && room.adminUserId() === self.myUserId();
+        this.isRoomAdmin = ko.pureComputed(() => {
+            const room = this.chatRooms().find(r => r.id() === this.activeRoomId());
+            return !!(room && this.myUserId() && room.adminUserId() === this.myUserId());
         });
+    }
 
-        // ── Room actions ──────────────────────────────────────────────────
+    joinRoom = (room) => {
+        this.activePrivateUserId(null);
+        this.activePrivateUserName(null);
+        this.chatMessages([]);
+        this.activeRoomId(room.id());
+        this.activeRoomName(room.name());
 
-        self.joinRoom = function (room) {
-            self.activePrivateUserId(null);
-            self.activePrivateUserName(null);
-            self.chatMessages([]);
-            self.activeRoomId(room.id());
-            self.activeRoomName(room.name());
+        this.hub.invoke('Join', room.name()).catch(console.error);
+        this.loadRoomMessages(room.id());
+    };
 
-            connection.invoke('Join', room.name()).catch(console.error);
+    loadRoomMessages = async (roomId) => {
+        try {
+            const res = await fetch(`/api/chat-messages/room/${roomId}`);
+            const data = await res.json();
+            const myId = this.myUserId();
+            this.chatMessages((data || []).map(m => new ChatMessageRow(m, myId)));
+            setTimeout(() => scrollChatToBottom('chat-messages-room'), 50);
+        } catch (err) {
+            console.error('Error loading room messages:', err);
+        }
+    };
 
-            fetch(`/api/chat-messages/room/${room.id()}`)
-                .then(r => r.json())
-                .then(data => {
-                    const msgs = (data || []).map(m => new ChatMessage(m, self.myUserId()));
-                    self.chatMessages(msgs);
-                    setTimeout(() => scrollToBottom('chat-messages-room'), 50);
-                });
-        };
-
-        self.createRoom = function () {
-            const name = document.getElementById('new-room-name').value.trim();
-            if (!name) return;
-            fetch('/api/chat-rooms', {
+    createRoom = async () => {
+        const input = document.getElementById('new-room-name');
+        const name = input?.value.trim() ?? '';
+        if (!name) return;
+        try {
+            await fetch('/api/chat-rooms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
-            }).catch(console.error);
-            document.getElementById('new-room-name').value = '';
-        };
+            });
+        } catch (err) {
+            console.error('Error creating room:', err);
+        }
+        if (input) input.value = '';
+    };
 
-        self.renameRoom = function () {
-            const name = document.getElementById('rename-room-input').value.trim();
-            if (!name || self.activeRoomId() == null) return;
-            fetch(`/api/chat-rooms/${self.activeRoomId()}`, {
+    renameRoom = async () => {
+        const input = document.getElementById('rename-room-input');
+        const name = input?.value.trim() ?? '';
+        if (!name || this.activeRoomId() == null) return;
+        try {
+            await fetch(`/api/chat-rooms/${this.activeRoomId()}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
-            }).catch(console.error);
-        };
+            });
+        } catch (err) {
+            console.error('Error renaming room:', err);
+        }
+    };
 
-        self.deleteRoom = function () {
-            if (self.activeRoomId() == null) return;
-            fetch(`/api/chat-rooms/${self.activeRoomId()}`, {
-                method: 'DELETE'
-            }).catch(console.error);
-        };
+    deleteRoom = async () => {
+        if (this.activeRoomId() == null) return;
+        try {
+            await fetch(`/api/chat-rooms/${this.activeRoomId()}`, { method: 'DELETE' });
+        } catch (err) {
+            console.error('Error deleting room:', err);
+        }
+    };
 
-        // ── Room message actions ──────────────────────────────────────────
-
-        self.sendRoomMessage = function () {
-            const text = self.messageText().trim();
-            if (!text || self.activeRoomId() == null) return;
-            fetch('/api/chat-messages/room', {
+    sendRoomMessage = async () => {
+        const text = this.messageText().trim();
+        if (!text || this.activeRoomId() == null) return;
+        try {
+            await fetch('/api/chat-messages/room', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomId: self.activeRoomId(), content: text })
-            }).catch(console.error);
-            self.messageText('');
-        };
+                body: JSON.stringify({ roomId: this.activeRoomId(), content: text })
+            });
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
+        this.messageText('');
+    };
 
-        self.onEnterKey = function (data, event) {
-            if (event.keyCode === 13) self.sendRoomMessage();
-            return true;
-        };
+    onEnterKey = (data, event) => {
+        if (event.key === 'Enter') this.sendRoomMessage();
+        return true;
+    };
 
-        self.deleteMessage = function () {
-            const id = parseInt(document.getElementById('delete-message-id').value, 10);
-            if (!id) return;
-            fetch(`/api/chat-messages/${id}`, { method: 'DELETE' }).catch(console.error);
-        };
+    deleteMessage = async () => {
+        const hidden = document.getElementById('delete-message-id');
+        const id = parseInt(hidden?.value ?? '', 10);
+        if (!id) return;
+        try {
+            await fetch(`/api/chat-messages/${id}`, { method: 'DELETE' });
+        } catch (err) {
+            console.error('Error deleting message:', err);
+        }
+    };
 
-        // ── Private message actions ───────────────────────────────────────
+    openPrivateChat = (conv) => {
+        this.activeRoomId(null);
+        this.activeRoomName(null);
+        this.chatMessages([]);
+        this.privateMessages([]);
+        this.activePrivateUserId(conv.userId());
+        this.activePrivateUserName(conv.fullName());
+        this.loadPrivateMessages(conv.userId());
+    };
 
-        self.openPrivateChat = function (conv) {
-            self.activeRoomId(null);
-            self.activeRoomName(null);
-            self.chatMessages([]);
-            self.privateMessages([]);
-            self.activePrivateUserId(conv.userId());
-            self.activePrivateUserName(conv.fullName());
+    loadPrivateMessages = async (otherUserId) => {
+        try {
+            const res = await fetch(`/api/chat-messages/private/${otherUserId}`);
+            const data = await res.json();
+            const myId = this.myUserId();
+            this.privateMessages((data || []).map(m => new ChatMessageRow(m, myId)));
+            setTimeout(() => scrollChatToBottom('chat-messages-private'), 50);
+        } catch (err) {
+            console.error('Error loading private messages:', err);
+        }
+    };
 
-            fetch(`/api/chat-messages/private/${conv.userId()}`)
-                .then(r => r.json())
-                .then(data => {
-                    const msgs = (data || []).map(m => new ChatMessage(m, self.myUserId()));
-                    self.privateMessages(msgs);
-                    setTimeout(() => scrollToBottom('chat-messages-private'), 50);
-                });
-        };
+    sendPrivateMessage = async () => {
+        const text = this.privateMessageText().trim();
+        const toUserId = this.activePrivateUserId();
+        if (!text || !toUserId) return;
+        try {
+            await this.hub.invoke('SendPrivate', toUserId, text);
+        } catch (err) {
+            console.error('Error sending private message:', err);
+        }
+        this.privateMessageText('');
+    };
 
-        self.sendPrivateMessage = function () {
-            const text = self.privateMessageText().trim();
-            const toUserId = self.activePrivateUserId();
-            if (!text || !toUserId) return;
-            connection.invoke('SendPrivate', toUserId, text).catch(console.error);
-            self.privateMessageText('');
-        };
+    onPrivateEnterKey = (data, event) => {
+        if (event.key === 'Enter') this.sendPrivateMessage();
+        return true;
+    };
 
-        self.onPrivateEnterKey = function (data, event) {
-            if (event.keyCode === 13) self.sendPrivateMessage();
-            return true;
-        };
+    startPrivateChatWith = (userId, fullName) => {
+        let conv = this.privateConversations().find(c => c.userId() === userId);
+        if (!conv) {
+            conv = new PrivateConversationRow(userId, fullName);
+            this.privateConversations.push(conv);
+        }
+        this.openPrivateChat(conv);
+    };
 
-        // ── Open private chat by userId (for "Send Message" from profile) ─
+    loadInitialRooms = async (initialPrivateUserId, initialPrivateUserName) => {
+        try {
+            const res = await fetch('/api/chat-rooms');
+            const data = await res.json();
+            this.chatRooms((data || []).map(d => new ChatRoomRow(d)));
 
-        self.startPrivateChatWith = function (userId, fullName) {
-            let conv = self.privateConversations().find(c => c.userId() === userId);
-            if (!conv) {
-                conv = new PrivateConversation(userId, fullName);
-                self.privateConversations.push(conv);
+            if (initialPrivateUserId) {
+                this.startPrivateChatWith(initialPrivateUserId, initialPrivateUserName || initialPrivateUserId);
+            } else if (this.chatRooms().length > 0) {
+                this.joinRoom(this.chatRooms()[0]);
             }
-            self.openPrivateChat(conv);
-        };
+        } catch (err) {
+            console.error('Failed to load chat rooms:', err);
+            this.onError('Failed to load chat rooms.');
+        }
+    };
 
-        // ── Hub event handlers ────────────────────────────────────────────
+    onGetProfileInfo = (data) => {
+        this.myProfile(new ChatProfileInfo(data));
+        this.myUserId(data.userId);
+        this.isLoading(false);
+    };
 
-        self.onGetProfileInfo = function (data) {
-            self.myProfile(new ProfileInfo(data));
-            self.myUserId(data.userId);
-            self.isLoading(false);
-        };
+    onNewMessage = (data) => {
+        if (this.activeRoomId() === data.toRoomId) {
+            this.chatMessages.push(new ChatMessageRow(data, this.myUserId()));
+            setTimeout(() => scrollChatToBottom('chat-messages-room'), 30);
+        }
+    };
 
-        self.onNewMessage = function (data) {
-            if (self.activeRoomId() === data.toRoomId) {
-                self.chatMessages.push(new ChatMessage(data, self.myUserId()));
-                setTimeout(() => scrollToBottom('chat-messages-room'), 30);
-            }
-        };
+    onNewPrivateMessage = (data) => {
+        const me = this.myUserId();
+        const otherId = data.fromUserId === me ? data.toUserId : data.fromUserId;
+        const otherName = data.fromUserId === me
+            ? (this.activePrivateUserName() || otherId)
+            : (data.fromFullName || data.fromUserName || otherId);
 
-        self.onNewPrivateMessage = function (data) {
-            const otherId = data.fromUserId === self.myUserId() ? data.toUserId : data.fromUserId;
-            const otherName = data.fromUserId === self.myUserId()
-                ? (self.activePrivateUserName() || otherId)
-                : (data.fromFullName || data.fromUserName || otherId);
+        let conv = this.privateConversations().find(c => c.userId() === otherId);
+        if (!conv) {
+            conv = new PrivateConversationRow(otherId, otherName);
+            this.privateConversations.push(conv);
+        }
 
-            let conv = self.privateConversations().find(c => c.userId() === otherId);
-            if (!conv) {
-                conv = new PrivateConversation(otherId, otherName);
-                self.privateConversations.push(conv);
-            }
+        if (this.activePrivateUserId() === otherId) {
+            this.privateMessages.push(new ChatMessageRow(data, me));
+            setTimeout(() => scrollChatToBottom('chat-messages-private'), 30);
+        }
+    };
 
-            if (self.activePrivateUserId() === otherId) {
-                self.privateMessages.push(new ChatMessage(data, self.myUserId()));
-                setTimeout(() => scrollToBottom('chat-messages-private'), 30);
-            }
-        };
+    onAddUser = (data) => {
+        if (!this.onlineUsers().some(u => u.userId() === data.userId))
+            this.onlineUsers.push(new OnlineUserRow(data));
+    };
 
-        self.onAddUser = function (data) {
-            if (!self.onlineUsers().some(u => u.userId() === data.userId))
-                self.onlineUsers.push(new OnlineUser(data));
-        };
+    onRemoveUser = (data) => {
+        this.onlineUsers.remove(u => u.userId() === data.userId);
+    };
 
-        self.onRemoveUser = function (data) {
-            self.onlineUsers.remove(u => u.userId() === data.userId);
-        };
+    onAddChatRoom = (data) => {
+        if (!this.chatRooms().some(r => r.id() === data.id))
+            this.chatRooms.push(new ChatRoomRow(data));
+    };
 
-        self.onAddChatRoom = function (data) {
-            if (!self.chatRooms().some(r => r.id() === data.id))
-                self.chatRooms.push(new ChatRoom(data));
-        };
+    onUpdateChatRoom = (data) => {
+        const room = this.chatRooms().find(r => r.id() === data.id);
+        if (room) room.name(data.name);
+        if (this.activeRoomId() === data.id) this.activeRoomName(data.name);
+    };
 
-        self.onUpdateChatRoom = function (data) {
-            const room = self.chatRooms().find(r => r.id() === data.id);
-            if (room) room.name(data.name);
-            if (self.activeRoomId() === data.id) self.activeRoomName(data.name);
-        };
+    onRemoveChatRoom = (id) => {
+        this.chatRooms.remove(r => r.id() === id);
+        if (this.activeRoomId() === id) {
+            this.activeRoomId(null);
+            this.activeRoomName(null);
+            this.chatMessages([]);
+            const first = this.chatRooms()[0];
+            if (first) this.joinRoom(first);
+        }
+    };
 
-        self.onRemoveChatRoom = function (id) {
-            self.chatRooms.remove(r => r.id() === id);
-            if (self.activeRoomId() === id) {
-                self.activeRoomId(null);
-                self.activeRoomName(null);
-                self.chatMessages([]);
-                const first = self.chatRooms()[0];
-                if (first) self.joinRoom(first);
-            }
-        };
+    onRemoveChatMessage = (id) => {
+        this.chatMessages.remove(m => m.id() === id);
+    };
 
-        self.onRemoveChatMessage = function (id) {
-            self.chatMessages.remove(m => m.id() === id);
-        };
+    onError = (msg) => {
+        this.serverInfoMessage(msg);
+        const el = document.getElementById('chat-error-alert');
+        if (el) {
+            el.classList.remove('d-none');
+            el.style.display = '';
+            setTimeout(() => el.classList.add('d-none'), 5000);
+        }
+    };
+}
 
-        self.onError = function (msg) {
-            self.serverInfoMessage(msg);
-            const el = document.getElementById('chat-error-alert');
-            if (el) {
-                el.classList.remove('d-none');
-                el.style.display = '';
-                setTimeout(() => { el.classList.add('d-none'); }, 5000);
-            }
-        };
-    }
-
-    // ── Bootstrap ─────────────────────────────────────────────────────────────
-
-    var viewModel = new ChatViewModel();
-    ko.applyBindings(viewModel);
-
-    var connection = new signalR.HubConnectionBuilder()
+document.addEventListener('DOMContentLoaded', async () => {
+    const hub = new signalR.HubConnectionBuilder()
         .withUrl('/chatHub')
         .withAutomaticReconnect()
         .build();
 
-    connection.on('getProfileInfo', viewModel.onGetProfileInfo);
-    connection.on('newMessage', viewModel.onNewMessage);
-    connection.on('newPrivateMessage', viewModel.onNewPrivateMessage);
-    connection.on('addUser', viewModel.onAddUser);
-    connection.on('removeUser', viewModel.onRemoveUser);
-    connection.on('addChatRoom', viewModel.onAddChatRoom);
-    connection.on('updateChatRoom', viewModel.onUpdateChatRoom);
-    connection.on('removeChatRoom', viewModel.onRemoveChatRoom);
-    connection.on('removeChatMessage', viewModel.onRemoveChatMessage);
-    connection.on('onRoomDeleted', () => {
-        const first = viewModel.chatRooms()[0];
-        if (first) viewModel.joinRoom(first);
-        else { viewModel.activeRoomId(null); viewModel.activeRoomName(null); viewModel.chatMessages([]); }
+    const vm = new ChatViewModel(hub);
+    ko.applyBindings(vm);
+
+    hub.on('getProfileInfo', vm.onGetProfileInfo);
+    hub.on('newMessage', vm.onNewMessage);
+    hub.on('newPrivateMessage', vm.onNewPrivateMessage);
+    hub.on('addUser', vm.onAddUser);
+    hub.on('removeUser', vm.onRemoveUser);
+    hub.on('addChatRoom', vm.onAddChatRoom);
+    hub.on('updateChatRoom', vm.onUpdateChatRoom);
+    hub.on('removeChatRoom', vm.onRemoveChatRoom);
+    hub.on('removeChatMessage', vm.onRemoveChatMessage);
+    hub.on('onRoomDeleted', () => {
+        const first = vm.chatRooms()[0];
+        if (first) vm.joinRoom(first);
+        else {
+            vm.activeRoomId(null);
+            vm.activeRoomName(null);
+            vm.chatMessages([]);
+        }
     });
-    connection.on('onError', viewModel.onError);
+    hub.on('onError', vm.onError);
 
-    connection.start()
-        .then(() => {
-            // Load room list
-            fetch('/api/chat-rooms')
-                .then(r => r.json())
-                .then(data => {
-                    viewModel.chatRooms((data || []).map(d => new ChatRoom(d)));
+    const initialUserId = typeof chatInitialPrivateUserId !== 'undefined' ? chatInitialPrivateUserId : null;
+    const initialUserName = typeof chatInitialPrivateUserName !== 'undefined' ? chatInitialPrivateUserName : null;
 
-                    // If redirected from a profile page, open private chat
-                    if (typeof chatInitialPrivateUserId !== 'undefined' && chatInitialPrivateUserId) {
-                        viewModel.startPrivateChatWith(chatInitialPrivateUserId, chatInitialPrivateUserName || chatInitialPrivateUserId);
-                    } else if (viewModel.chatRooms().length > 0) {
-                        viewModel.joinRoom(viewModel.chatRooms()[0]);
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to load chat rooms:', err);
-                    viewModel.onError('Failed to load chat rooms.');
-                });
-        })
-        .catch(err => {
-            console.error('SignalR connection error:', err);
-            viewModel.onError('SignalR connection failed.');
-        });
+    try {
+        await hub.start();
+        if (vm.isLoading()) vm.isLoading(false);
+        await vm.loadInitialRooms(initialUserId, initialUserName);
+    } catch (err) {
+        console.error('SignalR connection error:', err);
+        vm.onError('SignalR connection failed.');
+    }
 
-    // Delete message modal: capture message id
-    document.addEventListener('show.bs.modal', function (e) {
+    document.addEventListener('show.bs.modal', (e) => {
         if (e.target.id === 'remove-message-modal') {
             const msgId = e.relatedTarget?.getAttribute('data-message-id');
             const hidden = document.getElementById('delete-message-id');
@@ -339,13 +374,12 @@
         }
         if (e.target.id === 'rename-room-modal') {
             const input = document.getElementById('rename-room-input');
-            if (input) input.value = viewModel.activeRoomName() || '';
+            if (input) input.value = vm.activeRoomName() || '';
         }
     });
 
-    // Toggle users panel
     document.getElementById('expand-users-list')?.addEventListener('click', () => {
         const panel = document.getElementById('chat-users-panel');
         if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
     });
-})();
+});
