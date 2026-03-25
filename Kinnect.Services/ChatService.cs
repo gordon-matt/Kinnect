@@ -22,16 +22,16 @@ public partial class ChatService(
             return Result.NotFound("Recipient user not found.");
         }
 
-        var message = new ChatMessage
+        var message = await chatMessageRepository.InsertAsync(new ChatMessage
         {
             Content = cleanContent,
             Timestamp = DateTime.UtcNow,
             FromUserId = currentUserId,
             ToUserId = toUserId
-        };
-        await chatMessageRepository.InsertAsync(message);
+        });
 
         var displayNames = await GetDisplayNamesAsync([currentUserId]);
+
         return Result.Success(new ChatMessageDto
         {
             Id = message.Id,
@@ -60,13 +60,12 @@ public partial class ChatService(
             return Result.Conflict("A room with that name already exists.");
         }
 
-        var room = new ChatRoom
+        var room = await chatRoomRepository.InsertAsync(new ChatRoom
         {
             Name = normalizedName,
             AdminUserId = currentUserId,
             CreatedAtUtc = DateTime.UtcNow
-        };
-        await chatRoomRepository.InsertAsync(room);
+        });
 
         string? adminUserName = await GetUserNameAsync(currentUserId);
         return Result.Success(new ChatRoomDto
@@ -92,14 +91,13 @@ public partial class ChatService(
             return Result.Invalid(new ValidationError("Message content is required."));
         }
 
-        var message = new ChatMessage
+        var message = await chatMessageRepository.InsertAsync(new ChatMessage
         {
             Content = cleanContent,
             Timestamp = DateTime.UtcNow,
             FromUserId = currentUserId,
             ToRoomId = roomId
-        };
-        await chatMessageRepository.InsertAsync(message);
+        });
 
         var userInfo = await userInfoService.GetUserInfoAsync([currentUserId]);
         var displayNames = await GetDisplayNamesAsync([currentUserId]);
@@ -135,7 +133,10 @@ public partial class ChatService(
         string? roomName = null;
         if (message.ToRoomId.HasValue)
         {
-            roomName = (await chatRoomRepository.FindOneAsync(message.ToRoomId.Value))?.Name;
+            roomName = await chatRoomRepository.FindOneAsync(new SearchOptions<ChatRoom>
+            {
+                Query = x => x.Id == message.ToRoomId.Value
+            }, x => x.Name);
         }
 
         await chatMessageRepository.DeleteAsync(message);
@@ -211,16 +212,20 @@ public partial class ChatService(
     {
         int takeCount = Math.Clamp(take, 1, 200);
 
-        var allMessages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
+        var messages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
         {
             Query = m => m.ToUserId != null &&
-                ((m.FromUserId == currentUserId && m.ToUserId == otherUserId) ||
-                 (m.FromUserId == otherUserId && m.ToUserId == currentUserId))
+                (
+                    (m.FromUserId == currentUserId && m.ToUserId == otherUserId) ||
+                    (m.FromUserId == otherUserId && m.ToUserId == currentUserId)
+                ),
+
+            OrderBy = query => query.OrderByDescending(m => m.Timestamp),
+            PageNumber = 1,
+            PageSize = takeCount
         });
 
-        var ordered = allMessages
-            .OrderByDescending(m => m.Timestamp)
-            .Take(takeCount)
+        var ordered = messages
             .OrderBy(m => m.Timestamp)
             .ToList();
 
@@ -255,14 +260,15 @@ public partial class ChatService(
             return Result.NotFound("Room not found.");
         }
 
-        var allMessages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
+        var messages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
         {
-            Query = m => m.ToRoomId == roomId
+            Query = m => m.ToRoomId == roomId,
+            OrderBy = query => query.OrderByDescending(m => m.Timestamp),
+            PageNumber = 1,
+            PageSize = takeCount
         });
 
-        var ordered = allMessages
-            .OrderByDescending(m => m.Timestamp)
-            .Take(takeCount)
+        var ordered = messages
             .OrderBy(m => m.Timestamp)
             .ToList();
 
@@ -271,9 +277,10 @@ public partial class ChatService(
 
     public async Task<Result<IEnumerable<ChatRoomDto>>> GetRoomsAsync()
     {
-        var rooms = (await chatRoomRepository.FindAsync(new SearchOptions<ChatRoom>()))
-            .OrderBy(r => r.Name)
-            .ToList();
+        var rooms = (await chatRoomRepository.FindAsync(new SearchOptions<ChatRoom>
+        {
+            OrderBy = query => query.OrderBy(r => r.Name)
+        })).ToList();
 
         var adminIds = rooms.Select(r => r.AdminUserId).Distinct().ToList();
         var userInfo = await userInfoService.GetUserInfoAsync(adminIds);

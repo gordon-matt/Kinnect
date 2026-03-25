@@ -408,11 +408,10 @@ public class GedcomService(
         Dictionary<string, int> xrefToPersonId,
         GedcomImportResult summary)
     {
-        var existing = await personRepository.FindAsync(new SearchOptions<Person>
+        var person = await personRepository.FindOneAsync(new SearchOptions<Person>
         {
             Query = x => x.GedcomId == individual.XRefID
         });
-        var person = existing.FirstOrDefault();
 
         var name = individual.Names.FirstOrDefault();
         string givenNames = name?.Given?.Trim() ?? "Unknown";
@@ -430,6 +429,7 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
+
             ApplyFacts(individual, person);
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
@@ -457,14 +457,7 @@ public class GedcomService(
         GedcomImportResult summary)
     {
         // Clear old imported events before re-importing
-        var existing = await eventRepository.FindAsync(new SearchOptions<PersonEvent>
-        {
-            Query = x => x.PersonId == personId
-        });
-        foreach (var e in existing)
-        {
-            await eventRepository.DeleteAsync(e);
-        }
+        await eventRepository.DeleteAsync(x => x.PersonId == personId);
 
         var tagMap = new Dictionary<GedcomEventType, string>
         {
@@ -489,56 +482,58 @@ public class GedcomService(
                 continue;
             }
 
-            var (Year, Month, Day) = ParseDate(indEvent.Date);
+            var (year, month, day) = ParseDate(indEvent.Date);
             string? noteText = ResolveFirstNote(indEvent.Notes, database);
 
-            var evt = new PersonEvent
+            await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
                 EventType = tag,
-                Year = Year,
-                Month = Month,
-                Day = Day,
+                Year = year,
+                Month = month,
+                Day = day,
                 Place = indEvent.Place?.Name,
                 Description = indEvent.Classification,
                 Note = noteText,
                 CreatedAtUtc = DateTime.UtcNow
-            };
-            await eventRepository.InsertAsync(evt);
+            });
+
             summary.EventsImported++;
         }
 
         bool hasBirtInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.Birth);
         if (!hasBirtInEvents && individual.Birth != null)
         {
-            var (Year, Month, Day) = ParseDate(individual.Birth.Date);
+            var (year, month, day) = ParseDate(individual.Birth.Date);
             await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
                 EventType = PersonEventType.Birth,
-                Year = Year,
-                Month = Month,
-                Day = Day,
+                Year = year,
+                Month = month,
+                Day = day,
                 Place = individual.Birth.Place?.Name,
                 CreatedAtUtc = DateTime.UtcNow
             });
+
             summary.EventsImported++;
         }
 
         bool hasDeatInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.DEAT);
         if (!hasDeatInEvents && individual.Death != null)
         {
-            var (Year, Month, Day) = ParseDate(individual.Death.Date);
+            var (year, month, day) = ParseDate(individual.Death.Date);
             await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
                 EventType = PersonEventType.Death,
-                Year = Year,
-                Month = Month,
-                Day = Day,
+                Year = year,
+                Month = month,
+                Day = day,
                 Place = individual.Death.Place?.Name,
                 CreatedAtUtc = DateTime.UtcNow
             });
+
             summary.EventsImported++;
         }
     }

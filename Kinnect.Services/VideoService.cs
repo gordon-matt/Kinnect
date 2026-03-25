@@ -1,10 +1,21 @@
 namespace Kinnect.Services;
 
-public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> tagRepository, IRepository<VideoTag> videoTagRepository) : IVideoService
+public class VideoService(
+    IRepository<Video> videoRepository,
+    IRepository<Tag> tagRepository,
+    IRepository<VideoTag> videoTagRepository) : IVideoService
 {
-    public async Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags, int? folderId = null)
+    public async Task<Result<VideoDto>> CreateAsync(
+        string title,
+        string? description,
+        string filePath,
+        string? thumbnailPath,
+        TimeSpan? duration,
+        int uploadedByPersonId,
+        List<string>? tags,
+        int? folderId = null)
     {
-        var video = new Video
+        var video = await videoRepository.InsertAsync(new Video
         {
             Title = title,
             Description = description,
@@ -14,9 +25,7 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
             UploadedByPersonId = uploadedByPersonId,
             CreatedAtUtc = DateTime.UtcNow,
             FolderId = folderId
-        };
-
-        await videoRepository.InsertAsync(video);
+        });
 
         if (tags is { Count: > 0 })
         {
@@ -40,12 +49,12 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
 
     public async Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin)
     {
-        var videos = await videoRepository.FindAsync(new SearchOptions<Video>
+        var video = await videoRepository.FindOneAsync(new SearchOptions<Video>
         {
             Query = x => x.Id == id,
             Include = q => q.Include(v => v.UploadedBy)
         });
-        var video = videos.FirstOrDefault();
+
         if (video is null)
         {
             return Result.NotFound("Video not found.");
@@ -62,14 +71,15 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
 
     public async Task<Result<VideoDto>> GetByIdAsync(int id)
     {
-        var videos = await videoRepository.FindAsync(new SearchOptions<Video>
+        var video = await videoRepository.FindOneAsync(new SearchOptions<Video>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(v => v.UploadedBy).Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
+            Include = q => q
+                .Include(v => v.UploadedBy)
+                .Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
         });
-        var video = videos.FirstOrDefault();
 
-        return video is null ? (Result<VideoDto>)Result.NotFound("Video not found.") : Result.Success(MapToDto(video));
+        return video is null ? (Result<VideoDto>)Result.NotFound("Video not found.") : Result.Success(video.ToDto());
     }
 
     public async Task<Result<IEnumerable<VideoDto>>> GetByPersonAsync(int personId)
@@ -77,20 +87,25 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         var videos = await videoRepository.FindAsync(new SearchOptions<Video>
         {
             Query = x => x.UploadedByPersonId == personId,
-            Include = q => q.Include(v => v.UploadedBy).Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
+            Include = q => q
+                .Include(v => v.UploadedBy)
+                .Include(v => v.VideoTags).ThenInclude(vt => vt.Tag),
+            OrderBy = query => query.OrderByDescending(v => v.CreatedAtUtc)
         });
 
-        return Result.Success(videos.OrderByDescending(v => v.CreatedAtUtc).Select(MapToDto));
+        return Result.Success(videos.Select(v => v.ToDto()));
     }
 
     public async Task<Result<VideoDto>> UpdateAsync(int id, VideoUpdateRequest request, string currentUserId, bool isAdmin)
     {
-        var videos = await videoRepository.FindAsync(new SearchOptions<Video>
+        var video = await videoRepository.FindOneAsync(new SearchOptions<Video>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(v => v.UploadedBy).Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
+            Include = q => q
+                .Include(v => v.UploadedBy)
+                .Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
         });
-        var video = videos.FirstOrDefault();
+
         if (video is null)
         {
             return Result.NotFound("Video not found.");
@@ -116,8 +131,8 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
 
     public async Task<Result> UpdateTagsAsync(int id, List<string> tags)
     {
-        var video = await videoRepository.FindOneAsync(id);
-        if (video is null)
+        bool videoExists = await videoRepository.ExistsAsync(x => x.Id == id);
+        if (!videoExists)
         {
             return Result.NotFound("Video not found.");
         }
@@ -126,50 +141,32 @@ public class VideoService(IRepository<Video> videoRepository, IRepository<Tag> t
         return Result.Success();
     }
 
-    private static bool CanEditVideo(Person uploadedBy, string currentUserId, bool isAdmin) => isAdmin || uploadedBy.UserId == null || uploadedBy.UserId == currentUserId;
-
-    private static VideoDto MapToDto(Video v) => new()
-    {
-        Id = v.Id,
-        Title = v.Title,
-        FilePath = v.FilePath,
-        ThumbnailPath = v.ThumbnailPath,
-        Description = v.Description,
-        Duration = v.Duration,
-        UploadedByPersonId = v.UploadedByPersonId,
-        UploadedByName = $"{v.UploadedBy.GivenNames} {v.UploadedBy.FamilyName}",
-        CreatedAtUtc = v.CreatedAtUtc,
-        Tags = v.VideoTags.Select(vt => vt.Tag.Name).ToList(),
-        FolderId = v.FolderId
-    };
+    private static bool CanEditVideo(Person uploadedBy, string currentUserId, bool isAdmin) =>
+        isAdmin || uploadedBy.UserId == null || uploadedBy.UserId == currentUserId;
 
     private async Task SyncTagsAsync(int videoId, List<string> tagNames)
     {
-        var existing = await videoTagRepository.FindAsync(new SearchOptions<VideoTag>
+        await videoTagRepository.DeleteAsync(x => x.VideoId == videoId);
+
+        var distinctTagNames = tagNames
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+            .Distinct()
+            .ToList();
+
+        var existingTags = await tagRepository.FindAsync(new SearchOptions<Tag>
         {
-            Query = x => x.VideoId == videoId
+            Query = x => distinctTagNames.Contains(x.Name)
         });
 
-        foreach (var vt in existing)
-        {
-            await videoTagRepository.DeleteAsync(vt);
-        }
+        var newTags = distinctTagNames
+            .Where(x => !existingTags.Any(t => t.Name == x))
+            .Select(x => new Tag { Name = x })
+            .ToList();
 
-        foreach (string tagName in tagNames.Distinct())
-        {
-            var tags = await tagRepository.FindAsync(new SearchOptions<Tag>
-            {
-                Query = x => x.Name == tagName
-            });
-            var tag = tags.FirstOrDefault();
+        var videoTagsToInsert = newTags
+            .Select(t => new VideoTag { VideoId = videoId, TagId = t.Id });
 
-            if (tag is null)
-            {
-                tag = new Tag { Name = tagName };
-                await tagRepository.InsertAsync(tag);
-            }
-
-            await videoTagRepository.InsertAsync(new VideoTag { VideoId = videoId, TagId = tag.Id });
-        }
+        await tagRepository.InsertAsync(newTags);
+        await videoTagRepository.InsertAsync(videoTagsToInsert);
     }
 }

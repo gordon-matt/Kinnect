@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Kinnect.Models;
 
 public class PostDto
@@ -5,6 +7,10 @@ public class PostDto
     public int Id { get; set; }
 
     public int AuthorPersonId { get; set; }
+
+    /// <summary>ASP.NET Identity user id of the author; populated for permission checks, not exposed in JSON.</summary>
+    [JsonIgnore]
+    public string? AuthorUserId { get; set; }
 
     public string AuthorName { get; set; } = null!;
 

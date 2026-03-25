@@ -2,6 +2,7 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Extenso.Data.Entity;
 using Hangfire;
+using Kinnect.Services.Mapping;
 using Kinnect.Data;
 using Kinnect.Data.Entities;
 using Kinnect.Infrastructure;
@@ -70,6 +71,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 builder.Services.AddEntityFrameworkRepository();
+KinnectMappingRegistration.Register();
+builder.Services.AddExtensoMapperEntityFrameworkRepository();
 
 builder.Services.KinnectAddHangfire(connectionString);
 builder.Services.KinnectAddServices();

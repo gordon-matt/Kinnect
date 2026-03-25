@@ -14,7 +14,7 @@ public class DocumentService(
         int uploadedByPersonId,
         List<string>? tags)
     {
-        var document = new Document
+        var document = await documentRepository.InsertAsync(new Document
         {
             Title = title,
             Description = description,
@@ -23,9 +23,7 @@ public class DocumentService(
             FileSize = fileSize,
             UploadedByPersonId = uploadedByPersonId,
             CreatedAtUtc = DateTime.UtcNow
-        };
-
-        await documentRepository.InsertAsync(document);
+        });
 
         if (tags is { Count: > 0 })
         {
@@ -60,14 +58,15 @@ public class DocumentService(
 
     public async Task<Result<DocumentDto>> GetByIdAsync(int id)
     {
-        var documents = await documentRepository.FindAsync(new SearchOptions<Document>
+        var document = await documentRepository.FindOneAsync(new SearchOptions<Document>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
+            Include = q => q
+                .Include(d => d.UploadedBy)
+                .Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
         });
-        var document = documents.FirstOrDefault();
 
-        return document is null ? (Result<DocumentDto>)Result.NotFound("Document not found.") : Result.Success(MapToDto(document));
+        return document is null ? (Result<DocumentDto>)Result.NotFound("Document not found.") : Result.Success(document.ToDto());
     }
 
     public async Task<Result<IEnumerable<DocumentDto>>> GetByPersonAsync(int personId)
@@ -75,10 +74,13 @@ public class DocumentService(
         var documents = await documentRepository.FindAsync(new SearchOptions<Document>
         {
             Query = x => x.UploadedByPersonId == personId,
-            Include = q => q.Include(d => d.UploadedBy).Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag)
+            Include = q => q
+                .Include(d => d.UploadedBy)
+                .Include(d => d.DocumentTags).ThenInclude(dt => dt.Tag),
+            OrderBy = query => query.OrderByDescending(d => d.CreatedAtUtc)
         });
 
-        return Result.Success(documents.OrderByDescending(d => d.CreatedAtUtc).Select(MapToDto));
+        return Result.Success(documents.Select(d => d.ToDto()));
     }
 
     public async Task<Result> UpdateTagsAsync(int id, List<string> tags)
@@ -93,45 +95,18 @@ public class DocumentService(
         return Result.Success();
     }
 
-    private static DocumentDto MapToDto(Document d) => new()
-    {
-        Id = d.Id,
-        Title = d.Title,
-        FilePath = d.FilePath,
-        Description = d.Description,
-        ContentType = d.ContentType,
-        FileSize = d.FileSize,
-        UploadedByPersonId = d.UploadedByPersonId,
-        UploadedByName = $"{d.UploadedBy.GivenNames} {d.UploadedBy.FamilyName}",
-        CreatedAtUtc = d.CreatedAtUtc,
-        Tags = d.DocumentTags.Select(dt => dt.Tag.Name).ToList()
-    };
-
     private async Task SyncTagsAsync(int documentId, List<string> tagNames)
     {
-        var existing = await documentTagRepository.FindAsync(new SearchOptions<DocumentTag>
-        {
-            Query = x => x.DocumentId == documentId
-        });
-
-        foreach (var dt in existing)
-        {
-            await documentTagRepository.DeleteAsync(dt);
-        }
+        await documentTagRepository.DeleteAsync(x => x.DocumentId == documentId);
 
         foreach (string tagName in tagNames.Distinct())
         {
-            var tags = await tagRepository.FindAsync(new SearchOptions<Tag>
+            var tag = await tagRepository.FindOneAsync(new SearchOptions<Tag>
             {
                 Query = x => x.Name == tagName
             });
-            var tag = tags.FirstOrDefault();
 
-            if (tag is null)
-            {
-                tag = new Tag { Name = tagName };
-                await tagRepository.InsertAsync(tag);
-            }
+            tag ??= await tagRepository.InsertAsync(new Tag { Name = tagName });
 
             await documentTagRepository.InsertAsync(new DocumentTag { DocumentId = documentId, TagId = tag.Id });
         }

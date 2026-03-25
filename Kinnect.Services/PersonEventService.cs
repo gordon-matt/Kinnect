@@ -16,7 +16,7 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
                 $"{PersonEventType.GetLabel(source.EventType)} can only be added once."));
         }
 
-        var copy = new PersonEvent
+        var copy = await eventRepository.InsertAsync(new PersonEvent
         {
             PersonId = targetPersonId,
             EventType = source.EventType,
@@ -29,15 +29,14 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             Description = source.Description,
             Note = source.Note,
             CreatedAtUtc = DateTime.UtcNow
-        };
+        });
 
-        await eventRepository.InsertAsync(copy);
-        return Result.Success(MapToDto(copy));
+        return Result.Success(copy.ToDto());
     }
 
     public async Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request)
     {
-        var eventType = request.EventType.ToUpperInvariant();
+        string eventType = request.EventType.ToUpperInvariant();
         if (PersonEventType.IsNonTimelineEventType(eventType))
         {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
@@ -49,7 +48,7 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
                 $"{PersonEventType.GetLabel(eventType)} can only be added once."));
         }
 
-        var evt = new PersonEvent
+        var evt = await eventRepository.InsertAsync(new PersonEvent
         {
             PersonId = personId,
             EventType = eventType,
@@ -62,10 +61,9 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             Description = request.Description,
             Note = request.Note,
             CreatedAtUtc = DateTime.UtcNow
-        };
+        });
 
-        await eventRepository.InsertAsync(evt);
-        return Result.Success(MapToDto(evt));
+        return Result.Success(evt.ToDto());
     }
 
     public async Task<Result> DeleteAsync(int id)
@@ -85,7 +83,7 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         var evt = await eventRepository.FindOneAsync(id);
         return evt is null
             ? Result.NotFound("Event not found.")
-            : Result.Success(MapToDto(evt));
+            : Result.Success(evt.ToDto());
     }
 
     public async Task<Result<IEnumerable<PersonEventDto>>> GetByPersonAsync(int personId)
@@ -100,7 +98,7 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             .OrderBy(e => e.Year ?? 9999)
             .ThenBy(e => e.Month ?? 0)
             .ThenBy(e => e.Day ?? 0)
-            .Select(MapToDto));
+            .Select(e => e.ToDto()));
     }
 
     public async Task<Result<PersonEventDto>> UpdateAsync(int id, PersonEventRequest request)
@@ -111,7 +109,8 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             return Result.NotFound("Event not found.");
         }
 
-        var eventType = request.EventType.ToUpperInvariant();
+        string eventType = request.EventType.ToUpperInvariant();
+
         if (PersonEventType.IsNonTimelineEventType(eventType))
         {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
@@ -134,24 +133,8 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         evt.Note = request.Note;
 
         await eventRepository.UpdateAsync(evt);
-        return Result.Success(MapToDto(evt));
+        return Result.Success(evt.ToDto());
     }
-
-    private static PersonEventDto MapToDto(PersonEvent e) => new()
-    {
-        Id = e.Id,
-        PersonId = e.PersonId,
-        EventType = e.EventType,
-        Year = e.Year,
-        Month = e.Month,
-        Day = e.Day,
-        Place = e.Place,
-        Latitude = e.Latitude,
-        Longitude = e.Longitude,
-        Description = e.Description,
-        Note = e.Note,
-        CreatedAtUtc = e.CreatedAtUtc
-    };
 
     private async Task<bool> HasSingleInstanceConflictAsync(int personId, string eventType, int? excludingEventId = null)
     {
@@ -160,13 +143,12 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             return false;
         }
 
-        var existing = await eventRepository.FindAsync(new SearchOptions<PersonEvent>
-        {
-            Query = e => e.PersonId == personId
-                && e.EventType == eventType
-                && (!excludingEventId.HasValue || e.Id != excludingEventId.Value),
-        });
-
-        return existing.Any();
+        return await eventRepository.ExistsAsync(e =>
+            e.PersonId == personId &&
+            e.EventType == eventType &&
+            (
+                !excludingEventId.HasValue ||
+                e.Id != excludingEventId.Value
+            ));
     }
 }

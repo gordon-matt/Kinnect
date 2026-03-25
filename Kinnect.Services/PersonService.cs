@@ -31,7 +31,7 @@ public class PersonService(
 
     public async Task<Result<PersonDto>> CreateAsync(PersonEditRequest request, string? userId = null)
     {
-        var person = new Person
+        var person = await personRepository.InsertAsync(new Person
         {
             FamilyName = request.FamilyName,
             GivenNames = request.GivenNames,
@@ -49,10 +49,9 @@ public class PersonService(
             UserId = userId,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
-        };
+        });
 
-        await personRepository.InsertAsync(person);
-        return Result.Success(MapToDto(person));
+        return Result.Success(person.ToDto());
     }
 
     public async Task<Result> DeleteAsync(int id, string currentUserId)
@@ -70,24 +69,23 @@ public class PersonService(
     public async Task<Result<IEnumerable<PersonDto>>> GetAllAsync()
     {
         var people = await personRepository.FindAsync(new SearchOptions<Person>());
-        return Result.Success(people.Select(MapToDto));
+        return Result.Success(people.Select(p => p.ToDto()));
     }
 
     public async Task<Result<PersonDto>> GetByIdAsync(int id)
     {
         var person = await personRepository.FindOneAsync(id);
-        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(MapToDto(person));
+        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(person.ToDto());
     }
 
     public async Task<Result<PersonDto>> GetByUserIdAsync(string userId)
     {
-        var people = await personRepository.FindAsync(new SearchOptions<Person>
+        var person = await personRepository.FindOneAsync(new SearchOptions<Person>
         {
             Query = x => x.UserId == userId
         });
-        var person = people.FirstOrDefault();
 
-        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(MapToDto(person));
+        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(person.ToDto());
     }
 
     public async Task<Result<IEnumerable<FamilyTreeDatum>>> GetFamilyTreeDataAsync()
@@ -162,18 +160,15 @@ public class PersonService(
 
     public async Task<Result<IEnumerable<MapPinDto>>> GetMapPinsAsync()
     {
-        var deadIds = (await eventRepository.FindAsync(new SearchOptions<PersonEvent>
-        {
-            Query = x => x.EventType == PersonEventType.Death
-        })).Select(e => e.PersonId).ToHashSet();
-
         var people = await personRepository.FindAsync(new SearchOptions<Person>
         {
-            Query = x => x.Latitude != null && x.Longitude != null
+            Query = x =>
+                !x.IsDeceased &&
+                x.Latitude != null &&
+                x.Longitude != null
         });
 
         var pins = people
-            .Where(p => !deadIds.Contains(p.Id))
             .Select(p => new MapPinDto
             {
                 PersonId = p.Id,
@@ -199,6 +194,7 @@ public class PersonService(
             Query = x => x.PersonId == personId || x.SpouseId == personId
         });
 
+        // TODO: Doesn't seem efficient to load all people just to get the names of the spouses.
         var allPeople = (await personRepository.FindAsync(new SearchOptions<Person>())).ToDictionary(p => p.Id);
 
         var dtos = links.Select(link =>
@@ -233,18 +229,19 @@ public class PersonService(
 
     public async Task<Result<IEnumerable<PersonVersionDto>>> GetVersionsAsync(int personId)
     {
-        var person = await personRepository.FindOneAsync(personId);
-        if (person is null)
+        bool personExists = await personRepository.ExistsAsync(x => x.Id == personId);
+        if (!personExists)
         {
             return Result.NotFound("Person not found.");
         }
 
         var versions = await versionRepository.FindAsync(new SearchOptions<PersonVersion>
         {
-            Query = x => x.PersonId == personId
+            Query = x => x.PersonId == personId,
+            OrderBy = query => query.OrderByDescending(v => v.CreatedAtUtc)
         });
 
-        return Result.Success(versions.OrderByDescending(v => v.CreatedAtUtc).Select(v => new PersonVersionDto
+        return Result.Success(versions.Select(v => new PersonVersionDto
         {
             Id = v.Id,
             PersonId = v.PersonId,
@@ -262,11 +259,8 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        var existing = await personRepository.FindAsync(new SearchOptions<Person>
-        {
-            Query = x => x.UserId == userId
-        });
-        if (existing.Any())
+        bool alreadyExists = await personRepository.ExistsAsync(x => x.UserId == userId);
+        if (alreadyExists)
         {
             return Result.Conflict("This user account is already linked to another person.");
         }
@@ -282,11 +276,10 @@ public class PersonService(
         int lowId = Math.Min(personId, spouseId);
         int highId = Math.Max(personId, spouseId);
 
-        var spouses = await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>
+        var spouse = await spouseRepository.FindOneAsync(new SearchOptions<PersonSpouse>
         {
             Query = x => x.PersonId == lowId && x.SpouseId == highId
         });
-        var spouse = spouses.FirstOrDefault();
 
         if (spouse is null)
         {
@@ -305,11 +298,10 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        var versions = await versionRepository.FindAsync(new SearchOptions<PersonVersion>
+        var version = await versionRepository.FindOneAsync(new SearchOptions<PersonVersion>
         {
             Query = x => x.Id == versionId && x.PersonId == personId
         });
-        var version = versions.FirstOrDefault();
 
         if (version is null)
         {
@@ -374,7 +366,9 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin &&
+            person.UserId is not null &&
+            person.UserId != currentUserId)
         {
             return Result.Forbidden();
         }
@@ -397,7 +391,7 @@ public class PersonService(
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
-        return Result.Success(MapToDto(person));
+        return Result.Success(person.ToDto());
     }
 
     public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false)
@@ -423,7 +417,9 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin &&
+            person.UserId is not null &&
+            person.UserId != currentUserId)
         {
             return Result.Forbidden();
         }
@@ -446,7 +442,9 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin &&
+            person.UserId is not null &&
+            person.UserId != currentUserId)
         {
             return Result.Forbidden();
         }
@@ -470,7 +468,9 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin && person.UserId != null && person.UserId != currentUserId)
+        if (!isAdmin &&
+            person.UserId is not null &&
+            person.UserId != currentUserId)
         {
             return Result.Forbidden();
         }
@@ -478,11 +478,11 @@ public class PersonService(
         int lowId = Math.Min(personId, spouseId);
         int highId = Math.Max(personId, spouseId);
 
-        var matches = await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>
+        var link = await spouseRepository.FindOneAsync(new SearchOptions<PersonSpouse>
         {
             Query = x => x.PersonId == lowId && x.SpouseId == highId
         });
-        var link = matches.FirstOrDefault();
+
         if (link is null)
         {
             return Result.NotFound("Spouse relationship not found.");
@@ -504,27 +504,6 @@ public class PersonService(
         await spouseRepository.UpdateAsync(link);
         return Result.Success();
     }
-
-    private static PersonDto MapToDto(Person p) => new()
-    {
-        Id = p.Id,
-        UserId = p.UserId,
-        FamilyName = p.FamilyName,
-        GivenNames = p.GivenNames,
-        IsMale = p.IsMale,
-        Bio = p.Bio,
-        ProfileImagePath = p.ProfileImagePath,
-        Latitude = p.Latitude,
-        Longitude = p.Longitude,
-        FatherId = p.FatherId,
-        MotherId = p.MotherId,
-        Occupation = p.Occupation,
-        Education = p.Education,
-        Religion = p.Religion,
-        Note = p.Note,
-        GedcomId = p.GedcomId,
-        IsDeceased = p.IsDeceased
-    };
 
     private async Task SaveVersionAsync(Person person, string currentUserId)
     {

@@ -1,6 +1,8 @@
+using Extenso.Collections.Generic;
+
 namespace Kinnect.Services;
 
-public class PostService(IRepository<Post> postRepository, IRepository<Person> personRepository) : IPostService
+public class PostService(IMappedRepository<PostDto, Post> postRepository, IRepository<Person> personRepository) : IPostService
 {
     public async Task<Result<PostDto>> CreateAsync(PostCreateRequest request, int authorPersonId)
     {
@@ -10,35 +12,35 @@ public class PostService(IRepository<Post> postRepository, IRepository<Person> p
             return Result.NotFound("Author person not found.");
         }
 
-        var post = new Post
+        var now = DateTime.UtcNow;
+        var inserted = await postRepository.InsertAsync(new PostDto
         {
             AuthorPersonId = authorPersonId,
             Content = request.Content,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
-        };
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+            AuthorName = $"{author.GivenNames} {author.FamilyName}",
+            AuthorProfileImage = author.ProfileImagePath,
+            AuthorUserId = author.UserId
+        });
 
-        await postRepository.InsertAsync(post);
-
-        post.Author = author;
-        return Result.Success(MapToDto(post));
+        return Result.Success(inserted);
     }
 
     public async Task<Result> DeleteAsync(int id, string currentUserId)
     {
-        var posts = await postRepository.FindAsync(new SearchOptions<Post>
+        var post = await postRepository.FindOneAsync(new SearchOptions<Post>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(p => p.Author)
+            Include = query => query.Include(p => p.Author)
         });
-        var post = posts.FirstOrDefault();
 
         if (post is null)
         {
             return Result.NotFound("Post not found.");
         }
 
-        if (post.Author.UserId != currentUserId)
+        if (post.AuthorUserId != currentUserId)
         {
             return Result.Forbidden();
         }
@@ -49,14 +51,13 @@ public class PostService(IRepository<Post> postRepository, IRepository<Person> p
 
     public async Task<Result<PostDto>> GetByIdAsync(int id)
     {
-        var posts = await postRepository.FindAsync(new SearchOptions<Post>
+        var post = await postRepository.FindOneAsync(new SearchOptions<Post>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(p => p.Author)
+            Include = query => query.Include(p => p.Author)
         });
-        var post = posts.FirstOrDefault();
 
-        return post is null ? (Result<PostDto>)Result.NotFound("Post not found.") : Result.Success(MapToDto(post));
+        return post is null ? (Result<PostDto>)Result.NotFound("Post not found.") : Result.Success(post);
     }
 
     public async Task<Result<IEnumerable<PostDto>>> GetByPersonAsync(int personId)
@@ -64,15 +65,16 @@ public class PostService(IRepository<Post> postRepository, IRepository<Person> p
         var posts = await postRepository.FindAsync(new SearchOptions<Post>
         {
             Query = x => x.AuthorPersonId == personId,
-            Include = q => q.Include(p => p.Author)
+            Include = query => query.Include(p => p.Author),
+            OrderBy = query => query.OrderByDescending(p => p.CreatedAtUtc)
         });
 
-        return Result.Success(posts.OrderByDescending(p => p.CreatedAtUtc).Select(MapToDto));
+        return Result.Success(posts as IEnumerable<PostDto>);
     }
 
-    public async Task<Result<PagedItems<PostDto>>> GetByPersonPagedAsync(int personId, int page = 1, int pageSize = 10)
+    public async Task<Result<IPagedCollection<PostDto>>> GetByPersonPagedAsync(int personId, int page = 1, int pageSize = 10)
     {
-        var posts = await postRepository.FindAsync(new SearchOptions<Post>
+        var paged = await postRepository.FindAsync(new SearchOptions<Post>
         {
             Query = x => x.AuthorPersonId == personId,
             Include = query => query.Include(p => p.Author),
@@ -81,65 +83,44 @@ public class PostService(IRepository<Post> postRepository, IRepository<Person> p
             PageSize = pageSize
         });
 
-        return Result.Success(new PagedItems<PostDto>
-        {
-            Items = posts.Select(MapToDto),
-            TotalCount = posts.ItemCount,
-            Page = page,
-            PageSize = pageSize
-        });
+        return Result.Success(paged);
     }
 
     public async Task<Result<IEnumerable<PostDto>>> GetRecentAsync(int page = 1, int pageSize = 20)
     {
         var posts = await postRepository.FindAsync(new SearchOptions<Post>
         {
-            Include = q => q.Include(p => p.Author)
+            Include = query => query.Include(p => p.Author),
+            OrderBy = query => query.OrderByDescending(p => p.CreatedAtUtc),
+            PageNumber = page,
+            PageSize = pageSize
         });
 
-        var result = posts
-            .OrderByDescending(p => p.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(MapToDto);
-
-        return Result.Success(result);
+        return Result.Success(posts as IEnumerable<PostDto>);
     }
 
     public async Task<Result<PostDto>> UpdateAsync(int id, PostEditRequest request, string currentUserId)
     {
-        var posts = await postRepository.FindAsync(new SearchOptions<Post>
+        var post = await postRepository.FindOneAsync(new SearchOptions<Post>
         {
             Query = x => x.Id == id,
-            Include = q => q.Include(p => p.Author)
+            Include = query => query.Include(p => p.Author)
         });
-        var post = posts.FirstOrDefault();
 
         if (post is null)
         {
             return Result.NotFound("Post not found.");
         }
 
-        if (post.Author.UserId != currentUserId)
+        if (post.AuthorUserId != currentUserId)
         {
             return Result.Forbidden();
         }
 
         post.Content = request.Content;
         post.UpdatedAtUtc = DateTime.UtcNow;
-        await postRepository.UpdateAsync(post);
+        var updated = await postRepository.UpdateAsync(post);
 
-        return Result.Success(MapToDto(post));
+        return Result.Success(updated);
     }
-
-    private static PostDto MapToDto(Post p) => new()
-    {
-        Id = p.Id,
-        AuthorPersonId = p.AuthorPersonId,
-        AuthorName = $"{p.Author.GivenNames} {p.Author.FamilyName}",
-        AuthorProfileImage = p.Author.ProfileImagePath,
-        Content = p.Content,
-        CreatedAtUtc = p.CreatedAtUtc,
-        UpdatedAtUtc = p.UpdatedAtUtc
-    };
 }

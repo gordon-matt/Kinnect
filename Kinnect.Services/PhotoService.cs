@@ -20,7 +20,7 @@ public class PhotoService(
         double? latitude = null,
         double? longitude = null)
     {
-        var photo = new Photo
+        var photo = await photoRepository.InsertAsync(new Photo
         {
             Title = title,
             Description = description,
@@ -34,9 +34,7 @@ public class PhotoService(
             FolderId = folderId,
             Latitude = latitude,
             Longitude = longitude
-        };
-
-        await photoRepository.InsertAsync(photo);
+        });
 
         if (tags is { Count: > 0 })
         {
@@ -49,12 +47,12 @@ public class PhotoService(
 
     public async Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == id,
             Include = q => q.Include(p => p.UploadedBy)
         });
-        var photo = photos.FirstOrDefault();
+
         if (photo is null)
         {
             return Result.NotFound("Photo not found.");
@@ -71,7 +69,7 @@ public class PhotoService(
 
     public async Task<Result<PhotoDto>> GetByIdAsync(int id)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == id,
             Include = q => q
@@ -79,9 +77,8 @@ public class PhotoService(
                 .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
                 .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
-        var photo = photos.FirstOrDefault();
 
-        return photo is null ? (Result<PhotoDto>)Result.NotFound("Photo not found.") : Result.Success(MapToDto(photo));
+        return photo is null ? (Result<PhotoDto>)Result.NotFound("Photo not found.") : Result.Success(photo.ToDto());
     }
 
     public async Task<Result<IEnumerable<PhotoDto>>> GetByPersonAsync(int personId)
@@ -95,13 +92,11 @@ public class PhotoService(
                 .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
 
-        var personLinks = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
-        {
-            Query = x => x.PersonId == personId
-        });
-
-        var taggedPhotoIds = personLinks
-            .Select(x => x.PhotoId)
+        var taggedPhotoIds = (await personPhotoRepository
+            .FindAsync(new SearchOptions<PersonPhoto>
+            {
+                Query = x => x.PersonId == personId
+            }, x => x.PhotoId))
             .Distinct()
             .ToList();
 
@@ -123,19 +118,18 @@ public class PhotoService(
             .GroupBy(x => x.Id)
             .Select(g => g.First())
             .OrderByDescending(p => p.CreatedAtUtc)
-            .Select(MapToDto);
+            .Select(p => p.ToDto());
 
         return Result.Success(combined);
     }
 
     public async Task<Result> SaveAnnotationsAsync(int photoId, string? annotationsJson, string currentUserId, bool isAdmin)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == photoId,
             Include = q => q.Include(p => p.UploadedBy)
         });
-        var photo = photos.FirstOrDefault();
 
         if (photo is null)
         {
@@ -154,12 +148,11 @@ public class PhotoService(
 
     public async Task<Result> TagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == photoId,
             Include = q => q.Include(p => p.UploadedBy)
         });
-        var photo = photos.FirstOrDefault();
 
         if (photo is null)
         {
@@ -171,12 +164,8 @@ public class PhotoService(
             return Result.Forbidden();
         }
 
-        var existing = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
-        {
-            Query = x => x.PhotoId == photoId && x.PersonId == personId
-        });
-
-        if (!existing.Any())
+        bool exists = await personPhotoRepository.ExistsAsync(x => x.PhotoId == photoId && x.PersonId == personId);
+        if (!exists)
         {
             await personPhotoRepository.InsertAsync(new PersonPhoto { PhotoId = photoId, PersonId = personId });
         }
@@ -186,12 +175,11 @@ public class PhotoService(
 
     public async Task<Result> UntagPersonAsync(int photoId, int personId, string currentUserId, bool isAdmin)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == photoId,
             Include = q => q.Include(p => p.UploadedBy)
         });
-        var photo = photos.FirstOrDefault();
 
         if (photo is null)
         {
@@ -203,22 +191,14 @@ public class PhotoService(
             return Result.Forbidden();
         }
 
-        var links = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
-        {
-            Query = x => x.PhotoId == photoId && x.PersonId == personId
-        });
-
-        foreach (var link in links)
-        {
-            await personPhotoRepository.DeleteAsync(link);
-        }
+        await personPhotoRepository.DeleteAsync(x => x.PhotoId == photoId && x.PersonId == personId);
 
         return Result.Success();
     }
 
     public async Task<Result<PhotoDto>> UpdateAsync(int id, PhotoUpdateRequest request, string currentUserId, bool isAdmin)
     {
-        var photos = await photoRepository.FindAsync(new SearchOptions<Photo>
+        var photo = await photoRepository.FindOneAsync(new SearchOptions<Photo>
         {
             Query = x => x.Id == id,
             Include = q => q
@@ -226,7 +206,6 @@ public class PhotoService(
                 .Include(p => p.PhotoTags).ThenInclude(pt => pt.Tag)
                 .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
-        var photo = photos.FirstOrDefault();
 
         if (photo is null)
         {
@@ -272,76 +251,40 @@ public class PhotoService(
         return Result.Success();
     }
 
-    private static bool CanEditPhoto(Person uploadedBy, string currentUserId, bool isAdmin) => isAdmin || uploadedBy.UserId == null || uploadedBy.UserId == currentUserId;
-
-    private static PhotoDto MapToDto(Photo p) => new()
-    {
-        Id = p.Id,
-        Title = p.Title,
-        FilePath = p.FilePath,
-        ThumbnailPath = p.ThumbnailPath,
-        Description = p.Description,
-        UploadedByPersonId = p.UploadedByPersonId,
-        UploadedByName = $"{p.UploadedBy.GivenNames} {p.UploadedBy.FamilyName}",
-        CreatedAtUtc = p.CreatedAtUtc,
-        YearTaken = p.YearTaken,
-        MonthTaken = p.MonthTaken,
-        DayTaken = p.DayTaken,
-        AnnotationsJson = p.AnnotationsJson,
-        Latitude = p.Latitude,
-        Longitude = p.Longitude,
-        FolderId = p.FolderId,
-        Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList(),
-        TaggedPeople = p.PersonPhotos
-            .Select(pp => new TaggedPersonInfo(pp.PersonId, $"{pp.Person.GivenNames} {pp.Person.FamilyName}"))
-            .ToList()
-    };
+    private static bool CanEditPhoto(Person uploadedBy, string currentUserId, bool isAdmin)
+        => isAdmin || uploadedBy.UserId is null || uploadedBy.UserId == currentUserId;
 
     private async Task SyncPersonTagsAsync(int photoId, List<int> personIds)
     {
-        var existing = await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>
-        {
-            Query = x => x.PhotoId == photoId
-        });
+        await personPhotoRepository.DeleteAsync(x => x.PhotoId == photoId);
 
-        foreach (var pp in existing)
-        {
-            await personPhotoRepository.DeleteAsync(pp);
-        }
-
-        foreach (int personId in personIds.Distinct())
-        {
-            await personPhotoRepository.InsertAsync(new PersonPhoto { PhotoId = photoId, PersonId = personId });
-        }
+        var toInsert = personIds.Distinct().Select(x => new PersonPhoto { PhotoId = photoId, PersonId = x });
+        await personPhotoRepository.InsertAsync(toInsert);
     }
 
     private async Task SyncTagsAsync(int photoId, List<string> tagNames)
     {
-        var existing = await photoTagRepository.FindAsync(new SearchOptions<PhotoTag>
+        await photoTagRepository.DeleteAsync(x => x.PhotoId == photoId);
+
+        var distinctTagNames = tagNames
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+            .Distinct()
+            .ToList();
+
+        var existingTags = await tagRepository.FindAsync(new SearchOptions<Tag>
         {
-            Query = x => x.PhotoId == photoId
+            Query = x => distinctTagNames.Contains(x.Name)
         });
 
-        foreach (var pt in existing)
-        {
-            await photoTagRepository.DeleteAsync(pt);
-        }
+        var newTags = distinctTagNames
+            .Where(x => !existingTags.Any(t => t.Name == x))
+            .Select(x => new Tag { Name = x })
+            .ToList();
 
-        foreach (string tagName in tagNames.Distinct())
-        {
-            var tags = await tagRepository.FindAsync(new SearchOptions<Tag>
-            {
-                Query = x => x.Name == tagName
-            });
-            var tag = tags.FirstOrDefault();
+        var photoTagsToInsert = newTags
+            .Select(t => new PhotoTag { PhotoId = photoId, TagId = t.Id });
 
-            if (tag is null)
-            {
-                tag = new Tag { Name = tagName };
-                await tagRepository.InsertAsync(tag);
-            }
-
-            await photoTagRepository.InsertAsync(new PhotoTag { PhotoId = photoId, TagId = tag.Id });
-        }
+        await tagRepository.InsertAsync(newTags);
+        await photoTagRepository.InsertAsync(photoTagsToInsert);
     }
 }

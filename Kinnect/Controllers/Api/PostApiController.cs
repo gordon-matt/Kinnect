@@ -16,8 +16,23 @@ public class PostApiController(IPostService postService, IPersonService personSe
 
     [TranslateResultToActionResult]
     [HttpGet("person/{personId:int}/paged")]
-    public async Task<Result<PagedItems<PostDto>>> GetByPersonPaged(int personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
-        await postService.GetByPersonPagedAsync(personId, page, pageSize);
+    public async Task<Result<PagedApiResponse<PostDto>>> GetByPersonPaged(int personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await postService.GetByPersonPagedAsync(personId, page, pageSize);
+        if (!result.IsSuccess)
+        {
+            return Result<PagedApiResponse<PostDto>>.Error(string.Join("; ", result.Errors));
+        }
+
+        var p = result.Value;
+        return Result.Success(new PagedApiResponse<PostDto>
+        {
+            Items = p.ToList(),
+            TotalCount = p.ItemCount,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
 
     [TranslateResultToActionResult]
     [HttpPost]

@@ -1,9 +1,14 @@
+using Extenso.Data.Entity;
+using Kinnect.Models;
+using Kinnect.Services.Mapping;
 using Kinnect.Tests.Infrastructure;
 
 namespace Kinnect.Tests;
 
 public class PostServiceTests
 {
+    static PostServiceTests() => KinnectMappingRegistration.Register();
+
     [Fact]
     public async Task CreateAsync_PersistsPost_WhenAuthorExists()
     {
@@ -21,7 +26,7 @@ public class PostServiceTests
         await db.SaveChangesAsync();
 
         var sut = new PostService(
-            new EntityFrameworkRepository<Post>(factory),
+            new MappedEntityFrameworkRepository<PostDto, Post>(factory, new ExtensoEntityModelMapper<Post, PostDto>()),
             new EntityFrameworkRepository<Person>(factory));
 
         var result = await sut.CreateAsync(new PostCreateRequest { Content = "Hello" }, author.Id);
@@ -37,7 +42,7 @@ public class PostServiceTests
     {
         var (options, factory) = InMemoryDb.Create();
         var sut = new PostService(
-            new EntityFrameworkRepository<Post>(factory),
+            new MappedEntityFrameworkRepository<PostDto, Post>(factory, new ExtensoEntityModelMapper<Post, PostDto>()),
             new EntityFrameworkRepository<Person>(factory));
 
         var result = await sut.CreateAsync(new PostCreateRequest { Content = "Hi" }, 999);
@@ -73,7 +78,7 @@ public class PostServiceTests
         await db.SaveChangesAsync();
 
         var sut = new PostService(
-            new EntityFrameworkRepository<Post>(factory),
+            new MappedEntityFrameworkRepository<PostDto, Post>(factory, new ExtensoEntityModelMapper<Post, PostDto>()),
             new EntityFrameworkRepository<Person>(factory));
 
         var result = await sut.DeleteAsync(post.Id, "other-id");
@@ -105,7 +110,7 @@ public class PostServiceTests
         await db.SaveChangesAsync();
 
         var sut = new PostService(
-            new EntityFrameworkRepository<Post>(factory),
+            new MappedEntityFrameworkRepository<PostDto, Post>(factory, new ExtensoEntityModelMapper<Post, PostDto>()),
             new EntityFrameworkRepository<Person>(factory));
 
         var result = await sut.GetByPersonAsync(author.Id);
