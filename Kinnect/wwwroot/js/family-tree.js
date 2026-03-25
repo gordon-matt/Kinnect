@@ -59,7 +59,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             .setCardClickOpen(f3Card);
     } else {
         // View-only: clicking a card opens the profile
-        f3Card.setCardClickOpen(f3Card);
+        f3Card.setOnCardClick((e, d) => {
+            // "d" is the family-chart datum; the server record is usually at d.data.data
+            const data = d?.data?.data ?? d?.data;
+            const personId = data?.personId;
+            if (personId) {
+                window.location.href = `/Profile/View/${personId}`;
+                return;
+            }
+
+            // Fallback: keep the original chart behavior (center the clicked node)
+            f3Card.onCardClickDefault?.(e, d);
+        });
     }
 
     f3Chart.updateMainId(initialId);
