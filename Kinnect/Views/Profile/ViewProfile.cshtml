@@ -185,11 +185,6 @@
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-muted small" data-bind="text: $data.dateDisplay != null && $data.dateDisplay !== '' ? $data.dateDisplay : ($data.year != null ? $data.year : '')"></span>
-                                                <!-- ko if: $root.canEdit() && _source === 'event' -->
-                                                <button type="button" class="btn btn-sm btn-link p-0" data-bind="click: $root.startEditEvent" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <!-- /ko -->
                                             </div>
                                         </div>
                                         <div data-bind="if: place" class="text-muted small">
@@ -219,12 +214,6 @@
                         <div class="col-md-3 col-sm-4 col-6 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center position-relative">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-1"
-                                            title="Delete folder"
-                                            data-bind="visible: $root.canManageFolder($data), click: function(data, event) { $root.deleteMediaFolder(data, null, event); }">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
                                     <a href="#" class="text-decoration-none" data-bind="click: function() { $root.openMediaFolder($data); return false; }">
                                         <img src="~/img/Folder.png" alt="Folder" style="width:64px;height:64px;object-fit:contain;" />
                                         <div class="fw-semibold small mt-2" data-bind="text: name"></div>
@@ -270,16 +259,6 @@
                                                 <small class="fw-semibold" data-bind="text: title"></small>
                                                 <div class="text-muted small" data-bind="visible: yearTaken || monthTaken || dayTaken, text: $root.formatPhotoDate($data)"></div>
                                             </div>
-                                            <!-- ko if: $root.canEditMedia($data) -->
-                                            <div class="d-flex gap-1">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Edit" data-bind="click: function() { $root.startEditPhoto($data); }">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" title="Delete" data-bind="click: function() { $root.deletePhoto($data); }">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                            <!-- /ko -->
                                         </div>
                                     </div>
                                 </div>
@@ -294,14 +273,6 @@
                             <div class="card mb-2">
                                 <div class="card-body d-flex justify-content-between align-items-center">
                                     <div><i class="bi bi-film"></i> <span data-bind="text: title"></span></div>
-                                    <div class="d-flex gap-1" data-bind="visible: $root.canEditMedia($data)">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit" data-bind="click: function() { $root.startEditVideo($data); }">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" data-bind="click: function() { $root.deleteVideo($data); }">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -348,29 +319,9 @@
                         <div data-bind="foreach: lightboxTaggedPeople">
                             <div class="d-flex align-items-center mb-1">
                                 <a class="text-white text-decoration-none small" data-bind="text: name, attr: { href: '/Profile/View/' + personId }"></a>
-                                <button class="btn btn-sm p-0 ms-auto text-danger" title="Remove tag"
-                                        data-bind="visible: $root.lightboxCanEdit(), click: function() { $root.untagPersonFromLightbox(personId); }">
-                                    <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
-                                </button>
                             </div>
                         </div>
                         <div data-bind="visible: lightboxTaggedPeople().length === 0" class="text-white-50 small mb-2">Nobody tagged yet.</div>
-
-                        <div class="mt-2 position-relative" data-bind="visible: lightboxCanEdit">
-                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
-                                   id="lightboxPersonTagInput"
-                                   placeholder="#Type a name to tag…"
-                                   autocomplete="off"
-                                   data-bind="textInput: lightboxPersonTagQuery" />
-                            <div data-bind="visible: lightboxPersonTagResults().length > 0"
-                                 class="list-group shadow"
-                                 style="position:absolute; z-index:1100; width:100%; top:100%;">
-                                <div data-bind="foreach: lightboxPersonTagResults">
-                                    <button class="list-group-item list-group-item-action py-1 small"
-                                            data-bind="text: fullName, click: function() { $root.tagPersonFromLightbox($data); }"></button>
-                                </div>
-                            </div>
-                        </div>
 
                         <hr class="border-secondary my-3" />
 
@@ -380,202 +331,8 @@
                             <label class="form-check-label small text-white-50" for="viewProfileLightboxShowAnnotations">Show annotations</label>
                         </div>
                         <div class="text-white-50 small mb-2" data-bind="visible: !lightboxCanEdit()">Read-only</div>
-                        <!-- ko if: lightboxCanEdit() -->
-                        <div class="d-grid gap-1 mb-2">
-                            <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('rectangle'); }">
-                                <i class="bi bi-bounding-box"></i> Rectangle
-                            </button>
-                            <button class="btn btn-sm btn-outline-light" data-bind="click: function(){ setAnnotationTool('polygon'); }">
-                                <i class="bi bi-pentagon"></i> Polygon
-                            </button>
-                            <button class="btn btn-sm btn-outline-light" data-bind="click: editSelectedAnnotationText">
-                                <i class="bi bi-chat-left-text"></i> Edit Text
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" data-bind="click: deleteSelectedAnnotation">
-                                <i class="bi bi-trash"></i> Delete Selected
-                            </button>
-                        </div>
-                        <!-- /ko -->
-                        <button class="btn btn-sm btn-outline-light w-100" data-bind="visible: lightboxCanEdit(), click: saveLightboxAnnotations">
-                            <i class="bi bi-floppy"></i> Save annotations
-                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit photo -->
-<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit photo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-2">
-                    <label class="form-label">Title</label>
-                    <input type="text" class="form-control" data-bind="value: editPhotoTitle" />
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-control" rows="2" data-bind="value: editPhotoDescription"></textarea>
-                </div>
-                <div class="row g-2 mb-2">
-                    <div class="col-4">
-                        <label class="form-label">Year</label>
-                        <input type="number" class="form-control" placeholder="YYYY" data-bind="value: editPhotoYear" />
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Month</label>
-                        <select class="form-select" data-bind="options: MONTHS, value: editPhotoMonth, optionsValue: 'v', optionsText: 'l'"></select>
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Day</label>
-                        <select class="form-select" data-bind="options: editPhotoDayOptions, value: editPhotoDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Tags (comma-separated)</label>
-                    <input type="text" class="form-control" data-bind="value: editPhotoTagsText" />
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Folder</label>
-                    <select class="form-select" data-bind="options: mediaFolders, value: editPhotoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label">Location</label>
-                    <p class="text-muted small mb-2" data-bind="visible: editPhotoCanEditLocation">
-                        Add or edit the location only when this photo did not have GPS coordinates in its EXIF data.
-                    </p>
-                    <p class="text-muted small mb-2" data-bind="visible: !editPhotoCanEditLocation()">
-                        Location is locked because this photo has GPS coordinates from EXIF.
-                    </p>
-
-                    <div class="position-relative border rounded overflow-hidden" style="background:#e9ecef;">
-                        <div class="position-absolute m-2 bg-white rounded shadow-sm p-2"
-                             style="width:min(320px, calc(100% - 1rem)); z-index:500;"
-                             data-bind="visible: editPhotoCanEditLocation">
-                            <input type="search"
-                                   class="form-control form-control-sm"
-                                   placeholder="Search address…"
-                                   autocomplete="off"
-                                   data-bind="textInput: editPhotoLocationSearchQuery" />
-                            <div class="profile-map-search small border-top mt-1 pt-1" data-bind="foreach: editPhotoLocationSearchResults">
-                                <div class="search-hit px-1 py-1" style="cursor:pointer;"
-                                     data-bind="text: display_name, click: function() { $root.pickEditPhotoLocationSearchResult($data); }"></div>
-                            </div>
-                        </div>
-
-                        <div id="editPhotoLocationMap" style="height:260px;"></div>
-                    </div>
-
-                    <div class="text-muted small mt-1" data-bind="visible: editPhotoLatitude() != null && editPhotoLongitude() != null">
-                        <i class="bi bi-geo-alt"></i>
-                        <span data-bind="text: Number(editPhotoLatitude()).toFixed(5) + ', ' + Number(editPhotoLongitude()).toFixed(5)"></span>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" data-bind="click: saveEditPhoto">Save</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit video -->
-<div class="modal fade" id="editVideoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit video</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-2">
-                    <label class="form-label">Title</label>
-                    <input type="text" class="form-control" data-bind="value: editVideoTitle" />
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-control" rows="2" data-bind="value: editVideoDescription"></textarea>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Tags (comma-separated)</label>
-                    <input type="text" class="form-control" data-bind="value: editVideoTagsText" />
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Folder</label>
-                    <select class="form-select" data-bind="options: mediaFolders, value: editVideoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" data-bind="click: saveEditVideo">Save</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit life event -->
-<div class="modal fade" id="editEventModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit life event</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-2">
-                    <label class="form-label">Event type</label>
-                    <select class="form-select" data-bind="value: editEventType">
-                        <option value="BIRT">Birth</option>
-                        <option value="DEAT">Death</option>
-                        <option value="BAPM">Baptism</option>
-                        <option value="CHR">Christening</option>
-                        <option value="CONF">Confirmation</option>
-                        <option value="ADOP">Adoption</option>
-                        <option value="EMIG">Emigration</option>
-                        <option value="IMMI">Immigration</option>
-                        <option value="NATU">Naturalization</option>
-                        <option value="MARB">Marriage Banns</option>
-                        <option value="MARL">Marriage License</option>
-                        <option value="BURI">Burial</option>
-                        <option value="CREM">Cremation</option>
-                        <option value="RESI">Residence</option>
-                        <option value="EVEN">Custom Event</option>
-                    </select>
-                </div>
-                <div class="row g-2">
-                    <div class="col-4">
-                        <label class="form-label">Year</label>
-                        <input type="number" class="form-control" data-bind="value: editEventYear" />
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Month</label>
-                        <select class="form-select" data-bind="options: MONTHS, value: editEventMonth, optionsValue: 'v', optionsText: 'l'"></select>
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Day</label>
-                        <select class="form-select" data-bind="options: editEventDayOptions, value: editEventDay, optionsText: function(v){ return v == null ? '— Day —' : v; }"></select>
-                    </div>
-                </div>
-                <div class="mb-2 mt-2">
-                    <label class="form-label">Place</label>
-                    <input type="text" class="form-control" data-bind="value: editEventPlace" />
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Description</label>
-                    <input type="text" class="form-control" data-bind="value: editEventDescription" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" data-bind="click: saveEditEvent">Save</button>
             </div>
         </div>
     </div>
@@ -642,7 +399,6 @@
     <style>
         .profile-map-search { z-index: 1000; max-height: 200px; overflow-y: auto; }
         .profile-map-search .search-hit:hover { background: #f0f0f0; }
-        #editPhotoLocationMap { z-index: 1; }
     </style>
 }
 

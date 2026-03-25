@@ -139,64 +139,14 @@ class ViewProfileViewModel {
         this.lightboxHasAnnotations = ko.observable(false);
         this.lightboxShowAnnotations = ko.observable(true);
         this.lightboxTaggedPeople = ko.observableArray([]);
-        this.lightboxPersonTagQuery = ko.observable('');
-        this.lightboxPersonTagResults = ko.observableArray([]);
         this._lightboxAnno = null;
         this._lightboxPhotoData = null;
-        this._lightboxPersonTagTimer = null;
-        this._allPeople = [];
         this.lightboxSelectedAnnotationId = ko.observable(null);
         this._annotationHoverLabelEl = null;
         this._lastMouseX = 0;
         this._lastMouseY = 0;
-
-        this.lightboxPersonTagQuery.subscribe(() => {
-            clearTimeout(this._lightboxPersonTagTimer);
-            this._lightboxPersonTagTimer = setTimeout(() => this._runLightboxPersonTagSearch(), 250);
-        });
         this.lightboxShowAnnotations.subscribe(() => {
             if (!this.lightboxCanEdit()) this.initLightboxAnnotorious();
-        });
-
-        this.editingEventId = ko.observable(null);
-        this.editEventType = ko.observable('BIRT');
-        this.editEventYear = ko.observable(null);
-        this.editEventMonth = ko.observable(null);
-        this.editEventDay = ko.observable(null);
-        this.editEventDayOptions = daysInMonth(this.editEventMonth, this.editEventYear);
-        this.editEventPlace = ko.observable('');
-        this.editEventDescription = ko.observable('');
-
-        this.editingPhotoId = ko.observable(null);
-        this.editPhotoTitle = ko.observable('');
-        this.editPhotoDescription = ko.observable('');
-        this.editPhotoYear = ko.observable(null);
-        this.editPhotoMonth = ko.observable(null);
-        this.editPhotoDay = ko.observable(null);
-        this.editPhotoDayOptions = daysInMonth(this.editPhotoMonth, this.editPhotoYear);
-        this.editPhotoTagsText = ko.observable('');
-        this.editPhotoFolderId = ko.observable(null);
-
-        // Edit photo location (GPS coordinates)
-        this.editPhotoLatitude = ko.observable(null);
-        this.editPhotoLongitude = ko.observable(null);
-        this.editPhotoLocationLockedByExif = ko.observable(false);
-        this.editPhotoCanEditLocation = ko.computed(() => !this.editPhotoLocationLockedByExif());
-        this.editPhotoLocationSearchQuery = ko.observable('');
-        this.editPhotoLocationSearchResults = ko.observableArray([]);
-        this._editPhotoLocationSearchTimer = null;
-        this._editPhotoLocationMap = null;
-        this._editPhotoLocationMarker = null;
-
-        this.editingVideoId = ko.observable(null);
-        this.editVideoTitle = ko.observable('');
-        this.editVideoDescription = ko.observable('');
-        this.editVideoTagsText = ko.observable('');
-        this.editVideoFolderId = ko.observable(null);
-
-        this.editPhotoLocationSearchQuery.subscribe(() => {
-            clearTimeout(this._editPhotoLocationSearchTimer);
-            this._editPhotoLocationSearchTimer = setTimeout(() => this.runEditPhotoLocationSearch(), 400);
         });
 
         this.MONTHS = MONTHS;
@@ -209,17 +159,6 @@ class ViewProfileViewModel {
 
     loadProfile = async () => {
         try {
-            // Load all people for person-tagging autocomplete
-            fetch('/api/people').then(async r => {
-                if (r.ok) {
-                    const d = await r.json();
-                    this._allPeople = (d.value || d || []).map(p => ({
-                        id: p.id,
-                        fullName: p.fullName || `${p.givenNames} ${p.familyName}`
-                    }));
-                }
-            });
-
             const personRes = await fetch(`/api/people/${this.personId}`);
             const personResult = await personRes.json();
             const person = personResult.value || personResult;
@@ -364,8 +303,6 @@ class ViewProfileViewModel {
         this.lightboxHasAnnotations(!!photo.annotationsJson);
         this.lightboxShowAnnotations(true);
         this.lightboxTaggedPeople(photo.taggedPeople || []);
-        this.lightboxPersonTagQuery('');
-        this.lightboxPersonTagResults([]);
 
         const el = document.getElementById('photoLightboxModal');
         if (el) bootstrap.Modal.getOrCreateInstance(el).show();
@@ -380,16 +317,6 @@ class ViewProfileViewModel {
                 this._lightboxPhotoData = full;
             }
         } catch { /* non-fatal */ }
-    };
-
-    _runLightboxPersonTagSearch = () => {
-        const q = this.lightboxPersonTagQuery().replace(/^#/, '').toLowerCase().trim();
-        if (q.length < 1) { this.lightboxPersonTagResults([]); return; }
-        const taggedIds = new Set(this.lightboxTaggedPeople().map(p => p.personId));
-        const results = this._allPeople
-            .filter(p => !taggedIds.has(p.id) && p.fullName.toLowerCase().includes(q))
-            .slice(0, 6);
-        this.lightboxPersonTagResults(results);
     };
 
     openMediaFolder = (folder) => {
@@ -413,109 +340,6 @@ class ViewProfileViewModel {
         if (!item) return false;
         // Ownership grouping is strictly by uploader == viewed profile person.
         return item.uploadedByPersonId === this.personId;
-    };
-
-    canEditMedia = (item) => {
-        // Read-only page: never allow editing media.
-        return false;
-    };
-
-    canManageFolder = (folder) => {
-        // Read-only page: never allow managing/deleting folders.
-        return false;
-    };
-
-    deleteMediaFolder = async (folder, _vm, event) => {
-        // Read-only page: no-op.
-        return;
-        event?.preventDefault?.();
-        event?.stopPropagation?.();
-        if (!folder?.id || !this.canManageFolder(folder)) return;
-        if (!confirm(`Delete folder "${folder.name || 'Folder'}"? Media will become ungrouped.`)) return;
-
-        try {
-            const res = await fetch(`/api/media-folders/${folder.id}`, { method: 'DELETE' });
-            if (!res.ok) {
-                toast.error('Failed to delete folder.');
-                return;
-            }
-
-            if (this.currentMediaFolderId() === folder.id) this.currentMediaFolderId(null);
-            await this.loadProfile();
-            toast.success('Folder deleted.');
-        } catch {
-            toast.error('Error deleting folder.');
-        }
-    };
-
-    deletePhoto = async (photo) => {
-        // Read-only page: no-op.
-        return;
-        if (!photo?.id || !this.canEditMedia(photo)) return;
-        if (!confirm(`Delete photo "${photo.title || 'Untitled'}"?`)) return;
-
-        try {
-            const res = await fetch(`/api/photos/${photo.id}`, { method: 'DELETE' });
-            if (!res.ok) {
-                toast.error('Failed to delete photo.');
-                return;
-            }
-
-            await this.loadProfile();
-            toast.success('Photo deleted.');
-        } catch {
-            toast.error('Error deleting photo.');
-        }
-    };
-
-    deleteVideo = async (video) => {
-        // Read-only page: no-op.
-        return;
-        if (!video?.id || !this.canEditMedia(video)) return;
-        if (!confirm(`Delete video "${video.title || 'Untitled'}"?`)) return;
-
-        try {
-            const res = await fetch(`/api/videos/${video.id}`, { method: 'DELETE' });
-            if (!res.ok) {
-                toast.error('Failed to delete video.');
-                return;
-            }
-
-            await this.loadProfile();
-            toast.success('Video deleted.');
-        } catch {
-            toast.error('Error deleting video.');
-        }
-    };
-
-    tagPersonFromLightbox = async (person) => {
-        // Read-only page: no-op.
-        return;
-        if (!this.lightboxCanEdit()) return;
-        const pid = this.lightboxPhotoId();
-        if (!pid) return;
-        try {
-            const res = await fetch(`/api/photos/${pid}/tag-person/${person.id}`, { method: 'POST' });
-            if (res.ok) {
-                this.lightboxTaggedPeople.push({ personId: person.id, name: person.fullName });
-                this.lightboxPersonTagQuery('');
-                this.lightboxPersonTagResults([]);
-            } else toast.error('Could not tag person.');
-        } catch { toast.error('Error tagging person.'); }
-    };
-
-    untagPersonFromLightbox = async (personId) => {
-        // Read-only page: no-op.
-        return;
-        if (!this.lightboxCanEdit()) return;
-        const pid = this.lightboxPhotoId();
-        if (!pid) return;
-        try {
-            const res = await fetch(`/api/photos/${pid}/tag-person/${personId}`, { method: 'DELETE' });
-            if (res.ok) {
-                this.lightboxTaggedPeople(this.lightboxTaggedPeople().filter(p => p.personId !== personId));
-            } else toast.error('Could not remove tag.');
-        } catch { toast.error('Error removing tag.'); }
     };
 
     initLightboxAnnotorious = async () => {
@@ -554,18 +378,6 @@ class ViewProfileViewModel {
             this._hideAnnotationHoverLabel();
         });
 
-        if (this.lightboxCanEdit()) {
-            anno.on?.('createAnnotation', (annotation) => {
-                const existing = this._getAnnotationComment(annotation);
-                if (existing) return;
-                const text = prompt('Annotation text:', '');
-                if (text && text.trim()) {
-                    const updated = this._setAnnotationComment(annotation, text.trim());
-                    this._applyAnnotationUpdate(anno, annotation, updated);
-                }
-            });
-        }
-
         const data = this._lightboxPhotoData;
         if (data?.annotationsJson) {
             try {
@@ -574,94 +386,17 @@ class ViewProfileViewModel {
             } catch (e) { console.warn('Failed to parse annotations', e); }
         }
 
-        if (!this.canEdit()) {
-            // Disable drawing in read-only mode — only show existing annotations
-            anno.setDrawingEnabled(false);
-        }
-        if (!this.lightboxCanEdit()) {
-            anno.setDrawingEnabled(false);
-        }
+        // Read-only: never allow drawing/editing annotations.
+        anno.setDrawingEnabled(false);
     };
 
-    setAnnotationTool = (tool) => {
-        // Read-only page: no-op.
-        return;
-        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
-        if (tool === 'rectangle') {
-            this._lightboxAnno.setDrawingTool?.('rectangle');
-            this._lightboxAnno.setDrawingEnabled?.(true);
-            return;
-        }
-        if (tool === 'polygon') {
-            this._lightboxAnno.setDrawingTool?.('polygon');
-            this._lightboxAnno.setDrawingEnabled?.(true);
-        }
-    };
-
-    editSelectedAnnotationText = async () => {
-        // Read-only page: no-op.
-        return;
-        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
-        const selected = await this._getSelectedAnnotation();
-        if (!selected) { toast.info('Select an annotation first.'); return; }
-        const current = this._getAnnotationComment(selected) || '';
-        const text = prompt('Annotation text:', current);
-        if (text == null) return;
-        const updated = this._setAnnotationComment(selected, text.trim());
-        this._applyAnnotationUpdate(this._lightboxAnno, selected, updated);
-    };
-
-    deleteSelectedAnnotation = async () => {
-        // Read-only page: no-op.
-        return;
-        if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
-        const selected = await this._getSelectedAnnotation();
-        if (!selected) { toast.info('Select an annotation first.'); return; }
-        if (!confirm('Delete selected annotation?')) return;
-        this._lightboxAnno.removeAnnotation?.(selected.id);
-        this.lightboxSelectedAnnotationId(null);
-    };
-
-    _getSelectedAnnotation = async () => {
-        if (!this._lightboxAnno) return null;
-        const id = this.lightboxSelectedAnnotationId();
-        if (!id) return null;
-        const all = await this._lightboxAnno.getAnnotations();
-        return all.find(a => a.id === id) || null;
-    };
+    // Read-only photo lightbox: no annotation editing helpers.
 
     _getAnnotationComment = (annotation) => {
         const rawBodies = annotation?.bodies ?? annotation?.body;
         const bodies = Array.isArray(rawBodies) ? rawBodies : (rawBodies ? [rawBodies] : []);
         const body = bodies.find(b => (b.purpose === 'commenting' || b.purpose === 'describing') && typeof b.value === 'string');
         return body?.value || '';
-    };
-
-    _setAnnotationComment = (annotation, text) => {
-        const clone = structuredClone(annotation);
-        const rawBodies = clone.bodies ?? clone.body;
-        const bodies = Array.isArray(rawBodies) ? rawBodies : (rawBodies ? [rawBodies] : []);
-        const filtered = bodies.filter(b => !(b.purpose === 'commenting' || b.purpose === 'describing'));
-        if (text) filtered.push({ type: 'TextualBody', purpose: 'commenting', value: text });
-        clone.bodies = filtered;
-        if (clone.body !== undefined) delete clone.body;
-        return clone;
-    };
-
-    _applyAnnotationUpdate = (anno, oldAnnotation, updatedAnnotation) => {
-        if (!anno?.updateAnnotation) return;
-        try {
-            if (anno.updateAnnotation.length >= 2) {
-                anno.updateAnnotation(oldAnnotation, updatedAnnotation);
-            } else {
-                anno.updateAnnotation(updatedAnnotation);
-            }
-        } catch {
-            try {
-                anno.removeAnnotation?.(oldAnnotation.id);
-                anno.addAnnotation?.(updatedAnnotation);
-            } catch { /* ignore */ }
-        }
     };
 
     _ensureAnnotationHoverLabel = () => {
@@ -706,275 +441,6 @@ class ViewProfileViewModel {
     _hideAnnotationHoverLabel = () => {
         if (!this._annotationHoverLabelEl) return;
         this._annotationHoverLabelEl.style.display = 'none';
-    };
-
-    saveLightboxAnnotations = async () => {
-        // Read-only page: no-op.
-        return;
-        const pid = this.lightboxPhotoId();
-        if (!pid || !this._lightboxAnno || !this.lightboxCanEdit()) return;
-
-        try {
-            const annotations = await this._lightboxAnno.getAnnotations();
-            const body = { annotationsJson: JSON.stringify(annotations) };
-            const res = await fetch(`/api/photos/${pid}/annotations`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            if (res.ok) toast.success('Annotations saved!');
-            else toast.error('Failed to save annotations.');
-        } catch { toast.error('Error saving annotations.'); }
-    };
-
-    // ── Edit photo location ─────────────────────────────────────────────────
-    setEditPhotoLocationPin = (lat, lng) => {
-        // Read-only page: no GPS editing.
-        return;
-        this.editPhotoLatitude(lat);
-        this.editPhotoLongitude(lng);
-        if (this._editPhotoLocationMap && this._editPhotoLocationMarker) {
-            this._editPhotoLocationMarker.setLatLng([lat, lng]);
-            this._editPhotoLocationMap.panTo([lat, lng]);
-        }
-    };
-
-    runEditPhotoLocationSearch = async () => {
-        // Read-only page: no GPS editing.
-        return;
-        if (!this.editPhotoCanEditLocation()) {
-            this.editPhotoLocationSearchResults([]);
-            return;
-        }
-
-        const q = (this.editPhotoLocationSearchQuery() || '').trim();
-        if (q.length < 3) {
-            this.editPhotoLocationSearchResults([]);
-            return;
-        }
-
-        try {
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
-            const res = await fetch(url, { headers: { Accept: 'application/json' } });
-            const data = await res.json();
-            this.editPhotoLocationSearchResults(Array.isArray(data) ? data : []);
-        } catch {
-            this.editPhotoLocationSearchResults([]);
-        }
-    };
-
-    pickEditPhotoLocationSearchResult = (place) => {
-        // Read-only page: no GPS editing.
-        return;
-        if (!place || !this.editPhotoCanEditLocation()) return;
-
-        const lat = parseFloat(place.lat);
-        const lng = parseFloat(place.lon);
-        if (Number.isNaN(lat) || Number.isNaN(lng)) return;
-
-        this.editPhotoLocationSearchResults([]);
-        this.editPhotoLocationSearchQuery(place.display_name || '');
-
-        if (!this._editPhotoLocationMap) this.initEditPhotoLocationMap();
-        this.setEditPhotoLocationPin(lat, lng);
-        this._editPhotoLocationMap?.setView([lat, lng], 15);
-    };
-
-    initEditPhotoLocationMap = () => {
-        // Read-only page: no GPS editing.
-        return;
-        if (typeof L === 'undefined') return;
-        const el = document.getElementById('editPhotoLocationMap');
-        if (!el) return;
-        if (this._editPhotoLocationMap) return;
-
-        const lat0 = this.editPhotoLatitude();
-        const lng0 = this.editPhotoLongitude();
-        const hasPos =
-            lat0 != null &&
-            lng0 != null &&
-            !Number.isNaN(Number(lat0)) &&
-            !Number.isNaN(Number(lng0));
-
-        const lat = hasPos ? Number(lat0) : -34.9285;
-        const lng = hasPos ? Number(lng0) : 138.6007;
-
-        const canEdit = this.editPhotoCanEditLocation();
-        this._editPhotoLocationMap = L.map('editPhotoLocationMap').setView([lat, lng], hasPos ? 14 : 4);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(this._editPhotoLocationMap);
-
-        this._editPhotoLocationMarker = L.marker([lat, lng], { draggable: canEdit }).addTo(this._editPhotoLocationMap);
-
-        if (canEdit) {
-            this._editPhotoLocationMap.on('click', (e) => this.setEditPhotoLocationPin(e.latlng.lat, e.latlng.lng));
-            this._editPhotoLocationMarker.on('dragend', (e) => {
-                const p = e.target.getLatLng();
-                this.setEditPhotoLocationPin(p.lat, p.lng);
-            });
-        }
-
-        setTimeout(() => this._editPhotoLocationMap?.invalidateSize(), 200);
-    };
-
-    startEditPhoto = (photo) => {
-        // Read-only page: disable editing.
-        return;
-        if (!this.canEditMedia(photo)) {
-            toast.info('Only the uploader (or an admin) can edit this photo.');
-            return;
-        }
-        this.editingPhotoId(photo.id);
-        this.editPhotoTitle(photo.title);
-        this.editPhotoDescription(photo.description || '');
-        this.editPhotoYear(photo.yearTaken);
-        this.editPhotoMonth(photo.monthTaken);
-        this.editPhotoDay(photo.dayTaken);
-        this.editPhotoTagsText((photo.tags || []).join(', '));
-        this.editPhotoFolderId(photo.folderId ?? null);
-
-        this.editPhotoLatitude(photo.latitude ?? null);
-        this.editPhotoLongitude(photo.longitude ?? null);
-        this.editPhotoLocationLockedByExif(photo.latitude != null && photo.longitude != null);
-        this.editPhotoLocationSearchQuery('');
-        this.editPhotoLocationSearchResults([]);
-        if (this._editPhotoLocationMap) {
-            try { this._editPhotoLocationMap.remove(); } catch { /* ignore */ }
-            this._editPhotoLocationMap = null;
-            this._editPhotoLocationMarker = null;
-        }
-        const el = document.getElementById('editPhotoModal');
-        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
-    };
-
-    saveEditPhoto = async () => {
-        // Read-only page: disable editing.
-        return;
-        const id = this.editingPhotoId();
-        if (!id) return;
-
-        const tags = this.editPhotoTagsText().split(',').map(t => t.trim()).filter(Boolean);
-        const body = {
-            title: this.editPhotoTitle(),
-            description: this.editPhotoDescription() || null,
-            yearTaken: this.editPhotoYear() || null,
-            monthTaken: this.editPhotoMonth() || null,
-            dayTaken: this.editPhotoDay() || null,
-            tags,
-            folderId: this.editPhotoFolderId() || null,
-            latitude: this.editPhotoLatitude() != null ? Number(this.editPhotoLatitude()) : null,
-            longitude: this.editPhotoLongitude() != null ? Number(this.editPhotoLongitude()) : null
-        };
-
-        try {
-            const res = await fetch(`/api/photos/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            if (res.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('editPhotoModal'))?.hide();
-                this.editingPhotoId(null);
-                await this.loadProfile();
-                toast.success('Photo updated!');
-            } else toast.error('Failed to update photo.');
-        } catch { toast.error('Error updating photo.'); }
-    };
-
-    startEditVideo = (video) => {
-        // Read-only page: disable editing.
-        return;
-        if (!this.canEditMedia(video)) {
-            toast.info('Only the uploader (or an admin) can edit this video.');
-            return;
-        }
-        this.editingVideoId(video.id);
-        this.editVideoTitle(video.title || '');
-        this.editVideoDescription(video.description || '');
-        this.editVideoTagsText((video.tags || []).join(', '));
-        this.editVideoFolderId(video.folderId ?? null);
-        const el = document.getElementById('editVideoModal');
-        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
-    };
-
-    saveEditVideo = async () => {
-        // Read-only page: disable editing.
-        return;
-        const id = this.editingVideoId();
-        if (!id) return;
-
-        const tags = this.editVideoTagsText().split(',').map(t => t.trim()).filter(Boolean);
-        const body = {
-            title: this.editVideoTitle(),
-            description: this.editVideoDescription() || null,
-            tags,
-            folderId: this.editVideoFolderId() || null
-        };
-
-        try {
-            const res = await fetch(`/api/videos/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            if (res.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('editVideoModal'))?.hide();
-                this.editingVideoId(null);
-                await this.loadProfile();
-                toast.success('Video updated!');
-            } else toast.error('Failed to update video.');
-        } catch { toast.error('Error updating video.'); }
-    };
-
-    startEditEvent = (ev) => {
-        // Read-only page: disable editing.
-        return;
-        if (ev._source === 'spouse') return; // spouse events not editable from view profile
-        this.editingEventId(ev.id);
-        this.editEventType(ev.eventType);
-        this.editEventYear(ev.year);
-        this.editEventMonth(ev.month);
-        this.editEventDay(ev.day);
-        this.editEventPlace(ev.place || '');
-        this.editEventDescription(ev.description || '');
-        const el = document.getElementById('editEventModal');
-        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
-    };
-
-    saveEditEvent = async () => {
-        // Read-only page: disable editing.
-        return;
-        const eid = this.editingEventId();
-        if (!eid) return;
-
-        const body = {
-            eventType: this.editEventType(),
-            year: this.editEventYear() || null,
-            month: this.editEventMonth() || null,
-            day: this.editEventDay() || null,
-            place: this.editEventPlace() || null,
-            description: this.editEventDescription() || null
-        };
-
-        try {
-            const res = await fetch(`/api/people/${this.personId}/events/${eid}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            if (res.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('editEventModal'))?.hide();
-                this.editingEventId(null);
-                await this.loadProfile();
-                toast.success('Event updated!');
-            } else toast.error('Failed to update event.');
-        } catch { toast.error('Error updating event.'); }
     };
 }
 
