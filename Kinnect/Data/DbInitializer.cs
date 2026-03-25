@@ -1,6 +1,4 @@
-using Kinnect.Data.Entities;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Kinnect.Data;
 
@@ -17,13 +15,13 @@ public static class DbInitializer
         RoleManager<ApplicationRole> roleManager,
         IConfiguration configuration)
     {
-        await context.Database.MigrateAsync();
-
         bool isFirstRun = await SeedRolesAsync(roleManager);
         if (isFirstRun)
         {
             await SeedAdminUserAsync(context, userManager, configuration);
         }
+
+        await SeedAnnouncementsRoomAsync(context, userManager, configuration);
     }
 
     private static async Task<bool> SeedRolesAsync(RoleManager<ApplicationRole> roleManager)
@@ -103,5 +101,40 @@ public static class DbInitializer
                 await userManager.AddToRoleAsync(adminUser, Constants.Roles.Administrator);
             }
         }
+    }
+
+    private static async Task SeedAnnouncementsRoomAsync(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IConfiguration configuration)
+    {
+        bool announcementsExists = await context.ChatRooms
+            .AnyAsync(r => r.Name == Constants.Chat.AnnouncementsRoomName);
+
+        if (announcementsExists)
+        {
+            return;
+        }
+
+        string adminEmail = string.IsNullOrEmpty(configuration[SeedAdminEmailKey])
+            ? "admin@kinnect.local"
+            : configuration[SeedAdminEmailKey]!;
+
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        adminUser ??= (await userManager.GetUsersInRoleAsync(Constants.Roles.Administrator)).FirstOrDefault();
+
+        if (adminUser is null)
+        {
+            return;
+        }
+
+        context.ChatRooms.Add(new ChatRoom
+        {
+            Name = Constants.Chat.AnnouncementsRoomName,
+            AdminUserId = adminUser.Id,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
     }
 }

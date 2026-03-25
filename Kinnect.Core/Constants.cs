@@ -2,6 +2,11 @@ namespace Kinnect;
 
 public static class Constants
 {
+    public static class Chat
+    {
+        public const string AnnouncementsRoomName = "Announcements";
+    }
+
     public static class Roles
     {
         public const string Administrator = "Administrator";

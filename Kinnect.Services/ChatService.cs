@@ -77,12 +77,17 @@ public partial class ChatService(
         });
     }
 
-    public async Task<Result<ChatMessageDto>> CreateRoomMessageAsync(int roomId, string content, string currentUserId)
+    public async Task<Result<ChatMessageDto>> CreateRoomMessageAsync(int roomId, string content, string currentUserId, bool isAdmin = false)
     {
         var room = await chatRoomRepository.FindOneAsync(roomId);
         if (room is null)
         {
             return Result.NotFound("Room not found.");
+        }
+
+        if (string.Equals(room.Name, Constants.Chat.AnnouncementsRoomName, StringComparison.OrdinalIgnoreCase) && !isAdmin)
+        {
+            return Result.Forbidden();
         }
 
         string cleanContent = SanitizeMessage(content);
@@ -154,6 +159,11 @@ public partial class ChatService(
         if (room is null)
         {
             return Result.NotFound("Room not found.");
+        }
+
+        if (string.Equals(room.Name, Constants.Chat.AnnouncementsRoomName, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Forbidden();
         }
 
         if (!isAdmin && !string.Equals(room.AdminUserId, currentUserId, StringComparison.Ordinal))
@@ -279,7 +289,9 @@ public partial class ChatService(
     {
         var rooms = (await chatRoomRepository.FindAsync(new SearchOptions<ChatRoom>
         {
-            OrderBy = query => query.OrderBy(r => r.Name)
+            OrderBy = query => query
+                .OrderByDescending(r => r.Name == Constants.Chat.AnnouncementsRoomName)
+                .ThenBy(r => r.Name)
         })).ToList();
 
         var adminIds = rooms.Select(r => r.AdminUserId).Distinct().ToList();
@@ -308,6 +320,11 @@ public partial class ChatService(
         if (room is null)
         {
             return Result.NotFound("Room not found.");
+        }
+
+        if (string.Equals(room.Name, Constants.Chat.AnnouncementsRoomName, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Forbidden();
         }
 
         if (!string.Equals(room.AdminUserId, currentUserId, StringComparison.Ordinal))

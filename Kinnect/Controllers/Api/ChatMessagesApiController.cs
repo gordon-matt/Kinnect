@@ -36,7 +36,7 @@ public class ChatMessagesApiController(
             return Result.Unauthorized();
         }
 
-        var result = await chatService.CreateRoomMessageAsync(request.RoomId, request.Content, currentUserId);
+        var result = await chatService.CreateRoomMessageAsync(request.RoomId, request.Content, currentUserId, userContextService.IsAdmin());
         if (result.IsSuccess && result.Value is not null && result.Value.ToRoomName is not null)
         {
             await hubContext.Clients.Group(result.Value.ToRoomName).SendAsync("newMessage", result.Value);

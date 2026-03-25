@@ -6,7 +6,7 @@ public interface IChatService
 
     Task<Result<ChatRoomDto>> CreateRoomAsync(string name, string currentUserId);
 
-    Task<Result<ChatMessageDto>> CreateRoomMessageAsync(int roomId, string content, string currentUserId);
+    Task<Result<ChatMessageDto>> CreateRoomMessageAsync(int roomId, string content, string currentUserId, bool isAdmin = false);
 
     Task<Result<ChatDeleteMessageDto>> DeleteMessageAsync(int messageId, string currentUserId);
 
