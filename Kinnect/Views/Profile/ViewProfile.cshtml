@@ -408,7 +408,7 @@
 
 <!-- Edit photo -->
 <div class="modal fade" id="editPhotoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit photo</h5>
@@ -444,6 +444,39 @@
                 <div class="mb-2">
                     <label class="form-label">Folder</label>
                     <select class="form-select" data-bind="options: mediaFolders, value: editPhotoFolderId, optionsValue: 'id', optionsText: 'name', optionsCaption: '— No folder —'"></select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Location</label>
+                    <p class="text-muted small mb-2" data-bind="visible: editPhotoCanEditLocation">
+                        Add or edit the location only when this photo did not have GPS coordinates in its EXIF data.
+                    </p>
+                    <p class="text-muted small mb-2" data-bind="visible: !editPhotoCanEditLocation()">
+                        Location is locked because this photo has GPS coordinates from EXIF.
+                    </p>
+
+                    <div class="position-relative border rounded overflow-hidden" style="background:#e9ecef;">
+                        <div class="position-absolute m-2 bg-white rounded shadow-sm p-2"
+                             style="width:min(320px, calc(100% - 1rem)); z-index:500;"
+                             data-bind="visible: editPhotoCanEditLocation">
+                            <input type="search"
+                                   class="form-control form-control-sm"
+                                   placeholder="Search address…"
+                                   autocomplete="off"
+                                   data-bind="textInput: editPhotoLocationSearchQuery" />
+                            <div class="profile-map-search small border-top mt-1 pt-1" data-bind="foreach: editPhotoLocationSearchResults">
+                                <div class="search-hit px-1 py-1" style="cursor:pointer;"
+                                     data-bind="text: display_name, click: function() { $root.pickEditPhotoLocationSearchResult($data); }"></div>
+                            </div>
+                        </div>
+
+                        <div id="editPhotoLocationMap" style="height:260px;"></div>
+                    </div>
+
+                    <div class="text-muted small mt-1" data-bind="visible: editPhotoLatitude() != null && editPhotoLongitude() != null">
+                        <i class="bi bi-geo-alt"></i>
+                        <span data-bind="text: Number(editPhotoLatitude()).toFixed(5) + ', ' + Number(editPhotoLongitude()).toFixed(5)"></span>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -605,6 +638,12 @@
         <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
         <link rel="stylesheet" href="~/lib/annotorious/annotorious/dist/annotorious.min.css" />
     </environment>
+
+    <style>
+        .profile-map-search { z-index: 1000; max-height: 200px; overflow-y: auto; }
+        .profile-map-search .search-hit:hover { background: #f0f0f0; }
+        #editPhotoLocationMap { z-index: 1; }
+    </style>
 }
 
 @section Scripts {

@@ -303,6 +303,18 @@
             this.editPhotoSelectedEventIds = ko.observableArray([]);
             this.editPhotoFolderId = ko.observable(null);
 
+            // Edit photo location (GPS coordinates)
+            this.editPhotoLatitude = ko.observable(null);
+            this.editPhotoLongitude = ko.observable(null);
+            // Set when modal opens, so the edit UI doesn't disappear mid-edit after the user sets coords.
+            this.editPhotoLocationLockedByExif = ko.observable(false);
+            this.editPhotoCanEditLocation = ko.computed(() => !this.editPhotoLocationLockedByExif());
+            this.editPhotoLocationSearchQuery = ko.observable('');
+            this.editPhotoLocationSearchResults = ko.observableArray([]);
+            this._editPhotoLocationSearchTimer = null;
+            this._editPhotoLocationMap = null;
+            this._editPhotoLocationMarker = null;
+
             // Edit video
             this.editingVideoId = ko.observable(null);
             this.editVideoTitle = ko.observable('');
@@ -355,6 +367,11 @@
             this.editEventLocationSearchQuery.subscribe(() => {
                 clearTimeout(this._editEventLocationSearchTimer);
                 this._editEventLocationSearchTimer = setTimeout(() => this.runEditEventLocationSearch(), 400);
+            });
+
+            this.editPhotoLocationSearchQuery.subscribe(() => {
+                clearTimeout(this._editPhotoLocationSearchTimer);
+                this._editPhotoLocationSearchTimer = setTimeout(() => this.runEditPhotoLocationSearch(), 400);
             });
         }
 
@@ -910,6 +927,94 @@
             setTimeout(() => m.invalidateSize(), 200);
         };
 
+        // ── Edit photo location ─────────────────────────────────────────────
+        setEditPhotoLocationPin = (lat, lng) => {
+            this.editPhotoLatitude(lat);
+            this.editPhotoLongitude(lng);
+            if (this._editPhotoLocationMap && this._editPhotoLocationMarker) {
+                this._editPhotoLocationMarker.setLatLng([lat, lng]);
+                this._editPhotoLocationMap.panTo([lat, lng]);
+            }
+        };
+
+        runEditPhotoLocationSearch = async () => {
+            if (!this.editPhotoCanEditLocation()) {
+                this.editPhotoLocationSearchResults([]);
+                return;
+            }
+
+            const q = (this.editPhotoLocationSearchQuery() || '').trim();
+            if (q.length < 3) {
+                this.editPhotoLocationSearchResults([]);
+                return;
+            }
+
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
+                const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.editPhotoLocationSearchResults(Array.isArray(data) ? data : []);
+            } catch {
+                this.editPhotoLocationSearchResults([]);
+            }
+        };
+
+        pickEditPhotoLocationSearchResult = (place) => {
+            if (!place || !this.editPhotoCanEditLocation()) return;
+
+            const lat = parseFloat(place.lat);
+            const lng = parseFloat(place.lon);
+            if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+            this.editPhotoLocationSearchResults([]);
+            this.editPhotoLocationSearchQuery(place.display_name || '');
+
+            if (!this._editPhotoLocationMap) this.initEditPhotoLocationMap();
+            this.setEditPhotoLocationPin(lat, lng);
+            this._editPhotoLocationMap?.setView([lat, lng], 15);
+        };
+
+        initEditPhotoLocationMap = () => {
+            if (typeof L === 'undefined') return;
+            const el = document.getElementById('editPhotoLocationMap');
+            if (!el) return;
+            if (this._editPhotoLocationMap) return;
+
+            const lat0 = this.editPhotoLatitude();
+            const lng0 = this.editPhotoLongitude();
+            const hasPos =
+                lat0 != null &&
+                lng0 != null &&
+                !Number.isNaN(Number(lat0)) &&
+                !Number.isNaN(Number(lng0));
+
+            const lat = hasPos ? Number(lat0) : -34.9285;
+            const lng = hasPos ? Number(lng0) : 138.6007;
+
+            const canEdit = this.editPhotoCanEditLocation();
+            this._editPhotoLocationMap = L.map('editPhotoLocationMap').setView(
+                [lat, lng],
+                hasPos ? 14 : 4
+            );
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(this._editPhotoLocationMap);
+
+            this._editPhotoLocationMarker = L.marker([lat, lng], { draggable: canEdit }).addTo(this._editPhotoLocationMap);
+
+            if (canEdit) {
+                this._editPhotoLocationMap.on('click', (e) => this.setEditPhotoLocationPin(e.latlng.lat, e.latlng.lng));
+                this._editPhotoLocationMarker.on('dragend', (e) => {
+                    const p = e.target.getLatLng();
+                    this.setEditPhotoLocationPin(p.lat, p.lng);
+                });
+            }
+
+            setTimeout(() => this._editPhotoLocationMap?.invalidateSize(), 200);
+        };
+
         // ── Profile image ──────────────────────────────────────────────────────
         uploadProfileImage = async (vm, event) => {
             const file = event.target.files[0];
@@ -1398,6 +1503,16 @@
             this.editPhotoTagsText((photo.tags || []).join(', '));
             this.editPhotoSelectedEventIds(photo.eventIds || []);
             this.editPhotoFolderId(photo.folderId ?? null);
+            this.editPhotoLatitude(photo.latitude ?? null);
+            this.editPhotoLongitude(photo.longitude ?? null);
+            this.editPhotoLocationLockedByExif(photo.latitude != null && photo.longitude != null);
+            this.editPhotoLocationSearchQuery('');
+            this.editPhotoLocationSearchResults([]);
+            if (this._editPhotoLocationMap) {
+                try { this._editPhotoLocationMap.remove(); } catch { /* ignore */ }
+                this._editPhotoLocationMap = null;
+                this._editPhotoLocationMarker = null;
+            }
             const el = document.getElementById('editPhotoModal');
             if (el) bootstrap.Modal.getOrCreateInstance(el).show();
         };
@@ -1435,7 +1550,9 @@
                 dayTaken: this.editPhotoDay() || null,
                 tags,
                 eventIds: this.editPhotoSelectedEventIds(),
-                folderId: this.editPhotoFolderId() || null
+                folderId: this.editPhotoFolderId() || null,
+                latitude: this.editPhotoLatitude() != null ? Number(this.editPhotoLatitude()) : null,
+                longitude: this.editPhotoLongitude() != null ? Number(this.editPhotoLongitude()) : null
             };
 
             try {
@@ -1758,6 +1875,11 @@
         const editEventModal = document.getElementById('editEventModal');
         if (editEventModal) {
             editEventModal.addEventListener('shown.bs.modal', () => vm.initEditEventMap());
+        }
+
+        const editPhotoModal = document.getElementById('editPhotoModal');
+        if (editPhotoModal) {
+            editPhotoModal.addEventListener('shown.bs.modal', () => vm.initEditPhotoLocationMap());
         }
 
         const lightboxModal = document.getElementById('photoLightboxModal');

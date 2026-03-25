@@ -177,11 +177,27 @@ class ViewProfileViewModel {
         this.editPhotoTagsText = ko.observable('');
         this.editPhotoFolderId = ko.observable(null);
 
+        // Edit photo location (GPS coordinates)
+        this.editPhotoLatitude = ko.observable(null);
+        this.editPhotoLongitude = ko.observable(null);
+        this.editPhotoLocationLockedByExif = ko.observable(false);
+        this.editPhotoCanEditLocation = ko.computed(() => !this.editPhotoLocationLockedByExif());
+        this.editPhotoLocationSearchQuery = ko.observable('');
+        this.editPhotoLocationSearchResults = ko.observableArray([]);
+        this._editPhotoLocationSearchTimer = null;
+        this._editPhotoLocationMap = null;
+        this._editPhotoLocationMarker = null;
+
         this.editingVideoId = ko.observable(null);
         this.editVideoTitle = ko.observable('');
         this.editVideoDescription = ko.observable('');
         this.editVideoTagsText = ko.observable('');
         this.editVideoFolderId = ko.observable(null);
+
+        this.editPhotoLocationSearchQuery.subscribe(() => {
+            clearTimeout(this._editPhotoLocationSearchTimer);
+            this._editPhotoLocationSearchTimer = setTimeout(() => this.runEditPhotoLocationSearch(), 400);
+        });
 
         this.MONTHS = MONTHS;
     }
@@ -224,18 +240,10 @@ class ViewProfileViewModel {
 
             this.birthInfo('');
 
-            const meRes = await fetch('/api/people/me');
-            if (meRes.ok) {
-                const meResult = await meRes.json();
-                const me = meResult.value || meResult;
-                this.currentUserPersonId(me.id ?? null);
-                const isOwnProfile = me.id === this.personId;
-                const isUnlinked = !person.userId;
-                this.canEditOwn(isOwnProfile);
-                this.canEdit(isOwnProfile || isUnlinked || this.isAdminUser);
-            } else if (this.isAdminUser) {
-                this.canEdit(true);
-            }
+            // Read-only: never enable editing on the view-profile page.
+            this.currentUserPersonId(null);
+            this.canEditOwn(false);
+            this.canEdit(false);
 
             const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes, foldersRes] = await Promise.all([
                 fetch(`/api/posts/person/${this.personId}`),
@@ -351,7 +359,8 @@ class ViewProfileViewModel {
         this.lightboxPhotoId(photo.id);
         this.lightboxPhotoTitle(photo.title || '');
         this.lightboxPhotoDate(this.formatPhotoDate(photo));
-        this.lightboxCanEdit(this.canEditMedia(photo));
+        // Read-only page: never allow editing/tweaking photo metadata or annotations.
+        this.lightboxCanEdit(false);
         this.lightboxHasAnnotations(!!photo.annotationsJson);
         this.lightboxShowAnnotations(true);
         this.lightboxTaggedPeople(photo.taggedPeople || []);
@@ -407,20 +416,18 @@ class ViewProfileViewModel {
     };
 
     canEditMedia = (item) => {
-        if (!item) return false;
-        if (this.isAdminUser) return true;
-        const meId = this.currentUserPersonId();
-        return meId != null && item.uploadedByPersonId === meId;
+        // Read-only page: never allow editing media.
+        return false;
     };
 
     canManageFolder = (folder) => {
-        if (!folder) return false;
-        if (this.isAdminUser) return true;
-        const meId = this.currentUserPersonId();
-        return meId != null && folder.createdByPersonId === meId;
+        // Read-only page: never allow managing/deleting folders.
+        return false;
     };
 
     deleteMediaFolder = async (folder, _vm, event) => {
+        // Read-only page: no-op.
+        return;
         event?.preventDefault?.();
         event?.stopPropagation?.();
         if (!folder?.id || !this.canManageFolder(folder)) return;
@@ -442,6 +449,8 @@ class ViewProfileViewModel {
     };
 
     deletePhoto = async (photo) => {
+        // Read-only page: no-op.
+        return;
         if (!photo?.id || !this.canEditMedia(photo)) return;
         if (!confirm(`Delete photo "${photo.title || 'Untitled'}"?`)) return;
 
@@ -460,6 +469,8 @@ class ViewProfileViewModel {
     };
 
     deleteVideo = async (video) => {
+        // Read-only page: no-op.
+        return;
         if (!video?.id || !this.canEditMedia(video)) return;
         if (!confirm(`Delete video "${video.title || 'Untitled'}"?`)) return;
 
@@ -478,6 +489,8 @@ class ViewProfileViewModel {
     };
 
     tagPersonFromLightbox = async (person) => {
+        // Read-only page: no-op.
+        return;
         if (!this.lightboxCanEdit()) return;
         const pid = this.lightboxPhotoId();
         if (!pid) return;
@@ -492,6 +505,8 @@ class ViewProfileViewModel {
     };
 
     untagPersonFromLightbox = async (personId) => {
+        // Read-only page: no-op.
+        return;
         if (!this.lightboxCanEdit()) return;
         const pid = this.lightboxPhotoId();
         if (!pid) return;
@@ -569,6 +584,8 @@ class ViewProfileViewModel {
     };
 
     setAnnotationTool = (tool) => {
+        // Read-only page: no-op.
+        return;
         if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         if (tool === 'rectangle') {
             this._lightboxAnno.setDrawingTool?.('rectangle');
@@ -582,6 +599,8 @@ class ViewProfileViewModel {
     };
 
     editSelectedAnnotationText = async () => {
+        // Read-only page: no-op.
+        return;
         if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         const selected = await this._getSelectedAnnotation();
         if (!selected) { toast.info('Select an annotation first.'); return; }
@@ -593,6 +612,8 @@ class ViewProfileViewModel {
     };
 
     deleteSelectedAnnotation = async () => {
+        // Read-only page: no-op.
+        return;
         if (!this._lightboxAnno || !this.lightboxCanEdit()) return;
         const selected = await this._getSelectedAnnotation();
         if (!selected) { toast.info('Select an annotation first.'); return; }
@@ -688,6 +709,8 @@ class ViewProfileViewModel {
     };
 
     saveLightboxAnnotations = async () => {
+        // Read-only page: no-op.
+        return;
         const pid = this.lightboxPhotoId();
         if (!pid || !this._lightboxAnno || !this.lightboxCanEdit()) return;
 
@@ -704,7 +727,102 @@ class ViewProfileViewModel {
         } catch { toast.error('Error saving annotations.'); }
     };
 
+    // ── Edit photo location ─────────────────────────────────────────────────
+    setEditPhotoLocationPin = (lat, lng) => {
+        // Read-only page: no GPS editing.
+        return;
+        this.editPhotoLatitude(lat);
+        this.editPhotoLongitude(lng);
+        if (this._editPhotoLocationMap && this._editPhotoLocationMarker) {
+            this._editPhotoLocationMarker.setLatLng([lat, lng]);
+            this._editPhotoLocationMap.panTo([lat, lng]);
+        }
+    };
+
+    runEditPhotoLocationSearch = async () => {
+        // Read-only page: no GPS editing.
+        return;
+        if (!this.editPhotoCanEditLocation()) {
+            this.editPhotoLocationSearchResults([]);
+            return;
+        }
+
+        const q = (this.editPhotoLocationSearchQuery() || '').trim();
+        if (q.length < 3) {
+            this.editPhotoLocationSearchResults([]);
+            return;
+        }
+
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`;
+            const res = await fetch(url, { headers: { Accept: 'application/json' } });
+            const data = await res.json();
+            this.editPhotoLocationSearchResults(Array.isArray(data) ? data : []);
+        } catch {
+            this.editPhotoLocationSearchResults([]);
+        }
+    };
+
+    pickEditPhotoLocationSearchResult = (place) => {
+        // Read-only page: no GPS editing.
+        return;
+        if (!place || !this.editPhotoCanEditLocation()) return;
+
+        const lat = parseFloat(place.lat);
+        const lng = parseFloat(place.lon);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+        this.editPhotoLocationSearchResults([]);
+        this.editPhotoLocationSearchQuery(place.display_name || '');
+
+        if (!this._editPhotoLocationMap) this.initEditPhotoLocationMap();
+        this.setEditPhotoLocationPin(lat, lng);
+        this._editPhotoLocationMap?.setView([lat, lng], 15);
+    };
+
+    initEditPhotoLocationMap = () => {
+        // Read-only page: no GPS editing.
+        return;
+        if (typeof L === 'undefined') return;
+        const el = document.getElementById('editPhotoLocationMap');
+        if (!el) return;
+        if (this._editPhotoLocationMap) return;
+
+        const lat0 = this.editPhotoLatitude();
+        const lng0 = this.editPhotoLongitude();
+        const hasPos =
+            lat0 != null &&
+            lng0 != null &&
+            !Number.isNaN(Number(lat0)) &&
+            !Number.isNaN(Number(lng0));
+
+        const lat = hasPos ? Number(lat0) : -34.9285;
+        const lng = hasPos ? Number(lng0) : 138.6007;
+
+        const canEdit = this.editPhotoCanEditLocation();
+        this._editPhotoLocationMap = L.map('editPhotoLocationMap').setView([lat, lng], hasPos ? 14 : 4);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(this._editPhotoLocationMap);
+
+        this._editPhotoLocationMarker = L.marker([lat, lng], { draggable: canEdit }).addTo(this._editPhotoLocationMap);
+
+        if (canEdit) {
+            this._editPhotoLocationMap.on('click', (e) => this.setEditPhotoLocationPin(e.latlng.lat, e.latlng.lng));
+            this._editPhotoLocationMarker.on('dragend', (e) => {
+                const p = e.target.getLatLng();
+                this.setEditPhotoLocationPin(p.lat, p.lng);
+            });
+        }
+
+        setTimeout(() => this._editPhotoLocationMap?.invalidateSize(), 200);
+    };
+
     startEditPhoto = (photo) => {
+        // Read-only page: disable editing.
+        return;
         if (!this.canEditMedia(photo)) {
             toast.info('Only the uploader (or an admin) can edit this photo.');
             return;
@@ -717,11 +835,24 @@ class ViewProfileViewModel {
         this.editPhotoDay(photo.dayTaken);
         this.editPhotoTagsText((photo.tags || []).join(', '));
         this.editPhotoFolderId(photo.folderId ?? null);
+
+        this.editPhotoLatitude(photo.latitude ?? null);
+        this.editPhotoLongitude(photo.longitude ?? null);
+        this.editPhotoLocationLockedByExif(photo.latitude != null && photo.longitude != null);
+        this.editPhotoLocationSearchQuery('');
+        this.editPhotoLocationSearchResults([]);
+        if (this._editPhotoLocationMap) {
+            try { this._editPhotoLocationMap.remove(); } catch { /* ignore */ }
+            this._editPhotoLocationMap = null;
+            this._editPhotoLocationMarker = null;
+        }
         const el = document.getElementById('editPhotoModal');
         if (el) bootstrap.Modal.getOrCreateInstance(el).show();
     };
 
     saveEditPhoto = async () => {
+        // Read-only page: disable editing.
+        return;
         const id = this.editingPhotoId();
         if (!id) return;
 
@@ -733,7 +864,9 @@ class ViewProfileViewModel {
             monthTaken: this.editPhotoMonth() || null,
             dayTaken: this.editPhotoDay() || null,
             tags,
-            folderId: this.editPhotoFolderId() || null
+            folderId: this.editPhotoFolderId() || null,
+            latitude: this.editPhotoLatitude() != null ? Number(this.editPhotoLatitude()) : null,
+            longitude: this.editPhotoLongitude() != null ? Number(this.editPhotoLongitude()) : null
         };
 
         try {
@@ -753,6 +886,8 @@ class ViewProfileViewModel {
     };
 
     startEditVideo = (video) => {
+        // Read-only page: disable editing.
+        return;
         if (!this.canEditMedia(video)) {
             toast.info('Only the uploader (or an admin) can edit this video.');
             return;
@@ -767,6 +902,8 @@ class ViewProfileViewModel {
     };
 
     saveEditVideo = async () => {
+        // Read-only page: disable editing.
+        return;
         const id = this.editingVideoId();
         if (!id) return;
 
@@ -795,6 +932,8 @@ class ViewProfileViewModel {
     };
 
     startEditEvent = (ev) => {
+        // Read-only page: disable editing.
+        return;
         if (ev._source === 'spouse') return; // spouse events not editable from view profile
         this.editingEventId(ev.id);
         this.editEventType(ev.eventType);
@@ -808,6 +947,8 @@ class ViewProfileViewModel {
     };
 
     saveEditEvent = async () => {
+        // Read-only page: disable editing.
+        return;
         const eid = this.editingEventId();
         if (!eid) return;
 

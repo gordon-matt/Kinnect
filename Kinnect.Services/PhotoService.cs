@@ -217,12 +217,40 @@ public class PhotoService(
             return Result.Forbidden();
         }
 
+        // GPS coordinates are extracted from EXIF at upload time (best-effort).
+        // We only allow location edits when EXIF GPS was missing (at least one coordinate was null).
+        // Enforced server-side to prevent tampering with the UI.
+        //
+        // Note: because JSON model binding converts missing values to null, we treat
+        // "GPS edits not provided" as "do not touch existing GPS coordinates".
+        bool photoHasExifGps = photo.Latitude != null && photo.Longitude != null;
+        bool requestHasGps = request.Latitude != null || request.Longitude != null;
+
+        if (photoHasExifGps && requestHasGps)
+        {
+            // Compare with a tolerance to avoid accidental mismatches due to JSON round-tripping.
+            bool gpsRequestedToChange =
+                request.Latitude == null ||
+                request.Longitude == null ||
+                Math.Abs(request.Latitude.Value - photo.Latitude!.Value) > 1e-7 ||
+                Math.Abs(request.Longitude.Value - photo.Longitude!.Value) > 1e-7;
+            if (gpsRequestedToChange)
+            {
+                return Result.Forbidden("This photo has GPS coordinates from EXIF and location edits are not allowed.");
+            }
+        }
+
         photo.Title = request.Title;
         photo.Description = request.Description;
         photo.YearTaken = request.YearTaken;
         photo.MonthTaken = request.MonthTaken;
         photo.DayTaken = request.DayTaken;
         photo.FolderId = request.FolderId;
+        if (requestHasGps)
+        {
+            photo.Latitude = request.Latitude;
+            photo.Longitude = request.Longitude;
+        }
 
         await photoRepository.UpdateAsync(photo);
 

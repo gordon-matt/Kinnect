@@ -17,5 +17,9 @@ public class PhotoUpdateRequest
     /// <summary>Person IDs to tag in this photo (syncs PersonPhotos).</summary>
     public List<int>? PersonIds { get; set; }
 
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public int? FolderId { get; set; }
 }
