@@ -1,0 +1,42 @@
+@{
+    var personId = (int)ViewData["PersonId"]!;
+    var personName = (string)ViewData["PersonName"]!;
+}
+
+@section Styles {
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.min.css" />
+    </environment>
+    <style>
+        #photoMap { height: calc(100vh - 200px); min-height: 400px; }
+        .leaflet-tooltip { white-space: nowrap; }
+        .photo-popup img { display: block; max-width: 160px; height: auto; border-radius: .25rem; }
+    </style>
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a href="/Profile/View/@personId" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to profile
+    </a>
+    <h4 class="mb-0">Photo map — @personName</h4>
+</div>
+
+<div id="photoMap" class="rounded border"></div>
+<div id="noLocPhotoSummary" class="mt-2"></div>
+<p class="text-muted small mt-1">Only photos with a known location are shown as map pins.</p>
+
+@section Scripts {
+    <script>
+        window.photoMapPersonId = @personId;
+    </script>
+    <environment include="Development">
+        <script src="~/lib/leaflet/dist/leaflet.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/leaflet/dist/leaflet.min.js"></script>
+    </environment>
+    <script src="~/js/photo-map.js" asp-append-version="true"></script>
+}

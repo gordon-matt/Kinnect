@@ -52,4 +52,18 @@ public class ProfileController(IPersonService personService, IUserContextService
         ViewData["Title"] = $"{personResult.Value.FullName} — Event Map";
         return View("EventMap");
     }
+
+    public async Task<IActionResult> PhotoMap(int id)
+    {
+        var personResult = await personService.GetByIdAsync(id);
+        if (!personResult.IsSuccess)
+        {
+            return NotFound();
+        }
+
+        ViewData["PersonId"] = id;
+        ViewData["PersonName"] = personResult.Value.FullName;
+        ViewData["Title"] = $"{personResult.Value.FullName} — Photo Map";
+        return View("PhotoMap");
+    }
 }

@@ -367,6 +367,9 @@
                         <button class="btn btn-sm btn-outline-secondary" data-bind="click: goBackFromFolder, visible: inMediaFolder">
                             <i class="bi bi-arrow-left"></i> Go Back
                         </button>
+                        <a class="btn btn-sm btn-outline-secondary" data-bind="visible: hasPhotoMapItems, attr: { href: '/Profile/PhotoMap/' + personId() }">
+                            <i class="bi bi-map"></i> View Map
+                        </a>
                         <button class="btn btn-sm btn-outline-primary" data-bind="click: showPhotoUpload, visible: !isUploadingPhoto()">
                             <i class="bi bi-image"></i> Upload Photo
                         </button>

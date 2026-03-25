@@ -187,6 +187,8 @@
 
             this.hasEventMapItems = ko.computed(() =>
                 this.timelineItems().length > 0);
+            this.hasPhotoMapItems = ko.computed(() =>
+                this.photos().some(p => p?.latitude != null && p?.longitude != null));
 
             this.fullName = ko.computed(() => `${this.givenNames()} ${this.familyName()}`);
             this.subtitleLine = ko.computed(() => {

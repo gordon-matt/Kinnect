@@ -130,6 +130,8 @@ class ViewProfileViewModel {
             });
         });
         this.hasEventMapItems = ko.computed(() => this.timelineItems().length > 0);
+        this.hasPhotoMapItems = ko.computed(() =>
+            this.photos().some(p => p?.latitude != null && p?.longitude != null));
 
         this.photoLightboxUrl = ko.observable(null);
         this.lightboxPhotoId = ko.observable(null);

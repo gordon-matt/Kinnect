@@ -206,6 +206,9 @@
                         <button class="btn btn-sm btn-outline-secondary" data-bind="click: goBackFromFolder, visible: inMediaFolder">
                             <i class="bi bi-arrow-left"></i> Go Back
                         </button>
+                        <a class="btn btn-sm btn-outline-secondary" data-bind="visible: hasPhotoMapItems, attr: { href: '/Profile/PhotoMap/' + personId }">
+                            <i class="bi bi-map"></i> View Map
+                        </a>
                     </div>
 
                     <h6 class="text-muted small text-uppercase mb-2" data-bind="visible: inMediaFolder">Folder: <span data-bind="text: currentMediaFolderName"></span></h6>
