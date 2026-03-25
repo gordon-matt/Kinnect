@@ -194,34 +194,50 @@ public class PersonService(
             Query = x => x.PersonId == personId || x.SpouseId == personId
         });
 
-        // TODO: Doesn't seem efficient to load all people just to get the names of the spouses.
-        var allPeople = (await personRepository.FindAsync(new SearchOptions<Person>())).ToDictionary(p => p.Id);
+        var spouseIds = links
+            .Select(link => link.PersonId == personId ? link.SpouseId : link.PersonId)
+            .Distinct()
+            .ToList();
 
-        var dtos = links.Select(link =>
+        if (spouseIds.Count == 0)
         {
-            int otherId = link.PersonId == personId ? link.SpouseId : link.PersonId;
-            return !allPeople.TryGetValue(otherId, out var other)
-                ? null
-                : new PersonSpouseDetailDto
-                {
-                    SpousePersonId = otherId,
-                    GivenNames = other.GivenNames,
-                    FamilyName = other.FamilyName,
-                    MarriageYear = link.MarriageYear,
-                    MarriageMonth = link.MarriageMonth,
-                    MarriageDay = link.MarriageDay,
-                    DivorceYear = link.DivorceYear,
-                    DivorceMonth = link.DivorceMonth,
-                    DivorceDay = link.DivorceDay,
-                    EngagementYear = link.EngagementYear,
-                    EngagementMonth = link.EngagementMonth,
-                    EngagementDay = link.EngagementDay,
-                    HasEngagement = link.HasEngagement,
-                    HasMarriage = link.HasMarriage,
-                    HasDivorce = link.HasDivorce
-                };
-        }).Where(x => x != null).Cast<PersonSpouseDetailDto>()
-            .OrderBy(s => s.FamilyName).ThenBy(s => s.GivenNames)
+            return Result.Success<IEnumerable<PersonSpouseDetailDto>>([]);
+        }
+
+        var spouses = (await personRepository.FindAsync(new SearchOptions<Person>
+        {
+            Query = p => spouseIds.Contains(p.Id)
+        })).ToDictionary(p => p.Id);
+
+        var dtos = links
+            .Select(link =>
+            {
+                int otherId = link.PersonId == personId ? link.SpouseId : link.PersonId;
+                return !spouses.TryGetValue(otherId, out var other)
+                    ? null
+                    : new PersonSpouseDetailDto
+                    {
+                        SpousePersonId = otherId,
+                        GivenNames = other.GivenNames,
+                        FamilyName = other.FamilyName,
+                        MarriageYear = link.MarriageYear,
+                        MarriageMonth = link.MarriageMonth,
+                        MarriageDay = link.MarriageDay,
+                        DivorceYear = link.DivorceYear,
+                        DivorceMonth = link.DivorceMonth,
+                        DivorceDay = link.DivorceDay,
+                        EngagementYear = link.EngagementYear,
+                        EngagementMonth = link.EngagementMonth,
+                        EngagementDay = link.EngagementDay,
+                        HasEngagement = link.HasEngagement,
+                        HasMarriage = link.HasMarriage,
+                        HasDivorce = link.HasDivorce
+                    };
+            })
+            .Where(x => x != null)
+            .Cast<PersonSpouseDetailDto>()
+            .OrderBy(s => s.FamilyName)
+            .ThenBy(s => s.GivenNames)
             .ToList();
 
         return Result.Success<IEnumerable<PersonSpouseDetailDto>>(dtos);
