@@ -129,7 +129,13 @@ public class PersonApiController(
     [TranslateResultToActionResult]
     [HttpDelete("{id:int}/link-user")]
     [Authorize(Roles = Constants.Roles.Administrator)]
-    public async Task<Result> UnlinkUserAccount(int id) => await personService.UnlinkUserAccountAsync(id);
+    public async Task<Result> UnlinkUserAccount(int id)
+    {
+        string? userId = userContextService.GetCurrentUserId();
+        return userId is null
+            ? Result.Unauthorized()
+            : await personService.UnlinkUserAccountAsync(id, userId);
+    }
 
     #endregion Link/Unlink User Account
 

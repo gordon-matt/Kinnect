@@ -1,0 +1,14 @@
+global using System.Security.Claims;
+global using System.Text;
+global using Ardalis.Result;
+global using Extenso.Data.Entity;
+global using Kinnect.Data;
+global using Kinnect.Data.Entities;
+global using Kinnect.Models;
+global using Kinnect.Services;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.Options;
+global using Xunit;

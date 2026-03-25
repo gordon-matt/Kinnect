@@ -53,7 +53,7 @@
                                 <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#linkUserModal" data-bind="visible: !hasAccount()">
                                     <i class="bi bi-person-badge"></i> Link User Account
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkUserModal" data-bind="visible: hasAccount">
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkUserModal" data-bind="visible: hasAccount() && !canEditOwn()">
                                     <i class="bi bi-person-x"></i> Unlink User Account
                                 </button>
                             }

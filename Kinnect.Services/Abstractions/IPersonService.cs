@@ -28,7 +28,7 @@ public interface IPersonService
 
     Task<Result> RestoreVersionAsync(int personId, int versionId, string currentUserId);
 
-    Task<Result> UnlinkUserAccountAsync(int personId);
+    Task<Result> UnlinkUserAccountAsync(int personId, string? currentUserId);
 
     Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false);
 

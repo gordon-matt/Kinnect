@@ -343,12 +343,21 @@ public class PersonService(
         return Result.Success();
     }
 
-    public async Task<Result> UnlinkUserAccountAsync(int personId)
+    public async Task<Result> UnlinkUserAccountAsync(int personId, string? currentUserId)
     {
         var person = await personRepository.FindOneAsync(personId);
         if (person is null)
         {
             return Result.NotFound("Person not found.");
+        }
+
+        if (!string.IsNullOrEmpty(currentUserId))
+        {
+            var myPerson = await GetByUserIdAsync(currentUserId);
+            if (myPerson.IsSuccess && myPerson.Value!.Id == personId)
+            {
+                return Result.Forbidden();
+            }
         }
 
         person.UserId = null;
