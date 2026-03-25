@@ -257,21 +257,9 @@
                                 <div class="col-md-4">
                                     <label class="form-label form-label-sm">Event Type</label>
                                     <select class="form-select form-select-sm" data-bind="value: newEventType">
-                                        <option value="BIRT">Birth</option>
-                                        <option value="DEAT">Death</option>
-                                        <option value="BAPM">Baptism</option>
-                                        <option value="CHR">Christening</option>
-                                        <option value="CONF">Confirmation</option>
-                                        <option value="ADOP">Adoption</option>
-                                        <option value="EMIG">Emigration</option>
-                                        <option value="IMMI">Immigration</option>
-                                        <option value="NATU">Naturalization</option>
-                                        <option value="MARB">Marriage Banns</option>
-                                        <option value="MARL">Marriage License</option>
-                                        <option value="BURI">Burial</option>
-                                        <option value="CREM">Cremation</option>
-                                        <option value="RESI">Residence</option>
-                                        <option value="EVEN">Custom Event</option>
+                                        <!-- ko foreach: timelineEventOptions -->
+                                        <option data-bind="value: type, text: label, disable: $root.isTimelineOptionDisabled(type)"></option>
+                                        <!-- /ko -->
                                     </select>
                                 </div>
                                 <div class="col-md-2">
@@ -796,21 +784,9 @@
                 <div class="mb-2">
                     <label class="form-label">Event type</label>
                     <select class="form-select" data-bind="value: editEventType">
-                        <option value="BIRT">Birth</option>
-                        <option value="DEAT">Death</option>
-                        <option value="BAPM">Baptism</option>
-                        <option value="CHR">Christening</option>
-                        <option value="CONF">Confirmation</option>
-                        <option value="ADOP">Adoption</option>
-                        <option value="EMIG">Emigration</option>
-                        <option value="IMMI">Immigration</option>
-                        <option value="NATU">Naturalization</option>
-                        <option value="MARB">Marriage Banns</option>
-                        <option value="MARL">Marriage License</option>
-                        <option value="BURI">Burial</option>
-                        <option value="CREM">Cremation</option>
-                        <option value="RESI">Residence</option>
-                        <option value="EVEN">Custom Event</option>
+                        <!-- ko foreach: timelineEventOptions -->
+                        <option data-bind="value: type, text: label, disable: $root.isTimelineOptionDisabled(type, $root.editingEventId())"></option>
+                        <!-- /ko -->
                     </select>
                 </div>
                 <div class="row g-2">

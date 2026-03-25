@@ -10,6 +10,12 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             return Result.NotFound("Event not found.");
         }
 
+        if (await HasSingleInstanceConflictAsync(targetPersonId, source.EventType))
+        {
+            return Result.Invalid(new ValidationError(
+                $"{PersonEventType.GetLabel(source.EventType)} can only be added once."));
+        }
+
         var copy = new PersonEvent
         {
             PersonId = targetPersonId,
@@ -31,15 +37,22 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
 
     public async Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request)
     {
-        if (PersonEventType.IsNonTimelineEventType(request.EventType))
+        var eventType = request.EventType.ToUpperInvariant();
+        if (PersonEventType.IsNonTimelineEventType(eventType))
         {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
+        }
+
+        if (await HasSingleInstanceConflictAsync(personId, eventType))
+        {
+            return Result.Invalid(new ValidationError(
+                $"{PersonEventType.GetLabel(eventType)} can only be added once."));
         }
 
         var evt = new PersonEvent
         {
             PersonId = personId,
-            EventType = request.EventType.ToUpperInvariant(),
+            EventType = eventType,
             Year = request.Year,
             Month = request.Month,
             Day = request.Day,
@@ -98,12 +111,19 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
             return Result.NotFound("Event not found.");
         }
 
-        if (PersonEventType.IsNonTimelineEventType(request.EventType))
+        var eventType = request.EventType.ToUpperInvariant();
+        if (PersonEventType.IsNonTimelineEventType(eventType))
         {
             return Result.Invalid(new ValidationError("This event type is not stored on the timeline."));
         }
 
-        evt.EventType = request.EventType.ToUpperInvariant();
+        if (await HasSingleInstanceConflictAsync(evt.PersonId, eventType, evt.Id))
+        {
+            return Result.Invalid(new ValidationError(
+                $"{PersonEventType.GetLabel(eventType)} can only be added once."));
+        }
+
+        evt.EventType = eventType;
         evt.Year = request.Year;
         evt.Month = request.Month;
         evt.Day = request.Day;
@@ -132,4 +152,21 @@ public class PersonEventService(IRepository<PersonEvent> eventRepository) : IPer
         Note = e.Note,
         CreatedAtUtc = e.CreatedAtUtc
     };
+
+    private async Task<bool> HasSingleInstanceConflictAsync(int personId, string eventType, int? excludingEventId = null)
+    {
+        if (!PersonEventType.IsSingleInstanceTimelineEventType(eventType))
+        {
+            return false;
+        }
+
+        var existing = await eventRepository.FindAsync(new SearchOptions<PersonEvent>
+        {
+            Query = e => e.PersonId == personId
+                && e.EventType == eventType
+                && (!excludingEventId.HasValue || e.Id != excludingEventId.Value),
+        });
+
+        return existing.Any();
+    }
 }

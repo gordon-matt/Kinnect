@@ -7,20 +7,24 @@ public class ChatHub(IChatService chatService) : Hub
 {
     // In-memory presence tracking keyed by ConnectionId
     private static readonly Dictionary<string, ConnectedUser> Connections = new();
+
     private static readonly Lock ConnectionsLock = new();
 
-    public async Task SendPrivate(string toUserId, string message)
+    private string CurrentUserId =>
+        Context.UserIdentifier
+        ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? Context.User?.FindFirst("sub")?.Value
+        ?? throw new InvalidOperationException("User is not authenticated.");
+
+    public IEnumerable<object> GetUsers(string roomName)
     {
-        var result = await chatService.CreatePrivateMessageAsync(CurrentUserId, toUserId, message);
-        if (!result.IsSuccess || result.Value is null) return;
-        var vm = result.Value;
-
-        // Deliver to recipient's active connection and back to sender
-        string? recipientConnectionId = GetConnectionId(toUserId);
-        if (recipientConnectionId is not null)
-            await Clients.Client(recipientConnectionId).SendAsync("newPrivateMessage", vm);
-
-        await Clients.Caller.SendAsync("newPrivateMessage", vm);
+        lock (ConnectionsLock)
+        {
+            return Connections.Values
+                .Where(c => c.CurrentRoom == roomName)
+                .Select(BuildUserVm)
+                .ToList();
+        }
     }
 
     public async Task Join(string roomName)
@@ -52,17 +56,6 @@ public class ChatHub(IChatService chatService) : Hub
     public async Task Leave(string roomName)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
-    }
-
-    public IEnumerable<object> GetUsers(string roomName)
-    {
-        lock (ConnectionsLock)
-        {
-            return Connections.Values
-                .Where(c => c.CurrentRoom == roomName)
-                .Select(BuildUserVm)
-                .ToList();
-        }
     }
 
     public override async Task OnConnectedAsync()
@@ -106,18 +99,18 @@ public class ChatHub(IChatService chatService) : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    private string CurrentUserId =>
-        Context.UserIdentifier
-        ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-        ?? Context.User?.FindFirst("sub")?.Value
-        ?? throw new InvalidOperationException("User is not authenticated.");
-
-    private static string? GetConnectionId(string userId)
+    public async Task SendPrivate(string toUserId, string message)
     {
-        lock (ConnectionsLock)
-        {
-            return Connections.FirstOrDefault(kv => kv.Value.UserId == userId).Key;
-        }
+        var result = await chatService.CreatePrivateMessageAsync(CurrentUserId, toUserId, message);
+        if (!result.IsSuccess || result.Value is null) return;
+        var vm = result.Value;
+
+        // Deliver to recipient's active connection and back to sender
+        string? recipientConnectionId = GetConnectionId(toUserId);
+        if (recipientConnectionId is not null)
+            await Clients.Client(recipientConnectionId).SendAsync("newPrivateMessage", vm);
+
+        await Clients.Caller.SendAsync("newPrivateMessage", vm);
     }
 
     private static object BuildUserVm(ConnectedUser c) => new
@@ -128,13 +121,20 @@ public class ChatHub(IChatService chatService) : Hub
         currentRoom = c.CurrentRoom
     };
 
-    private sealed class ConnectedUser
+    private static string? GetConnectionId(string userId)
     {
-        public string UserId { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public string ConnectionId { get; set; } = string.Empty;
-        public string? CurrentRoom { get; set; }
+        lock (ConnectionsLock)
+        {
+            return Connections.FirstOrDefault(kv => kv.Value.UserId == userId).Key;
+        }
     }
 
+    private sealed class ConnectedUser
+    {
+        public string ConnectionId { get; set; } = string.Empty;
+        public string? CurrentRoom { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+    }
 }

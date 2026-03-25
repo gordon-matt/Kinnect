@@ -12,11 +12,6 @@ public class ChatMessagesApiController(
     IHubContext<ChatHub> hubContext) : ControllerBase
 {
     [TranslateResultToActionResult]
-    [HttpGet("room/{roomId:int}")]
-    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessages(int roomId, [FromQuery] int take = 50) =>
-        await chatService.GetRoomMessagesAsync(roomId, take);
-
-    [TranslateResultToActionResult]
     [HttpGet("private/{otherUserId}")]
     public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50)
     {
@@ -25,6 +20,11 @@ public class ChatMessagesApiController(
             ? (Result<IEnumerable<ChatMessageDto>>)Result.Unauthorized()
             : await chatService.GetPrivateMessagesAsync(currentUserId, otherUserId, take);
     }
+
+    [TranslateResultToActionResult]
+    [HttpGet("room/{roomId:int}")]
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessages(int roomId, [FromQuery] int take = 50) =>
+        await chatService.GetRoomMessagesAsync(roomId, take);
 
     [TranslateResultToActionResult]
     [HttpPost("room")]

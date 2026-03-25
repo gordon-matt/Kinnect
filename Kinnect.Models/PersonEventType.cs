@@ -62,7 +62,16 @@ public static class PersonEventType
         Occupation, Education, Religion, Marriage, Divorce, Engagement,
     ];
 
+    private static readonly HashSet<string> SingleInstanceTimelineEventTypes =
+    [
+        Birth, Death, Christening, Burial, Cremation,
+    ];
+
     /// <summary>Stored on <see cref="PersonSpouse"/> or profile fields, not as <see cref="PersonEventDto"/>.</summary>
     public static bool IsNonTimelineEventType(string eventType) =>
         NonTimelineEventTypes.Contains(eventType.ToUpperInvariant());
+
+    /// <summary>Timeline event types that can only exist once per person.</summary>
+    public static bool IsSingleInstanceTimelineEventType(string eventType) =>
+        SingleInstanceTimelineEventTypes.Contains(eventType.ToUpperInvariant());
 }

@@ -8,38 +8,6 @@ public partial class ChatService(
     IRepository<Person> personRepository,
     IUserInfoService userInfoService) : IChatService
 {
-    public async Task<Result<ChatRoomDto>> CreateRoomAsync(string name, string currentUserId)
-    {
-        string normalizedName = name.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedName))
-        {
-            return Result.Invalid(new ValidationError("Room name is required."));
-        }
-
-        bool exists = await chatRoomRepository.ExistsAsync(r => r.Name == normalizedName);
-        if (exists)
-        {
-            return Result.Conflict("A room with that name already exists.");
-        }
-
-        var room = new ChatRoom
-        {
-            Name = normalizedName,
-            AdminUserId = currentUserId,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        await chatRoomRepository.InsertAsync(room);
-
-        string? adminUserName = await GetUserNameAsync(currentUserId);
-        return Result.Success(new ChatRoomDto
-        {
-            Id = room.Id,
-            Name = room.Name,
-            AdminUserId = room.AdminUserId,
-            AdminUserName = adminUserName
-        });
-    }
-
     public async Task<Result<ChatMessageDto>> CreatePrivateMessageAsync(string currentUserId, string toUserId, string content)
     {
         string cleanContent = SanitizeMessage(content);
@@ -75,6 +43,38 @@ public partial class ChatService(
                 ?? userInfo.GetValueOrDefault(currentUserId)?.Username
                 ?? currentUserId,
             ToUserId = message.ToUserId
+        });
+    }
+
+    public async Task<Result<ChatRoomDto>> CreateRoomAsync(string name, string currentUserId)
+    {
+        string normalizedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return Result.Invalid(new ValidationError("Room name is required."));
+        }
+
+        bool exists = await chatRoomRepository.ExistsAsync(r => r.Name == normalizedName);
+        if (exists)
+        {
+            return Result.Conflict("A room with that name already exists.");
+        }
+
+        var room = new ChatRoom
+        {
+            Name = normalizedName,
+            AdminUserId = currentUserId,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        await chatRoomRepository.InsertAsync(room);
+
+        string? adminUserName = await GetUserNameAsync(currentUserId);
+        return Result.Success(new ChatRoomDto
+        {
+            Id = room.Id,
+            Name = room.Name,
+            AdminUserId = room.AdminUserId,
+            AdminUserName = adminUserName
         });
     }
 
@@ -147,7 +147,7 @@ public partial class ChatService(
         });
     }
 
-    public async Task<Result<ChatDeleteRoomDto>> DeleteRoomAsync(int roomId, string currentUserId)
+    public async Task<Result<ChatDeleteRoomDto>> DeleteRoomAsync(int roomId, string currentUserId, bool isAdmin = false)
     {
         var room = await chatRoomRepository.FindOneAsync(roomId);
         if (room is null)
@@ -155,7 +155,7 @@ public partial class ChatService(
             return Result.NotFound("Room not found.");
         }
 
-        if (!string.Equals(room.AdminUserId, currentUserId, StringComparison.Ordinal))
+        if (!isAdmin && !string.Equals(room.AdminUserId, currentUserId, StringComparison.Ordinal))
         {
             return Result.Forbidden();
         }
@@ -168,6 +168,23 @@ public partial class ChatService(
 
         await chatRoomRepository.DeleteAsync(room);
         return Result.Success(result);
+    }
+
+    public async Task<Result<ChatUserDto>> GetCurrentChatUserAsync(string currentUserId, string fallbackUserName)
+    {
+        var userInfo = await userInfoService.GetUserInfoAsync([currentUserId]);
+        string userName = userInfo.GetValueOrDefault(currentUserId)?.Username ?? fallbackUserName;
+
+        var displayNames = await GetDisplayNamesAsync([currentUserId]);
+        string fullName = displayNames.GetValueOrDefault(currentUserId) ?? userName;
+
+        return Result.Success(new ChatUserDto
+        {
+            UserId = currentUserId,
+            UserName = userName,
+            FullName = fullName,
+            CurrentRoom = string.Empty
+        });
     }
 
     public async Task<Result<ChatPrivateConversationTargetDto>> GetPrivateConversationTargetAsync(string userId)
@@ -187,23 +204,6 @@ public partial class ChatService(
         {
             UserId = userId,
             DisplayName = displayName
-        });
-    }
-
-    public async Task<Result<ChatUserDto>> GetCurrentChatUserAsync(string currentUserId, string fallbackUserName)
-    {
-        var userInfo = await userInfoService.GetUserInfoAsync([currentUserId]);
-        string userName = userInfo.GetValueOrDefault(currentUserId)?.Username ?? fallbackUserName;
-
-        var displayNames = await GetDisplayNamesAsync([currentUserId]);
-        string fullName = displayNames.GetValueOrDefault(currentUserId) ?? userName;
-
-        return Result.Success(new ChatUserDto
-        {
-            UserId = currentUserId,
-            UserName = userName,
-            FullName = fullName,
-            CurrentRoom = string.Empty
         });
     }
 
@@ -327,32 +327,18 @@ public partial class ChatService(
         });
     }
 
-    private async Task<IEnumerable<ChatMessageDto>> MapMessagesAsync(IEnumerable<ChatMessage> messages, string? roomName = null)
+    private static string SanitizeMessage(string content)
     {
-        var list = messages.ToList();
-        var fromUserIds = list.Select(m => m.FromUserId).Distinct().ToList();
-
-        var userInfo = await userInfoService.GetUserInfoAsync(fromUserIds);
-        var displayNames = await GetDisplayNamesAsync(fromUserIds);
-
-        return list.Select(m =>
+        if (string.IsNullOrWhiteSpace(content))
         {
-            string? userName = userInfo.GetValueOrDefault(m.FromUserId)?.Username;
-            string? fullName = displayNames.GetValueOrDefault(m.FromUserId) ?? userName ?? m.FromUserId;
-            return new ChatMessageDto
-            {
-                Id = m.Id,
-                Content = m.Content,
-                Timestamp = m.Timestamp,
-                FromUserId = m.FromUserId,
-                FromUserName = userName,
-                FromFullName = fullName,
-                ToRoomId = m.ToRoomId,
-                ToRoomName = roomName,
-                ToUserId = m.ToUserId
-            };
-        });
+            return string.Empty;
+        }
+
+        return StripHtmlRegex().Replace(content, string.Empty).Trim();
     }
+
+    [GeneratedRegex(@"<.*?>")]
+    private static partial Regex StripHtmlRegex();
 
     private async Task<IReadOnlyDictionary<string, string>> GetDisplayNamesAsync(IEnumerable<string> userIds)
     {
@@ -381,16 +367,30 @@ public partial class ChatService(
         return userInfo.GetValueOrDefault(userId)?.Username;
     }
 
-    private static string SanitizeMessage(string content)
+    private async Task<IEnumerable<ChatMessageDto>> MapMessagesAsync(IEnumerable<ChatMessage> messages, string? roomName = null)
     {
-        if (string.IsNullOrWhiteSpace(content))
+        var list = messages.ToList();
+        var fromUserIds = list.Select(m => m.FromUserId).Distinct().ToList();
+
+        var userInfo = await userInfoService.GetUserInfoAsync(fromUserIds);
+        var displayNames = await GetDisplayNamesAsync(fromUserIds);
+
+        return list.Select(m =>
         {
-            return string.Empty;
-        }
-
-        return StripHtmlRegex().Replace(content, string.Empty).Trim();
+            string? userName = userInfo.GetValueOrDefault(m.FromUserId)?.Username;
+            string? fullName = displayNames.GetValueOrDefault(m.FromUserId) ?? userName ?? m.FromUserId;
+            return new ChatMessageDto
+            {
+                Id = m.Id,
+                Content = m.Content,
+                Timestamp = m.Timestamp,
+                FromUserId = m.FromUserId,
+                FromUserName = userName,
+                FromFullName = fullName,
+                ToRoomId = m.ToRoomId,
+                ToRoomName = roomName,
+                ToUserId = m.ToUserId
+            };
+        });
     }
-
-    [GeneratedRegex(@"<.*?>")]
-    private static partial Regex StripHtmlRegex();
 }

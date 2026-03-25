@@ -26,6 +26,8 @@
 
     // Copyable event types (item 8)
     const COPYABLE_TYPES = new Set(['EMIG', 'IMMI', 'RESI']);
+    const SINGLE_INSTANCE_EVENT_TYPES = new Set(['BIRT', 'DEAT', 'CHR', 'BURI', 'CREM']);
+    const TIMELINE_EVENT_TYPE_ORDER = ['BIRT', 'DEAT', 'BAPM', 'CHR', 'CONF', 'ADOP', 'EMIG', 'IMMI', 'NATU', 'MARB', 'MARL', 'BURI', 'CREM', 'RESI', 'EVEN'];
 
     /** Matches server PersonEventDto.DateDisplay logic for spouse-synthetic rows */
     function partialDateDisplay(year, month, day) {
@@ -324,6 +326,23 @@
 
             this.MONTHS = MONTHS;
             this.COPYABLE_TYPES = COPYABLE_TYPES;
+            this.timelineEventOptions = [
+                { type: 'BIRT', label: 'Birth' },
+                { type: 'DEAT', label: 'Death' },
+                { type: 'BAPM', label: 'Baptism' },
+                { type: 'CHR', label: 'Christening' },
+                { type: 'CONF', label: 'Confirmation' },
+                { type: 'ADOP', label: 'Adoption' },
+                { type: 'EMIG', label: 'Emigration' },
+                { type: 'IMMI', label: 'Immigration' },
+                { type: 'NATU', label: 'Naturalization' },
+                { type: 'MARB', label: 'Marriage Banns' },
+                { type: 'MARL', label: 'Marriage License' },
+                { type: 'BURI', label: 'Burial' },
+                { type: 'CREM', label: 'Cremation' },
+                { type: 'RESI', label: 'Residence' },
+                { type: 'EVEN', label: 'Custom Event' }
+            ];
 
             this.locationSearchQuery.subscribe(() => {
                 clearTimeout(this._locationSearchTimer);
@@ -350,6 +369,60 @@
         }
 
         isCopyable = (eventType) => COPYABLE_TYPES.has(eventType);
+        isSingleInstanceEventType = (eventType) => SINGLE_INSTANCE_EVENT_TYPES.has(String(eventType || '').toUpperCase());
+
+        hasTimelineEventType = (eventType, excludingEventId = null) => {
+            const normalizedType = String(eventType || '').toUpperCase();
+            return this.events().some(e => e.eventType === normalizedType && (excludingEventId == null || e.id !== excludingEventId));
+        };
+
+        canUseTimelineEventType = (eventType, excludingEventId = null) => {
+            if (!this.isSingleInstanceEventType(eventType)) return true;
+            return !this.hasTimelineEventType(eventType, excludingEventId);
+        };
+
+        isTimelineOptionDisabled = (eventType, excludingEventId = null) =>
+            !this.canUseTimelineEventType(eventType, excludingEventId);
+
+        timelineEventTypeLabel = (eventType) => {
+            const normalized = String(eventType || '').toUpperCase();
+            const opt = this.timelineEventOptions.find((o) => o.type === normalized);
+            return opt?.label ?? normalized;
+        };
+
+        firstAvailableTimelineEventType = (preferredType = 'BIRT', excludingEventId = null) => {
+            const normalizedPreferred = String(preferredType || '').toUpperCase();
+            if (this.canUseTimelineEventType(normalizedPreferred, excludingEventId)) {
+                return normalizedPreferred;
+            }
+            const fallback = TIMELINE_EVENT_TYPE_ORDER.find(t => this.canUseTimelineEventType(t, excludingEventId));
+            return fallback || 'EVEN';
+        };
+
+        readApiError = async (response, fallbackMessage) => {
+            try {
+                const payload = await response.json();
+                if (typeof payload === 'string' && payload.trim()) return payload;
+                const errors = payload?.errors;
+                if (Array.isArray(errors) && errors.length > 0) {
+                    const firstError = errors[0];
+                    if (typeof firstError === 'string' && firstError.trim()) return firstError;
+                    if (typeof firstError?.errorMessage === 'string' && firstError.errorMessage.trim()) return firstError.errorMessage;
+                    if (typeof firstError?.message === 'string' && firstError.message.trim()) return firstError.message;
+                }
+                if (Array.isArray(payload?.validationErrors) && payload.validationErrors.length > 0) {
+                    const firstValidationError = payload.validationErrors[0];
+                    if (typeof firstValidationError === 'string' && firstValidationError.trim()) return firstValidationError;
+                    if (typeof firstValidationError?.errorMessage === 'string' && firstValidationError.errorMessage.trim()) return firstValidationError.errorMessage;
+                }
+                if (typeof payload?.error === 'string' && payload.error.trim()) return payload.error;
+                if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message;
+            } catch {
+                // Ignore parse errors and return fallback below.
+            }
+
+            return fallbackMessage;
+        };
 
         // ── Load ───────────────────────────────────────────────────────────────
         loadProfile = async () => {
@@ -854,7 +927,7 @@
 
         // ── Timeline ───────────────────────────────────────────────────────────
         showAddEvent = () => {
-            this.newEventType('BIRT');
+            this.newEventType(this.firstAvailableTimelineEventType('BIRT'));
             this.newEventYear(null);
             this.newEventMonth(null);
             this.newEventDay(null);
@@ -882,9 +955,15 @@
         addEvent = async () => {
             const pid = this.personId();
             if (!pid) return;
+            const eventType = String(this.newEventType() || '').toUpperCase();
+
+            if (!this.canUseTimelineEventType(eventType)) {
+                toast.error(`Only one ${this.timelineEventTypeLabel(eventType)} event is allowed.`);
+                return;
+            }
 
             const body = {
-                eventType: this.newEventType(),
+                eventType,
                 year: this.newEventYear() || null,
                 month: this.newEventMonth() || null,
                 day: this.newEventDay() || null,
@@ -911,7 +990,7 @@
                         toast.info('Person has been automatically marked as deceased.');
                     }
                 } else {
-                    toast.error('Failed to add event.');
+                    toast.error(await this.readApiError(res, 'Failed to add event.'));
                 }
             } catch { toast.error('Error adding event.'); }
         };
@@ -941,9 +1020,15 @@
             const pid = this.personId();
             const eid = this.editingEventId();
             if (!pid || !eid) return;
+            const eventType = String(this.editEventType() || '').toUpperCase();
+
+            if (!this.canUseTimelineEventType(eventType, eid)) {
+                toast.error('That event type already exists and can only be used once.');
+                return;
+            }
 
             const body = {
-                eventType: this.editEventType(),
+                eventType,
                 year: this.editEventYear() || null,
                 month: this.editEventMonth() || null,
                 day: this.editEventDay() || null,
@@ -970,7 +1055,7 @@
                         this.isDeceased(true);
                         toast.info('Person has been automatically marked as deceased.');
                     }
-                } else { toast.error('Failed to update event.'); }
+                } else { toast.error(await this.readApiError(res, 'Failed to update event.')); }
             } catch { toast.error('Error updating event.'); }
         };
 
@@ -1004,7 +1089,7 @@
                 if (res.ok) {
                     bootstrap.Modal.getInstance(document.getElementById('copyEventModal'))?.hide();
                     toast.success('Event copied!');
-                } else { toast.error('Failed to copy event.'); }
+                } else { toast.error(await this.readApiError(res, 'Failed to copy event.')); }
             } catch { toast.error('Error copying event.'); }
         };
 
