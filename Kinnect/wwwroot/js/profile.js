@@ -1505,7 +1505,8 @@
             this.editPhotoFolderId(photo.folderId ?? null);
             this.editPhotoLatitude(photo.latitude ?? null);
             this.editPhotoLongitude(photo.longitude ?? null);
-            this.editPhotoLocationLockedByExif(photo.latitude != null && photo.longitude != null);
+            // Lock GPS editing only when the existing coordinates were acquired from EXIF.
+            this.editPhotoLocationLockedByExif(!!photo.latLongAcquiredFromExif);
             this.editPhotoLocationSearchQuery('');
             this.editPhotoLocationSearchResults([]);
             if (this._editPhotoLocationMap) {

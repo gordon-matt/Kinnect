@@ -33,7 +33,8 @@ public class PhotoService(
             DayTaken = dayTaken,
             FolderId = folderId,
             Latitude = latitude,
-            Longitude = longitude
+            Longitude = longitude,
+            LatLongAcquiredFromExif = latitude != null && longitude != null
         });
 
         if (tags is { Count: > 0 })
@@ -218,12 +219,12 @@ public class PhotoService(
         }
 
         // GPS coordinates are extracted from EXIF at upload time (best-effort).
-        // We only allow location edits when EXIF GPS was missing (at least one coordinate was null).
+        // We only allow location edits when the existing coordinates were NOT acquired from EXIF.
         // Enforced server-side to prevent tampering with the UI.
         //
         // Note: because JSON model binding converts missing values to null, we treat
         // "GPS edits not provided" as "do not touch existing GPS coordinates".
-        bool photoHasExifGps = photo.Latitude != null && photo.Longitude != null;
+        bool photoHasExifGps = photo.LatLongAcquiredFromExif && photo.Latitude != null && photo.Longitude != null;
         bool requestHasGps = request.Latitude != null || request.Longitude != null;
 
         if (photoHasExifGps && requestHasGps)
@@ -250,6 +251,13 @@ public class PhotoService(
         {
             photo.Latitude = request.Latitude;
             photo.Longitude = request.Longitude;
+            // Since the user supplied/modified GPS coordinates, the source is no longer EXIF.
+            // (When EXIF-derived coords are locked, we either forbid coordinate changes
+            // or allow the update only when coords are effectively unchanged.)
+            if (!photoHasExifGps)
+            {
+                photo.LatLongAcquiredFromExif = false;
+            }
         }
 
         await photoRepository.UpdateAsync(photo);

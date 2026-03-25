@@ -30,6 +30,8 @@ public class Photo : BaseEntity<int>
     /// <summary>GPS longitude extracted from EXIF data at upload time, if available.</summary>
     public double? Longitude { get; set; }
 
+    public bool LatLongAcquiredFromExif { get; set; }
+
     public int? FolderId { get; set; }
 
     public virtual Person UploadedBy { get; set; } = null!;
@@ -51,9 +53,7 @@ public class PhotoMap : IEntityTypeConfiguration<Photo>
         builder.Property(m => m.FilePath).IsRequired().HasMaxLength(1000);
         builder.Property(m => m.ThumbnailPath).HasMaxLength(1000);
 
-        builder.Property(m => m.YearTaken);
-        builder.Property(m => m.MonthTaken);
-        builder.Property(m => m.DayTaken);
+        builder.Property(m => m.LatLongAcquiredFromExif).IsRequired();
 
         builder.HasOne(m => m.UploadedBy)
             .WithMany()

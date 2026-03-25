@@ -130,6 +130,7 @@ public static class EntityDtoMappingExtensions
         AnnotationsJson = p.AnnotationsJson,
         Latitude = p.Latitude,
         Longitude = p.Longitude,
+        LatLongAcquiredFromExif = p.LatLongAcquiredFromExif,
         FolderId = p.FolderId,
         Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList(),
         TaggedPeople = p.PersonPhotos
@@ -152,6 +153,7 @@ public static class EntityDtoMappingExtensions
         AnnotationsJson = dto.AnnotationsJson,
         Latitude = dto.Latitude,
         Longitude = dto.Longitude,
+        LatLongAcquiredFromExif = dto.LatLongAcquiredFromExif,
         FolderId = dto.FolderId
     };
 

@@ -32,6 +32,12 @@ public class PhotoDto
 
     public double? Longitude { get; set; }
 
+    /// <summary>
+    /// True when the current latitude/longitude were acquired from EXIF at upload time.
+    /// Used to lock GPS editing for EXIF-derived coordinates.
+    /// </summary>
+    public bool LatLongAcquiredFromExif { get; set; }
+
     public int? FolderId { get; set; }
 
     public List<string> Tags { get; set; } = [];
