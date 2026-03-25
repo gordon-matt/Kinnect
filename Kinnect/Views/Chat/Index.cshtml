@@ -79,7 +79,9 @@
             <div class="chat-panel-header">
                 <i class="bi bi-hash me-1 text-muted small"></i>
                 <span data-bind="text: activeRoomName()"></span>
-                <div class="ms-auto d-flex gap-1" data-bind="visible: isRoomAdmin()">
+
+                <!-- ko if: canManageActiveRoom() -->
+                <div class="ms-auto d-flex gap-1">
                     <button type="button" class="btn btn-link btn-sm text-secondary p-0" data-bs-toggle="modal" data-bs-target="#rename-room-modal" title="Rename room">
                         <i class="bi bi-pencil"></i>
                     </button>
@@ -87,6 +89,7 @@
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
+                <!-- /ko -->
             </div>
             <div class="chat-messages" id="chat-messages-room">
                 <div class="chat-no-messages text-muted small" data-bind="visible: chatMessages().length === 0">No messages yet.</div>
@@ -113,8 +116,8 @@
             <div class="chat-input-area">
                 <input id="chat-message-input" type="text" class="form-control" maxlength="500"
                        placeholder="Type a message&hellip;"
-                       data-bind="value: messageText, valueUpdate: 'afterkeydown', event: { keypress: onEnterKey }" />
-                <button class="btn btn-primary ms-2 flex-shrink-0" type="button" data-bind="click: sendRoomMessage">
+                       data-bind="value: messageText, valueUpdate: 'afterkeydown', event: { keypress: onEnterKey }, disable: !canPostToActiveRoom()" />
+                <button class="btn btn-primary ms-2 flex-shrink-0" type="button" data-bind="click: sendRoomMessage, disable: !canPostToActiveRoom()">
                     <i class="bi bi-send"></i>
                 </button>
             </div>

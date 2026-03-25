@@ -1,9 +1,10 @@
+using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Kinnect.Hubs;
 
 [Authorize]
-public class ChatHub(IChatService chatService) : Hub
+public class ChatHub(IChatService chatService, IUserContextService userContextService) : Hub
 {
     // In-memory presence tracking keyed by ConnectionId
     private static readonly Dictionary<string, ConnectedUser> Connections = new();
@@ -62,6 +63,7 @@ public class ChatHub(IChatService chatService) : Hub
     {
         string userId = CurrentUserId;
         string userName = Context.User?.Identity?.Name ?? userId;
+        bool isAdmin = userContextService.IsAdmin();
         var profileResult = await chatService.GetCurrentChatUserAsync(userId, userName);
 
         var conn = new ConnectedUser
@@ -71,6 +73,7 @@ public class ChatHub(IChatService chatService) : Hub
             FullName = profileResult.IsSuccess && profileResult.Value is not null
                 ? profileResult.Value.FullName
                 : userName,
+            IsAdmin = isAdmin,
             ConnectionId = Context.ConnectionId,
             CurrentRoom = string.Empty
         };
@@ -118,6 +121,7 @@ public class ChatHub(IChatService chatService) : Hub
         userId = c.UserId,
         userName = c.UserName,
         fullName = c.FullName,
+        isAdmin = c.IsAdmin,
         currentRoom = c.CurrentRoom
     };
 
@@ -134,6 +138,7 @@ public class ChatHub(IChatService chatService) : Hub
         public string ConnectionId { get; set; } = string.Empty;
         public string? CurrentRoom { get; set; }
         public string FullName { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
     }

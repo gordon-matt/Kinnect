@@ -56,6 +56,7 @@ class ChatProfileInfo {
         this.userId = ko.observable(data.userId);
         this.userName = ko.observable(data.userName || '');
         this.fullName = ko.observable(data.fullName || data.userName || '?');
+        this.isAdmin = ko.observable(!!data.isAdmin);
     }
 }
 
@@ -67,6 +68,7 @@ class ChatViewModel {
         this.serverInfoMessage = ko.observable('');
         this.myProfile = ko.observable(null);
         this.myUserId = ko.observable(null);
+        this.isGlobalAdmin = ko.pureComputed(() => this.myProfile() ? !!this.myProfile().isAdmin() : false);
 
         this.chatRooms = ko.observableArray([]);
         this.chatMessages = ko.observableArray([]);
@@ -86,6 +88,10 @@ class ChatViewModel {
             const room = this.chatRooms().find(r => r.id() === this.activeRoomId());
             return !!(room && this.myUserId() && room.adminUserId() === this.myUserId());
         });
+
+        this.isAnnouncementsRoom = ko.pureComputed(() => (this.activeRoomName() || '') === 'Announcements');
+        this.canPostToActiveRoom = ko.pureComputed(() => !this.isAnnouncementsRoom() || this.isGlobalAdmin());
+        this.canManageActiveRoom = ko.pureComputed(() => this.isRoomAdmin() && !this.isAnnouncementsRoom());
     }
 
     joinRoom = (room) => {
@@ -152,6 +158,7 @@ class ChatViewModel {
     };
 
     sendRoomMessage = async () => {
+        if (!this.canPostToActiveRoom()) return;
         const text = this.messageText().trim();
         if (!text || this.activeRoomId() == null) return;
         try {

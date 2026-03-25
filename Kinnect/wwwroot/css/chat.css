@@ -10,7 +10,7 @@ body.chat-page {
 
 .chat-app {
     display: flex;
-    height: calc(100vh - 56px); /* subtract navbar height */
+    height: calc(100vh - 70px); /* subtract navbar height */
     background: #fff;
 }
 
@@ -80,9 +80,11 @@ body.chat-page {
 .chat-sidebar-profile {
     display: flex;
     align-items: center;
-    padding: .6rem 1rem;
+    /* Match height of the main input area so the two top borders align */
+    padding: .85rem 1rem;
     border-top: 1px solid rgba(255,255,255,.08);
     font-size: .85rem;
+    flex-shrink: 0;
 }
 
 /* ── Main area ────────────────────────────────────────────────────────── */
