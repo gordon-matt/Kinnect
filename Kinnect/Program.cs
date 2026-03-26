@@ -1,17 +1,15 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using Extenso.Data.Entity;
 using Hangfire;
-using Kinnect.Services.Mapping;
 using Kinnect.Data;
-using Kinnect.Data.Entities;
 using Kinnect.Infrastructure;
+using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Sejil;
 using Serilog;
 using Serilog.Sinks.PostgreSQL.ColumnWriters;
+using Constants = Kinnect.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +51,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 string authProviderName = builder.Configuration.GetValue<string>("Authentication:Provider") ?? "Identity";
 bool useKeycloak = authProviderName.Equals("Keycloak", StringComparison.OrdinalIgnoreCase);
+Constants.SetUseKeyCloak(useKeycloak);
 
 builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
 

@@ -39,8 +39,6 @@ public class Person : BaseEntity<int>
 
     public DateTime UpdatedAtUtc { get; set; }
 
-    public virtual ApplicationUser? User { get; set; }
-
     public virtual Person? Father { get; set; }
 
     public virtual Person? Mother { get; set; }
@@ -75,11 +73,6 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.Property(m => m.Religion).HasMaxLength(200);
         builder.Property(m => m.Note).HasMaxLength(4000);
         builder.Property(m => m.GedcomId).HasMaxLength(50);
-
-        builder.HasOne(m => m.User)
-            .WithOne()
-            .HasForeignKey<Person>(m => m.UserId)
-            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(m => m.Father)
             .WithMany(m => m.ChildrenAsFather)

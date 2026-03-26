@@ -20,8 +20,6 @@ public static class DbInitializer
         {
             await SeedAdminUserAsync(context, userManager, configuration);
         }
-
-        await SeedAnnouncementsRoomAsync(context, userManager, configuration);
     }
 
     private static async Task<bool> SeedRolesAsync(RoleManager<ApplicationRole> roleManager)
@@ -79,19 +77,8 @@ public static class DbInitializer
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, Constants.Roles.Administrator);
-
-                var person = new Person
-                {
-                    UserId = adminUser.Id,
-                    GivenNames = firstName,
-                    FamilyName = lastName,
-                    IsMale = true,
-                    CreatedAtUtc = DateTime.UtcNow,
-                    UpdatedAtUtc = DateTime.UtcNow
-                };
-
-                context.People.Add(person);
-                await context.SaveChangesAsync();
+                await SeedInitialPersonAsync(context, adminUser.Id, lastName, firstName);
+                await SeedAnnouncementsRoomAsync(context, adminUser.Id);
             }
         }
         else
@@ -103,10 +90,7 @@ public static class DbInitializer
         }
     }
 
-    private static async Task SeedAnnouncementsRoomAsync(
-        ApplicationDbContext context,
-        UserManager<ApplicationUser> userManager,
-        IConfiguration configuration)
+    public static async Task SeedAnnouncementsRoomAsync(ApplicationDbContext context, string adminUserId)
     {
         bool announcementsExists = await context.ChatRooms
             .AnyAsync(r => r.Name == Constants.Chat.AnnouncementsRoomName);
@@ -116,23 +100,27 @@ public static class DbInitializer
             return;
         }
 
-        string adminEmail = string.IsNullOrEmpty(configuration[SeedAdminEmailKey])
-            ? "admin@kinnect.local"
-            : configuration[SeedAdminEmailKey]!;
-
-        var adminUser = await userManager.FindByEmailAsync(adminEmail);
-        adminUser ??= (await userManager.GetUsersInRoleAsync(Constants.Roles.Administrator)).FirstOrDefault();
-
-        if (adminUser is null)
-        {
-            return;
-        }
-
         context.ChatRooms.Add(new ChatRoom
         {
             Name = Constants.Chat.AnnouncementsRoomName,
-            AdminUserId = adminUser.Id,
+            AdminUserId = adminUserId,
             CreatedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    public static async Task SeedInitialPersonAsync(
+        ApplicationDbContext context, string adminUserId, string familyName, string givenNames)
+    {
+        await context.People.AddAsync(new Person
+        {
+            UserId = adminUserId,
+            FamilyName = familyName,
+            GivenNames = givenNames,
+            IsMale = true,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
         });
 
         await context.SaveChangesAsync();

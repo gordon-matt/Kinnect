@@ -2,6 +2,21 @@ namespace Kinnect;
 
 public static class Constants
 {
+    private static bool useKeyCloakHasBeenSet = false;
+
+    public static bool UseKeyCloak { get; private set; }
+
+    public static void SetUseKeyCloak(bool value)
+    {
+        if (useKeyCloakHasBeenSet)
+        {
+            throw new InvalidOperationException("UseKeyCloak value has already been set and cannot be changed.");
+        }
+
+        UseKeyCloak = value;
+        useKeyCloakHasBeenSet = true;
+    }
+
     public static class Chat
     {
         public const string AnnouncementsRoomName = "Announcements";

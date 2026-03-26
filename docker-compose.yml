@@ -30,11 +30,11 @@ services:
       # SeedAdmin__LastName: User
       # ── Keycloak (optional) ──────────────────────────────────────────────────
       # Authentication__Provider: Keycloak
-      # Authentication__Keycloak__Authority: http://host.docker.internal:8081/realms/kinnect
+      # Authentication__Keycloak__Authority: http://host.docker.internal:8081/realms/home
       # Authentication__Keycloak__ClientId: kinnect
-      # Authentication__Keycloak__ClientSecret: changeme
-      # Authentication__Keycloak__PublicOrigin: ""
-      # Authentication__Keycloak__BackchannelBaseUrl: ""
+      # Authentication__Keycloak__ClientSecret: 
+      # Authentication__Keycloak__PublicOrigin: "" (NAS/prod only)
+      # Authentication__Keycloak__BackchannelBaseUrl: "" (NAS/prod only)
     volumes:
       - D:/_Docker/kinnect/uploads:/app/data
     depends_on:
@@ -47,7 +47,7 @@ services:
       - "5434:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: kinnect
     volumes:
       - D:/_Docker/kinnect/pgdata:/var/lib/postgresql

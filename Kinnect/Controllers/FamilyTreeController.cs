@@ -1,16 +1,18 @@
 namespace Kinnect.Controllers;
 
 [Authorize]
-public class FamilyTreeController(IPersonService personService, IUserContextService userContextService) : Controller
+public class FamilyTreeController(
+    IPersonService personService,
+    IUserContextService userContextService) : Controller
 {
     public async Task<IActionResult> Index()
     {
         bool isAdmin = User.IsInRole(Constants.Roles.Administrator);
         ViewData["IsAdmin"] = isAdmin;
 
-        string? userId = userContextService.GetCurrentUserId();
         int? myPersonId = null;
 
+        string? userId = userContextService.GetCurrentUserId();
         if (userId != null)
         {
             var result = await personService.GetByUserIdAsync(userId);
