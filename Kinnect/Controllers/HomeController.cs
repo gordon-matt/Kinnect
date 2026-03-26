@@ -6,7 +6,6 @@ namespace Kinnect.Controllers;
 [Authorize]
 public class HomeController(
     IUserContextService userContextService,
-    IUserInfoService userInfoService,
     ApplicationDbContext context) : Controller
 {
     private static bool hasSeeded = false;
@@ -15,22 +14,14 @@ public class HomeController(
     {
         if (!hasSeeded && Constants.UseKeyCloak)
         {
-            string userId = userContextService.GetCurrentUserId()!;
+            string currentUserId = userContextService.GetCurrentUserId()!;
+            await DbInitializer.SeedAnnouncementsRoomAsync(context, currentUserId);
 
-            if (!await context.People.AnyAsync())
-            {
-                var userInfo = await userInfoService.GetUserInfoAsync([userId]);
-                string[] name = userInfo.GetValueOrDefault(userId)?.Username?.Split(' ') ?? ["Admin", "User"];
-                string familyName = name.Length > 1 ? name[^1] : "Admin";
-                string givenNames = name.Length > 1 ? string.Join(' ', name[..^1]) : name.First();
-                await DbInitializer.SeedInitialPersonAsync(context, userId, familyName, givenNames);
-            }
-
-            await DbInitializer.SeedAnnouncementsRoomAsync(context, userId);
             hasSeeded = true;
         }
 
-        return View();
+        bool hasLinkedPerson = await context.People.AnyAsync();
+        return !hasLinkedPerson ? RedirectToAction("Index", "Onboarding") : View();
     }
 
     [AllowAnonymous]

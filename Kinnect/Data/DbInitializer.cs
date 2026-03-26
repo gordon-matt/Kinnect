@@ -6,8 +6,6 @@ public static class DbInitializer
 {
     public const string SeedAdminEmailKey = "SeedAdmin:Email";
     public const string SeedAdminPasswordKey = "SeedAdmin:Password";
-    public const string SeedAdminFirstNameKey = "SeedAdmin:FirstName";
-    public const string SeedAdminLastNameKey = "SeedAdmin:LastName";
 
     public static async Task InitializeAsync(
         ApplicationDbContext context,
@@ -53,14 +51,6 @@ public static class DbInitializer
             ? "Admin@123"
             : configuration[SeedAdminPasswordKey]!;
 
-        string firstName = string.IsNullOrEmpty(configuration[SeedAdminFirstNameKey])
-            ? "Admin"
-            : configuration[SeedAdminFirstNameKey]!;
-
-        string lastName = string.IsNullOrEmpty(configuration[SeedAdminLastNameKey])
-            ? "User"
-            : configuration[SeedAdminLastNameKey]!;
-
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
         if (adminUser == null)
@@ -77,7 +67,6 @@ public static class DbInitializer
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, Constants.Roles.Administrator);
-                await SeedInitialPersonAsync(context, adminUser.Id, lastName, firstName);
                 await SeedAnnouncementsRoomAsync(context, adminUser.Id);
             }
         }
@@ -110,19 +99,4 @@ public static class DbInitializer
         await context.SaveChangesAsync();
     }
 
-    public static async Task SeedInitialPersonAsync(
-        ApplicationDbContext context, string adminUserId, string familyName, string givenNames)
-    {
-        await context.People.AddAsync(new Person
-        {
-            UserId = adminUserId,
-            FamilyName = familyName,
-            GivenNames = givenNames,
-            IsMale = true,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-    }
 }

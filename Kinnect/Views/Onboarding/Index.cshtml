@@ -1,0 +1,120 @@
+@model Kinnect.Controllers.OnboardingViewModel
+@{
+    ViewData["Title"] = "First-time setup";
+}
+
+<div class="row mt-4">
+    <div class="col-lg-8 mx-auto">
+        <div class="card mb-4 border-warning">
+            <div class="card-body">
+                <h4 class="card-title mb-2">Set up your family tree</h4>
+                <p class="text-muted mb-0">
+                    You need to link your account to a person record before continuing.
+                    GEDCOM import is only available once during first-time setup.
+                </p>
+            </div>
+        </div>
+
+        @if (TempData["OnboardingError"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        @if (TempData["OnboardingSuccess"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        @if (Model.ShowImportedPersonSelection)
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Please select your name from the list</h5>
+                    @if (Model.People.Count == 0)
+                    {
+                        <p class="text-muted mb-0">
+                            No unlinked people are available. Create your person manually below.
+                        </p>
+                    }
+                    else
+                    {
+                        <form asp-action="LinkImportedPerson" method="post" class="row g-3">
+                            @Html.AntiForgeryToken()
+                            <div class="col-md-9">
+                                <select name="personId" class="form-select" required>
+                                    <option value="">Select your person</option>
+                                    @foreach (var person in Model.People)
+                                    {
+                                        <option value="@person.Id">@person.DisplayName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-grid">
+                                <button type="submit" class="btn btn-primary">Link account</button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Option A: Import GEDCOM</h5>
+                    <p class="text-muted">
+                        Import your existing tree and then select your own person record to link to this account.
+                        This can only be done once.
+                    </p>
+                    @if (Model.CanImportGedcom)
+                    {
+                        <form asp-action="ImportGedcom" method="post" enctype="multipart/form-data" class="row g-3">
+                            @Html.AntiForgeryToken()
+                            <div class="col-md-9">
+                                <input type="file" class="form-control" name="file" accept=".ged,.GED" required />
+                            </div>
+                            <div class="col-md-3 d-grid">
+                                <button type="submit" class="btn btn-outline-primary">Import GEDCOM</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mb-0">
+                            GEDCOM import is no longer available for this setup.
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Option B: Start manually</h5>
+                <p class="text-muted">
+                    Enter your own name to create the first person record and continue building your tree manually.
+                </p>
+                <form asp-action="CreateManualPerson" method="post" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-5">
+                        <label class="form-label">Given names</label>
+                        <input type="text" name="givenNames" class="form-control" required />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Family name</label>
+                        <input type="text" name="familyName" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Sex</label>
+                        <select name="isMale" class="form-select">
+                            <option value="true">Male</option>
+                            <option value="false">Female</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Create my person</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

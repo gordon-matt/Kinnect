@@ -403,7 +403,7 @@ public class GedcomService(
     }
 
     private async Task ImportIndividualAsync(
-                                    GedcomIndividualRecord individual,
+        GedcomIndividualRecord individual,
         GedcomDatabase database,
         Dictionary<string, int> xrefToPersonId,
         GedcomImportResult summary)
