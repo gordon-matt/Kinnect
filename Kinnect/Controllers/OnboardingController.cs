@@ -30,8 +30,8 @@ public class OnboardingController(
             People = hasAnyPeople
                 ? await context.People
                     .Where(p => p.UserId == null)
-                    .OrderBy(p => p.FamilyName)
-                    .ThenBy(p => p.GivenNames)
+                    .OrderBy(p => p.GivenNames)
+                    .ThenBy(p => p.FamilyName)
                     .Select(p => new OnboardingPersonOption
                     {
                         Id = p.Id,

@@ -3,7 +3,7 @@
     ViewData["Title"] = "First-time setup";
 }
 
-<div class="row mt-4">
+<div class="row mt-4" id="onboarding-root">
     <div class="col-lg-8 mx-auto">
         <div class="card mb-4 border-warning">
             <div class="card-body">
@@ -67,13 +67,28 @@
                     </p>
                     @if (Model.CanImportGedcom)
                     {
-                        <form asp-action="ImportGedcom" method="post" enctype="multipart/form-data" class="row g-3">
+                        <form id="gedcom-import-form" asp-action="ImportGedcom" method="post" enctype="multipart/form-data" class="row g-3">
                             @Html.AntiForgeryToken()
                             <div class="col-md-9">
                                 <input type="file" class="form-control" name="file" accept=".ged,.GED" required />
                             </div>
                             <div class="col-md-3 d-grid">
                                 <button type="submit" class="btn btn-outline-primary">Import GEDCOM</button>
+                            </div>
+                            <div class="col-12 d-none" id="gedcom-import-progress-wrap">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+                                    <span id="gedcom-import-status" class="small">Uploading file…</span>
+                                </div>
+                                <div class="progress" style="height: 10px;">
+                                    <div id="gedcom-import-progress-bar"
+                                         class="progress-bar progress-bar-striped"
+                                         role="progressbar"
+                                         style="width: 0%"
+                                         aria-valuenow="0"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"></div>
+                                </div>
                             </div>
                         </form>
                     }
@@ -118,3 +133,103 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('gedcom-import-form');
+            const root = document.getElementById('onboarding-root');
+            if (!form || !root) return;
+
+            const progressWrap = document.getElementById('gedcom-import-progress-wrap');
+            const statusEl = document.getElementById('gedcom-import-status');
+            const progressBar = document.getElementById('gedcom-import-progress-bar');
+
+            function setOnboardingDisabled(disabled) {
+                root.querySelectorAll('button, input, select, textarea').forEach(function (el) {
+                    el.disabled = disabled;
+                });
+                root.querySelectorAll('a.btn').forEach(function (el) {
+                    if (disabled) {
+                        el.classList.add('disabled', 'pointer-events-none');
+                        el.setAttribute('aria-disabled', 'true');
+                    } else {
+                        el.classList.remove('disabled', 'pointer-events-none');
+                        el.removeAttribute('aria-disabled');
+                    }
+                });
+            }
+
+            function setUploadProgress(percent) {
+                var p = Math.min(100, Math.max(0, percent));
+                progressBar.style.width = p + '%';
+                progressBar.setAttribute('aria-valuenow', String(Math.round(p)));
+                progressBar.classList.remove('progress-bar-animated');
+            }
+
+            function setProcessingIndeterminate() {
+                statusEl.textContent = 'Importing and processing on the server…';
+                progressBar.style.width = '100%';
+                progressBar.setAttribute('aria-valuenow', '100');
+                progressBar.classList.add('progress-bar-animated');
+            }
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var fileInput = form.querySelector('input[type="file"]');
+                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                    form.reportValidity();
+                    return;
+                }
+
+                progressWrap.classList.remove('d-none');
+                statusEl.textContent = 'Uploading file…';
+                progressBar.classList.remove('progress-bar-animated');
+                setUploadProgress(0);
+
+                var formData = new FormData(form);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', form.action);
+
+                xhr.upload.onprogress = function (ev) {
+                    if (!ev.lengthComputable || ev.total <= 0) {
+                        progressBar.style.width = '100%';
+                        progressBar.setAttribute('aria-valuenow', '100');
+                        progressBar.classList.add('progress-bar-animated');
+                        return;
+                    }
+                    var pct = (ev.loaded / ev.total) * 100;
+                    setUploadProgress(pct);
+                    if (ev.loaded >= ev.total) {
+                        setProcessingIndeterminate();
+                    }
+                };
+
+                xhr.upload.onload = function () {
+                    setProcessingIndeterminate();
+                };
+
+                setOnboardingDisabled(true);
+
+                xhr.onload = function () {
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        window.location.href = xhr.responseURL || window.location.href;
+                        return;
+                    }
+                    setOnboardingDisabled(false);
+                    progressWrap.classList.add('d-none');
+                    alert('Import failed (HTTP ' + xhr.status + '). Please try again.');
+                };
+
+                xhr.onerror = function () {
+                    setOnboardingDisabled(false);
+                    progressWrap.classList.add('d-none');
+                    alert('Import failed due to a network error. Please try again.');
+                };
+
+                xhr.send(formData);
+            });
+        })();
+    </script>
+}
