@@ -10,7 +10,7 @@ body.chat-page {
 
 .chat-app {
     display: flex;
-    height: calc(100vh - 70px); /* subtract navbar height */
+    height: calc(100vh - 92px); /* subtract navbar height */
     background: #fff;
 }
 
