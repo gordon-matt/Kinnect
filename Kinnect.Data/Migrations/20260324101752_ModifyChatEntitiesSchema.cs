@@ -21,6 +21,9 @@ namespace Kinnect.Data.Migrations
                 schema: "chat",
                 newName: "ChatMessages",
                 newSchema: "app");
+
+            migrationBuilder.DropSchema(
+                name: "chat");
         }
 
         /// <inheritdoc />

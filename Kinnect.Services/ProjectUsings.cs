@@ -1,7 +1,8 @@
 global using Ardalis.Result;
 global using Extenso.Data.Entity;
 global using Kinnect.Data.Entities;
-global using Kinnect.Models;
+global using Kinnect.Models.Dto;
+global using Kinnect.Models.Requests;
 global using Kinnect.Services.Abstractions;
 global using Kinnect.Services.Mapping;
 global using Microsoft.EntityFrameworkCore;

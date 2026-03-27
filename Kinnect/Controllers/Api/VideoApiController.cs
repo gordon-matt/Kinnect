@@ -1,4 +1,3 @@
-using Kinnect.Services;
 using Microsoft.Extensions.Options;
 
 namespace Kinnect.Controllers.Api;

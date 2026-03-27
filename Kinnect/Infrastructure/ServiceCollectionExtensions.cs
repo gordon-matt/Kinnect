@@ -1,9 +1,6 @@
 using System.Net;
 using Hangfire;
 using Hangfire.PostgreSql;
-using Kinnect.Data.Entities;
-using Kinnect.Services;
-using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;

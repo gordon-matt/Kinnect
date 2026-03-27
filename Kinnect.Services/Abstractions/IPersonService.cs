@@ -1,3 +1,5 @@
+using Kinnect.Models.FamilyTree;
+
 namespace Kinnect.Services.Abstractions;
 
 public interface IPersonService

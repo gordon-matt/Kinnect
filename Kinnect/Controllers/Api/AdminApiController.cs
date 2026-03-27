@@ -1,6 +1,4 @@
-using Kinnect.Data.Entities;
 using Kinnect.Infrastructure;
-using Kinnect.Services;
 using Microsoft.AspNetCore.Identity;
 
 namespace Kinnect.Controllers.Api;

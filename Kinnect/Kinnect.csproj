@@ -9,6 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Kinnect\**" />
+    <Content Remove="Kinnect\**" />
+    <EmbeddedResource Remove="Kinnect\**" />
+    <None Remove="Kinnect\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Ardalis.Result.AspNetCore" Version="10.1.0" />
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />

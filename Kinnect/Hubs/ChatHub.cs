@@ -1,4 +1,3 @@
-using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Kinnect.Hubs;

@@ -2,6 +2,7 @@ using System.Text;
 using GeneGenie.Gedcom;
 using GeneGenie.Gedcom.Enums;
 using GeneGenie.Gedcom.Parser;
+using Kinnect.Models.FamilyTree;
 
 namespace Kinnect.Services;
 

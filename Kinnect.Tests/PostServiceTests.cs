@@ -1,5 +1,5 @@
 using Extenso.Data.Entity;
-using Kinnect.Models;
+using Kinnect.Models.Dto;
 using Kinnect.Services.Mapping;
 using Kinnect.Tests.Infrastructure;
 

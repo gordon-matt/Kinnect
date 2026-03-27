@@ -1,6 +1,4 @@
 using Extenso.Mapping;
-using Kinnect.Data.Entities;
-using Kinnect.Models;
 
 namespace Kinnect.Services.Mapping;
 
