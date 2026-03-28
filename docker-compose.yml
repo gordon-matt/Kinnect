@@ -21,8 +21,7 @@ services:
       DocumentProcessing__AutoShrinkDocuments: "true"
       VideoProcessing__AutoShrinkVideos: "true"
       VideoProcessing__ToolsPath: /usr/bin
-      VideoProcessing__MaxWidth: "1280"
-      VideoProcessing__MaxHeight: "720"
+      VideoProcessing__OutputVideoSize: "Hd720" # Possible values: https://ffmpeg.xabe.net/docs/Xabe.FFmpeg.VideoSize.html
       VideoProcessing__Crf: "28"
       VideoProcessing__AudioBitrate: "128000"
       # SeedAdmin__Email: admin@example.com

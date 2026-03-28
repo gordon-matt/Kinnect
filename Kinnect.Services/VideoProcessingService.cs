@@ -14,8 +14,6 @@ public class VideoProcessingService(
         var mediaInfo = await FFmpeg.GetMediaInfo(inputPath);
 
         var videoStream = mediaInfo.VideoStreams.FirstOrDefault();
-        var audioStream = mediaInfo.AudioStreams.FirstOrDefault();
-
         if (videoStream == null)
         {
             logger.LogWarning("No video stream found in {Path}; skipping compression.", inputPath);
@@ -23,38 +21,20 @@ public class VideoProcessingService(
             return;
         }
 
-        videoStream.SetCodec(VideoCodec.h264);
+        logger.LogInformation(
+            "Compressing video {Input} → {Output} (ChangeSize {VideoSize}, -noautorotate)",
+            inputPath,
+            outputPath,
+            opts.OutputVideoSize);
 
-        // Only resize if the video is larger than the configured maximum
-        if (videoStream.Width > opts.MaxWidth || videoStream.Height > opts.MaxHeight)
-        {
-            // Calculate new dimensions preserving aspect ratio
-            double widthRatio = (double)opts.MaxWidth / videoStream.Width;
-            double heightRatio = (double)opts.MaxHeight / videoStream.Height;
-            double scale = Math.Min(widthRatio, heightRatio);
-
-            // FFmpeg requires even dimensions for H.264
-            int newWidth = (int)(videoStream.Width * scale) & ~1;
-            int newHeight = (int)(videoStream.Height * scale) & ~1;
-
-            videoStream.SetSize(newWidth, newHeight);
-        }
-
-        var conversion = FFmpeg.Conversions.New()
-            .SetOutput(outputPath)
-            .SetOverwriteOutput(true);
-
-        conversion.AddStream(videoStream);
-
-        if (audioStream != null)
-        {
-            audioStream.SetCodec(AudioCodec.aac).SetBitrate(opts.AudioBitrate);
-            conversion.AddStream(audioStream);
-        }
-
+        IConversion conversion = await FFmpeg.Conversions.FromSnippet.ChangeSize(inputPath, outputPath, opts.OutputVideoSize);
+        conversion.SetOverwriteOutput(true);
+        conversion.AddParameter("-noautorotate", ParameterPosition.PreInput);
+        conversion.AddParameter("-c:v libx264");
         conversion.AddParameter($"-crf {opts.Crf}");
+        conversion.AddParameter("-c:a aac");
+        conversion.AddParameter($"-b:a {opts.AudioBitrate}");
 
-        logger.LogInformation("Compressing video {Input} → {Output}", inputPath, outputPath);
         await conversion.Start();
     }
 }
