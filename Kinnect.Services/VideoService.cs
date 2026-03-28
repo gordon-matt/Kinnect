@@ -13,7 +13,8 @@ public class VideoService(
         TimeSpan? duration,
         int uploadedByPersonId,
         List<string>? tags,
-        int? folderId = null)
+        int? folderId = null,
+        bool isProcessing = false)
     {
         var video = await videoRepository.InsertAsync(new Video
         {
@@ -24,7 +25,8 @@ public class VideoService(
             Duration = duration,
             UploadedByPersonId = uploadedByPersonId,
             CreatedAtUtc = DateTime.UtcNow,
-            FolderId = folderId
+            FolderId = folderId,
+            IsProcessing = isProcessing
         });
 
         if (tags is { Count: > 0 })
@@ -43,7 +45,8 @@ public class VideoService(
             UploadedByPersonId = video.UploadedByPersonId,
             CreatedAtUtc = video.CreatedAtUtc,
             Tags = tags ?? [],
-            FolderId = folderId
+            FolderId = folderId,
+            IsProcessing = isProcessing
         });
     }
 

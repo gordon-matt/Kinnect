@@ -71,6 +71,7 @@
 
             this.photos = ko.observableArray([]);
             this.videos = ko.observableArray([]);
+            this._videoProcessingPollTimer = null;
             this.documents = ko.observableArray([]);
             this.mediaFolders = ko.observableArray([]);
             this.currentMediaFolderId = ko.observable(null);
@@ -557,6 +558,15 @@
             }));
 
             await this.loadPostsPage(1);
+            this.scheduleVideoProcessingPollIfNeeded();
+        };
+
+        scheduleVideoProcessingPollIfNeeded = () => {
+            clearTimeout(this._videoProcessingPollTimer);
+            if (!this.videos().some((v) => v.isProcessing)) return;
+            this._videoProcessingPollTimer = setTimeout(async () => {
+                await this.loadContent();
+            }, 8000);
         };
 
         // ── Posts paging (item 3) ──────────────────────────────────────────────
@@ -1799,13 +1809,18 @@
 
             const response = await fetch('/api/videos', { method: 'POST', body: formData });
             if (response.ok) {
+                const data = await response.json();
                 this.isUploadingVideo(false);
                 this.videoTitle('');
                 this.videoDescription('');
                 this.videoSelectedEventIds([]);
                 this.videoFolderId(null);
                 await this.loadContent();
-                toast.success('Video uploaded!');
+                if (data.isProcessing) {
+                    toast.success('Video uploaded. Processing in the background — it will be ready shortly.');
+                } else {
+                    toast.success('Video uploaded!');
+                }
             } else toast.error('Failed to upload video.');
         };
 

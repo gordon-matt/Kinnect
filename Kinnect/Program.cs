@@ -3,6 +3,7 @@ using Autofac.Extensions.DependencyInjection;
 using Hangfire;
 using Kinnect.Data;
 using Kinnect.Infrastructure;
+using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -137,6 +138,11 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = [new HangfireAuthorizationFilter()]
 });
+
+RecurringJob.AddOrUpdate<PersonBackupJob>(
+    "weekly-person-tree-backup",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Weekly(DayOfWeek.Sunday, 3));
 
 if (app.Environment.IsDevelopment())
 {

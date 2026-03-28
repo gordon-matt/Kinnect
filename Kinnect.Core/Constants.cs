@@ -35,5 +35,8 @@ public static class Constants
         public const string Videos = "videos";
         public const string Documents = "documents";
         public const string Thumbnails = "thumbnails";
+
+        /// <summary>Person tree JSON backups live under &lt;FileStorage:BasePath&gt;/backup.</summary>
+        public const string PersonTreeBackups = "backup";
     }
 }

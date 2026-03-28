@@ -1,3 +1,5 @@
+using Hangfire;
+using Kinnect.Services.Jobs;
 using Microsoft.Extensions.Options;
 
 namespace Kinnect.Controllers.Api;
@@ -10,7 +12,7 @@ public class VideoApiController(
     IPersonService personService,
     IUserContextService userContextService,
     IFileStorageService fileStorageService,
-    IVideoProcessingService videoProcessingService,
+    IBackgroundJobClient backgroundJobClient,
     IOptions<VideoProcessingOptions> videoOptions) : ControllerBase
 {
     private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
@@ -43,41 +45,33 @@ public class VideoApiController(
         string filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Videos, file.FileName);
 
         var opts = videoOptions.Value;
-        if (opts.AutoShrinkVideos)
-        {
-            string fullInputPath = fileStorageService.GetFullPath(filePath);
-            string tempOutputPath = Path.ChangeExtension(fullInputPath, null) + "_compressed.mp4";
-
-            try
-            {
-                await videoProcessingService.CompressAsync(fullInputPath, tempOutputPath);
-
-                // Replace the original with the compressed version
-                System.IO.File.Delete(fullInputPath);
-                System.IO.File.Move(tempOutputPath, fullInputPath);
-
-                // Normalise the stored path to use .mp4 extension
-                string dir = Path.GetDirectoryName(filePath)!.Replace('\\', '/');
-                string nameNoExt = Path.GetFileNameWithoutExtension(filePath);
-                filePath = $"{dir}/{nameNoExt}.mp4";
-            }
-            catch (Exception ex)
-            {
-                // Compression is best-effort; keep the original if it fails
-                if (System.IO.File.Exists(tempOutputPath))
-                {
-                    System.IO.File.Delete(tempOutputPath);
-                }
-
-                // Re-throw so the caller knows something went wrong
-                return StatusCode(500, $"Video compression failed: {ex.Message}");
-            }
-        }
+        bool queueTranscode = opts.AutoShrinkVideos;
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 
-        var result = await videoService.CreateAsync(title, description, filePath, null, null, personResult.Value.Id, tagList, folderId);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest();
+        var result = await videoService.CreateAsync(
+            title,
+            description,
+            filePath,
+            null,
+            null,
+            personResult.Value.Id,
+            tagList,
+            folderId,
+            isProcessing: queueTranscode);
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest();
+        }
+
+        if (queueTranscode)
+        {
+            backgroundJobClient.Enqueue<VideoTranscodeJob>(
+                job => job.ExecuteAsync(result.Value.Id, CancellationToken.None));
+        }
+
+        return Ok(result.Value);
     }
 
     [TranslateResultToActionResult]

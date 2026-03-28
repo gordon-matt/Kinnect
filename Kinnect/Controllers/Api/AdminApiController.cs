@@ -1,4 +1,7 @@
+using System.Linq;
 using Kinnect.Infrastructure;
+using Kinnect.Models.Requests.Admin;
+using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.Identity;
 
 namespace Kinnect.Controllers.Api;
@@ -8,6 +11,7 @@ namespace Kinnect.Controllers.Api;
 [Authorize(Roles = Constants.Roles.Administrator)]
 public class AdminApiController(
     IPersonService personService,
+    IPersonBackupService personBackupService,
     IAuthProviderService authProviderService,
     IServiceProvider serviceProvider) : ControllerBase
 {
@@ -96,5 +100,39 @@ public class AdminApiController(
         await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
 
         return Ok(new { message = "User locked successfully." });
+    }
+
+    [HttpGet("person-backups")]
+    public async Task<IActionResult> GetPersonBackups(CancellationToken cancellationToken)
+    {
+        var result = await personBackupService.ListBackupsAsync(cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(string.Join("; ", result.Errors));
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpPost("person-backups/restore")]
+    public async Task<IActionResult> RestorePersonBackup(
+        [FromBody] PersonBackupRestoreRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request?.FileName))
+        {
+            return BadRequest("File name is required.");
+        }
+
+        var result = await personBackupService.RestoreFromFileAsync(request.FileName, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            string message = result.ValidationErrors.Any()
+                ? string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage))
+                : string.Join("; ", result.Errors);
+            return BadRequest(message);
+        }
+
+        return Ok(new { message = "Person tree restored from backup." });
     }
 }

@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
     <PackageReference Include="Ardalis.Result" Version="10.1.0" />
     <PackageReference Include="GeneGenie.Gedcom" Version="1.0.3" />
     <PackageReference Include="Keycloak.NETCore.Client" Version="1.0.2" />

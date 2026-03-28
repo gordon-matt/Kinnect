@@ -18,6 +18,9 @@ public class Video : BaseEntity<int>
 
     public int? FolderId { get; set; }
 
+    /// <summary>True while a background job is compressing or re-encoding the uploaded file.</summary>
+    public bool IsProcessing { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
 
     public virtual MediaFolder? Folder { get; set; }
@@ -44,5 +47,7 @@ public class VideoMap : IEntityTypeConfiguration<Video>
             .WithMany(m => m.Videos)
             .HasForeignKey(m => m.FolderId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(m => m.IsProcessing).IsRequired();
     }
 }

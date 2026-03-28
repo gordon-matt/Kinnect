@@ -1,5 +1,7 @@
 using System.Net;
 using Hangfire;
+using Kinnect.Services;
+using Kinnect.Services.Jobs;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -164,6 +166,9 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<IChatService, ChatService>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
+            services.AddScoped<IPersonBackupService, PersonBackupService>();
+            services.AddScoped<PersonBackupJob>();
+            services.AddScoped<VideoTranscodeJob>();
         }
 
         public void KinnectAddImageProcessing(IConfiguration configuration)

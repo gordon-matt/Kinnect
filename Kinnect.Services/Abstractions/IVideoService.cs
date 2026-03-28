@@ -2,7 +2,7 @@ namespace Kinnect.Services.Abstractions;
 
 public interface IVideoService
 {
-    Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags, int? folderId = null);
+    Task<Result<VideoDto>> CreateAsync(string title, string? description, string filePath, string? thumbnailPath, TimeSpan? duration, int uploadedByPersonId, List<string>? tags, int? folderId = null, bool isProcessing = false);
 
     Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin);
 

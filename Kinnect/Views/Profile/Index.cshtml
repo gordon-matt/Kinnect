@@ -546,9 +546,23 @@
                         <h6 class="text-muted small text-uppercase mb-2" data-bind="text: inMediaFolder() ? 'Videos' : 'Ungrouped Videos'"></h6>
                         <div data-bind="foreach: visibleVideos">
                             <div class="card mb-2">
+                                <!-- ko if: isProcessing -->
+                                <div class="card-body p-0 overflow-hidden">
+                                    <div class="position-relative bg-dark bg-opacity-10" style="min-height:140px;">
+                                        <div class="position-absolute top-50 start-50 translate-middle text-center px-3 w-100">
+                                            <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
+                                            <div class="fw-semibold small" data-bind="text: title"></div>
+                                            <div class="text-muted small mt-1">Processing… Your video will be available soon. Check back in a moment.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- /ko -->
+                                <!-- ko ifnot: isProcessing -->
                                 <div class="card-body d-flex justify-content-between align-items-center">
-                                    <div><i class="bi bi-film"></i> <span data-bind="text: title"></span></div>
-                                    
+                                    <div>
+                                        <i class="bi bi-film"></i>
+                                        <a data-bind="text: title, attr: { href: '/uploads/' + filePath }" target="_blank" class="ms-1"></a>
+                                    </div>
                                     <!-- ko if: $root.canEditMedia($data) -->
                                     <div class="d-flex gap-1">
                                         <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit" data-bind="click: function() { $root.startEditVideo($data); }">
@@ -560,6 +574,7 @@
                                     </div>
                                     <!-- /ko -->
                                 </div>
+                                <!-- /ko -->
                             </div>
                         </div>
                     </div>

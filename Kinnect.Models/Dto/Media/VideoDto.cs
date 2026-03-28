@@ -25,4 +25,6 @@ public class VideoDto
     public List<int> EventIds { get; set; } = [];
 
     public int? FolderId { get; set; }
+
+    public bool IsProcessing { get; set; }
 }

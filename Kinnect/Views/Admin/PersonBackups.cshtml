@@ -1,0 +1,133 @@
+@{
+    ViewData["Title"] = "Person tree backups";
+}
+
+<div class="row">
+    <div class="col-12 col-xl-10 mx-auto">
+        <h4 class="mb-3"><i class="bi bi-database-down"></i> Person tree backups</h4>
+        <p class="text-muted">
+            Automatic JSON snapshots run weekly (Hangfire job <code>weekly-person-tree-backup</code>).
+            Restoring reapplies <strong>people who still exist</strong> and replaces all spouse links from the backup file.
+        </p>
+
+        <div data-bind="visible: loading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading…</span>
+            </div>
+        </div>
+
+        <div data-bind="visible: !loading()">
+            <div data-bind="visible: errorMessage" class="alert alert-danger" role="alert">
+                <span data-bind="text: errorMessage"></span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>File</th>
+                            <th class="text-end">Size</th>
+                            <th>Created (UTC)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody data-bind="foreach: backups">
+                        <tr>
+                            <td><code data-bind="text: fileName"></code></td>
+                            <td class="text-end text-muted small" data-bind="text: $root.formatSize(sizeBytes)"></td>
+                            <td class="text-muted small" data-bind="text: $root.formatUtc(createdUtc)"></td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bind="click: function () { $root.restore($data); }">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div data-bind="visible: backups().length === 0 && !errorMessage()" class="text-muted py-3">
+                No backup files yet. The next scheduled run will create JSON files under <code>FileStorage:BasePath</code> in the <code>backup</code> subfolder.
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            function formatSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+
+            function formatUtc(iso) {
+                if (!iso) return '';
+                const d = new Date(iso);
+                return isNaN(d.getTime()) ? String(iso) : d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            }
+
+            class PersonBackupsVm {
+                constructor() {
+                    this.loading = ko.observable(true);
+                    this.backups = ko.observableArray([]);
+                    this.errorMessage = ko.observable('');
+                    this.formatSize = formatSize;
+                    this.formatUtc = formatUtc;
+                }
+
+                async load() {
+                    this.loading(true);
+                    this.errorMessage('');
+                    try {
+                        const res = await fetch('/api/admin/person-backups');
+                        if (!res.ok) {
+                            const t = await res.text();
+                            this.errorMessage(t || 'Could not load backups.');
+                            this.backups([]);
+                            return;
+                        }
+                        const data = await res.json();
+                        const rows = Array.isArray(data) ? data : [];
+                        this.backups(rows.map(r => ({
+                            fileName: r.fileName,
+                            sizeBytes: r.sizeBytes,
+                            createdUtc: r.createdUtc
+                        })));
+                    } catch {
+                        this.errorMessage('Network error loading backups.');
+                        this.backups([]);
+                    } finally {
+                        this.loading(false);
+                    }
+                }
+
+                restore = async (row) => {
+                    if (!confirm('Restore person tree from "' + row.fileName + '"?\n\nThis updates existing people and replaces all spouse links. It cannot be undone automatically.')) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/admin/person-backups/restore', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fileName: row.fileName })
+                        });
+                        const bodyText = await res.text();
+                        if (res.ok) {
+                            toast.success('Restore completed.');
+                        } else {
+                            toast.error(bodyText || 'Restore failed.');
+                        }
+                    } catch {
+                        toast.error('Restore request failed.');
+                    }
+                };
+            }
+
+            const vm = new PersonBackupsVm();
+            ko.applyBindings(vm);
+            vm.load();
+        })();
+    </script>
+}

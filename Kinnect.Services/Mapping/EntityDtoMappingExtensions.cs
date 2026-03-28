@@ -170,7 +170,8 @@ public static class EntityDtoMappingExtensions
         UploadedByName = $"{v.UploadedBy.GivenNames} {v.UploadedBy.FamilyName}",
         CreatedAtUtc = v.CreatedAtUtc,
         Tags = v.VideoTags.Select(vt => vt.Tag.Name).ToList(),
-        FolderId = v.FolderId
+        FolderId = v.FolderId,
+        IsProcessing = v.IsProcessing
     };
 
     public static Video ToEntity(this VideoDto dto) => new()
@@ -183,7 +184,8 @@ public static class EntityDtoMappingExtensions
         Duration = dto.Duration,
         UploadedByPersonId = dto.UploadedByPersonId,
         CreatedAtUtc = dto.CreatedAtUtc,
-        FolderId = dto.FolderId
+        FolderId = dto.FolderId,
+        IsProcessing = dto.IsProcessing
     };
 
     #endregion Video

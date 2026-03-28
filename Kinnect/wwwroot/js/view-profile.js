@@ -48,6 +48,7 @@ class ViewProfileViewModel {
         this.posts = ko.observableArray([]);
         this.photos = ko.observableArray([]);
         this.videos = ko.observableArray([]);
+        this._videoProcessingPollTimer = null;
         this.documents = ko.observableArray([]);
         this.mediaFolders = ko.observableArray([]);
         this.currentMediaFolderId = ko.observable(null);
@@ -210,6 +211,7 @@ class ViewProfileViewModel {
             this.documents(docsData.value || docsData || []);
             this.events(eventsData.value || eventsData || []);
             this.mediaFolders(foldersData.value || foldersData || []);
+            this.scheduleVideoProcessingPollIfNeeded();
 
             const spouseList = spousesData.value || spousesData || [];
             this.spouses(spouseList.map(s => ({
@@ -251,6 +253,14 @@ class ViewProfileViewModel {
         } finally {
             this.loading(false);
         }
+    };
+
+    scheduleVideoProcessingPollIfNeeded = () => {
+        clearTimeout(this._videoProcessingPollTimer);
+        if (!this.videos().some((v) => v.isProcessing)) return;
+        this._videoProcessingPollTimer = setTimeout(async () => {
+            await this.loadProfile();
+        }, 8000);
     };
 
     // Item 6: derive birth info from BIRT event's place (not person.placeOfBirth)
