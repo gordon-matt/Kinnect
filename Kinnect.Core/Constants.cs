@@ -30,11 +30,9 @@ public static class Constants
 
     public static class FileStorage
     {
-        public const string ProfileImages = "profiles";
         public const string Photos = "photos";
         public const string Videos = "videos";
         public const string Documents = "documents";
-        public const string Thumbnails = "thumbnails";
 
         /// <summary>Person tree JSON backups live under &lt;FileStorage:BasePath&gt;/backup.</summary>
         public const string PersonTreeBackups = "backup";

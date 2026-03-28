@@ -134,6 +134,9 @@ class ViewProfileViewModel {
         this.hasPhotoMapItems = ko.computed(() =>
             this.photos().some(p => p?.latitude != null && p?.longitude != null));
 
+        this.videoLightboxUrl = ko.observable(null);
+        this.videoLightboxTitle = ko.observable('');
+
         this.photoLightboxUrl = ko.observable(null);
         this.lightboxPhotoId = ko.observable(null);
         this.lightboxPhotoTitle = ko.observable('');
@@ -305,6 +308,14 @@ class ViewProfileViewModel {
         return icons[eventType] || 'bi-calendar-event';
     }
 
+    openVideoLightbox = (video) => {
+        if (!video || video.isProcessing) return;
+        this.videoLightboxUrl('/uploads/' + video.filePath);
+        this.videoLightboxTitle(video.title || '');
+        const el = document.getElementById('videoLightboxModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+
     openPhotoLightbox = async (photo) => {
         this.photoLightboxUrl('/uploads/' + photo.filePath);
         this.lightboxPhotoId(photo.id);
@@ -468,6 +479,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try { vm._lightboxAnno.destroy(); } catch { /* ignore */ }
                 vm._lightboxAnno = null;
             }
+        });
+    }
+
+    const videoLightboxModal = document.getElementById('videoLightboxModal');
+    if (videoLightboxModal) {
+        videoLightboxModal.addEventListener('hidden.bs.modal', () => {
+            const v = document.getElementById('videoLightboxPlayer');
+            if (v) {
+                v.pause();
+                v.removeAttribute('src');
+                v.load();
+            }
+            vm.videoLightboxUrl(null);
+            vm.videoLightboxTitle('');
         });
     }
 

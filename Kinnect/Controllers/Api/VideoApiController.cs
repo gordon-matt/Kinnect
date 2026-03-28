@@ -12,6 +12,7 @@ public class VideoApiController(
     IPersonService personService,
     IUserContextService userContextService,
     IFileStorageService fileStorageService,
+    IVideoProcessingService videoProcessingService,
     IBackgroundJobClient backgroundJobClient,
     IOptions<VideoProcessingOptions> videoOptions) : ControllerBase
 {
@@ -42,7 +43,25 @@ public class VideoApiController(
         }
 
         using var stream = file.OpenReadStream();
-        string filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Videos, file.FileName);
+        string filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Videos, file.FileName, userId);
+
+        string? thumbnailPath = null;
+        string fullVideoPath = fileStorageService.GetFullPath(filePath);
+        string? videoDir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(videoDir))
+        {
+            string thumbFile = Path.ChangeExtension(Path.GetFileName(filePath), ".jpg");
+            thumbnailPath = Path.Combine(videoDir, "thumbnails", thumbFile).Replace('\\', '/');
+            string thumbFullPath = fileStorageService.GetFullPath(thumbnailPath);
+            bool thumbOk = await videoProcessingService.TryGenerateThumbnailAsync(
+                fullVideoPath,
+                thumbFullPath,
+                HttpContext.RequestAborted);
+            if (!thumbOk)
+            {
+                thumbnailPath = null;
+            }
+        }
 
         var opts = videoOptions.Value;
         bool queueTranscode = opts.AutoShrinkVideos;
@@ -53,7 +72,7 @@ public class VideoApiController(
             title,
             description,
             filePath,
-            null,
+            thumbnailPath,
             null,
             personResult.Value.Id,
             tagList,

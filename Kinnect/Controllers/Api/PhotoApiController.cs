@@ -43,7 +43,7 @@ public class PhotoApiController(
         }
 
         using var stream = file.OpenReadStream();
-        var (filePath, thumbnailPath, exifLat, exifLng) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos);
+        var (filePath, thumbnailPath, exifLat, exifLng) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Photos, userId);
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 

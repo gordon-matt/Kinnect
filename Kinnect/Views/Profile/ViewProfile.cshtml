@@ -269,30 +269,34 @@
                         </div>
                     </div>
 
-                    <!-- Videos list -->
+                    <!-- Videos grid -->
                     <div data-bind="visible: visibleVideos().length > 0" class="mt-2">
                         <h6 class="text-muted small text-uppercase mb-2" data-bind="text: inMediaFolder() ? 'Videos' : 'Ungrouped Videos'"></h6>
-                        <div data-bind="foreach: visibleVideos">
-                            <div class="card mb-2">
-                                <!-- ko if: isProcessing -->
-                                <div class="card-body p-0 overflow-hidden">
-                                    <div class="position-relative bg-dark bg-opacity-10" style="min-height:140px;">
-                                        <div class="position-absolute top-50 start-50 translate-middle text-center px-3 w-100">
-                                            <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
-                                            <div class="fw-semibold small" data-bind="text: title"></div>
-                                            <div class="text-muted small mt-1">Processing… This video will be available soon.</div>
+                        <div class="row" data-bind="foreach: visibleVideos">
+                            <div class="col-md-3 mb-3">
+                                <div class="card">
+                                    <a href="#" class="d-block position-relative text-decoration-none" style="min-height:200px; background:#1a1a1a;"
+                                       data-bind="click: function() { if (!isProcessing) { $root.openVideoLightbox($data); } return false; }">
+                                        <!-- ko if: thumbnailPath -->
+                                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath }" class="card-img-top" alt="" style="height:200px; object-fit:cover; cursor:pointer;" role="button" />
+                                        <!-- /ko -->
+                                        <!-- ko ifnot: thumbnailPath -->
+                                        <div class="d-flex align-items-center justify-content-center text-white-50" style="height:200px; cursor:pointer;">
+                                            <i class="bi bi-film display-4"></i>
                                         </div>
+                                        <!-- /ko -->
+                                        <!-- ko if: isProcessing -->
+                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-dark bg-opacity-75 text-white px-2 text-center" style="cursor:wait;">
+                                            <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
+                                            <div class="small fw-semibold" data-bind="text: title"></div>
+                                            <div class="small text-white-50 mt-1">Processing…</div>
+                                        </div>
+                                        <!-- /ko -->
+                                    </a>
+                                    <div class="card-body p-2">
+                                        <small class="fw-semibold" data-bind="text: title"></small>
                                     </div>
                                 </div>
-                                <!-- /ko -->
-                                <!-- ko ifnot: isProcessing -->
-                                <div class="card-body d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="bi bi-film"></i>
-                                        <a data-bind="text: title, attr: { href: '/uploads/' + filePath }" target="_blank" class="ms-1"></a>
-                                    </div>
-                                </div>
-                                <!-- /ko -->
                             </div>
                         </div>
                     </div>
@@ -352,6 +356,22 @@
                         <div class="text-white-50 small mb-2" data-bind="visible: !lightboxCanEdit()">Read-only</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Video lightbox -->
+<div class="modal fade" id="videoLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-lg-down">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary py-2">
+                <span class="fw-semibold" data-bind="text: videoLightboxTitle"></span>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2 d-flex justify-content-center align-items-center bg-black">
+                <video id="videoLightboxPlayer" controls playsinline class="w-100 rounded" style="max-height:85vh;"
+                       data-bind="attr: { src: videoLightboxUrl }"></video>
             </div>
         </div>
     </div>

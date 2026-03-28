@@ -25,10 +25,11 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
     public string GetFullPath(string relativePath) => Path.Combine(BasePath, relativePath);
 
-    public async Task<string> SaveFileAsync(Stream fileStream, string category, string fileName)
+    public async Task<string> SaveFileAsync(Stream fileStream, string category, string fileName, string userId)
     {
+        string safeUserId = SanitizePathSegment(userId);
         string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(fileName)}";
-        string relativePath = Path.Combine(category, DateTime.UtcNow.ToString("yyyy/MM"), uniqueName);
+        string relativePath = Path.Combine(safeUserId, category, uniqueName);
         string fullPath = Path.Combine(BasePath, relativePath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
@@ -39,9 +40,10 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
         return relativePath.Replace('\\', '/');
     }
 
-    public async Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category)
+    public async Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category, string userId)
     {
         var opts = imageOptions.Value;
+        string safeUserId = SanitizePathSegment(userId);
 
         // Buffer the stream so we can read it multiple times
         using var buffer = new MemoryStream();
@@ -73,9 +75,8 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
         buffer.Position = 0;
 
-        string datePart = DateTime.UtcNow.ToString("yyyy/MM");
         string mainName = $"{Guid.NewGuid()}.jpg";
-        string mainRelative = Path.Combine(category, datePart, mainName).Replace('\\', '/');
+        string mainRelative = Path.Combine(safeUserId, category, mainName).Replace('\\', '/');
         string mainFull = Path.Combine(BasePath, mainRelative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(mainFull)!);
 
@@ -102,12 +103,86 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
         }));
 
         string thumbName = $"thumb_{Guid.NewGuid()}.jpg";
-        string thumbRelative = Path.Combine(Constants.FileStorage.Thumbnails, datePart, thumbName).Replace('\\', '/');
+        string thumbRelative = Path.Combine(safeUserId, category, "thumbnails", thumbName).Replace('\\', '/');
         string thumbFull = Path.Combine(BasePath, thumbRelative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(thumbFull)!);
 
         await thumbImage.SaveAsync(thumbFull, new JpegEncoder { Quality = opts.ThumbnailQuality });
 
         return (mainRelative, thumbRelative, latitude, longitude);
+    }
+
+    public async Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, string userId)
+    {
+        var opts = imageOptions.Value;
+        string safeUserId = SanitizePathSegment(userId);
+
+        using var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        double? latitude = null;
+        double? longitude = null;
+        try
+        {
+            buffer.Position = 0;
+            var directories = ImageMetadataReader.ReadMetadata(buffer);
+            var gps = directories.OfType<GpsDirectory>().FirstOrDefault();
+            if (gps != null)
+            {
+                var location = gps.GetGeoLocation();
+                if (location is { } loc)
+                {
+                    latitude = loc.Latitude;
+                    longitude = loc.Longitude;
+                }
+            }
+        }
+        catch
+        {
+            // best-effort
+        }
+
+        buffer.Position = 0;
+
+        string relative = Path.Combine(safeUserId, "_profile.jpg").Replace('\\', '/');
+        string full = Path.Combine(BasePath, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+
+        using var image = await Image.LoadAsync(buffer);
+
+        if (opts.AutoShrinkImages && (image.Width > opts.MaxWidth || image.Height > opts.MaxHeight))
+        {
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(opts.MaxWidth, opts.MaxHeight)
+            }));
+        }
+
+        await image.SaveAsync(full, new JpegEncoder { Quality = opts.Quality });
+
+        return (relative, latitude, longitude);
+    }
+
+    /// <summary>Replaces characters that are invalid in file path segments (e.g. Keycloak subjects with '|').</summary>
+    private static string SanitizePathSegment(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "user";
+        }
+
+        char[] invalid = Path.GetInvalidFileNameChars();
+        var chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (Array.IndexOf(invalid, chars[i]) >= 0 || chars[i] == '/' || chars[i] == '\\')
+            {
+                chars[i] = '_';
+            }
+        }
+
+        return new string(chars);
     }
 }

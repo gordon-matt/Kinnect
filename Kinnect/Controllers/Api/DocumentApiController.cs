@@ -72,7 +72,7 @@ public class DocumentApiController(
         {
             // Process images through the same resize pipeline as photos
             using var stream = file.OpenReadStream();
-            var (imagePath, _, _, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Documents);
+            var (imagePath, _, _, _) = await fileStorageService.SaveImageAsync(stream, Constants.FileStorage.Documents, userId);
             filePath = imagePath;
             contentType = "image/jpeg";
 
@@ -83,7 +83,7 @@ public class DocumentApiController(
         else
         {
             using var stream = file.OpenReadStream();
-            filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Documents, file.FileName);
+            filePath = await fileStorageService.SaveFileAsync(stream, Constants.FileStorage.Documents, file.FileName, userId);
         }
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();

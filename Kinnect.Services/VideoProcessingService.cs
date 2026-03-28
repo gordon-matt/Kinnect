@@ -37,4 +37,64 @@ public class VideoProcessingService(
 
         await conversion.Start();
     }
+
+    public async Task<bool> TryGenerateThumbnailAsync(string videoFilePath, string outputJpegPath, CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(videoFilePath))
+        {
+            return false;
+        }
+
+        string tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.jpg");
+
+        try
+        {
+            var conversion = await FFmpeg.Conversions.FromSnippet.Snapshot(
+                videoFilePath, tempPath, TimeSpan.FromSeconds(3));
+
+            conversion.SetOverwriteOutput(true);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await conversion.Start();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!File.Exists(tempPath))
+            {
+                return false;
+            }
+
+            byte[] bytes = await File.ReadAllBytesAsync(tempPath, cancellationToken);
+            string? dir = Path.GetDirectoryName(outputJpegPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            await File.WriteAllBytesAsync(outputJpegPath, bytes, cancellationToken);
+            return File.Exists(outputJpegPath);
+        }
+        catch (Exception ex)
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(ex, "Failed to generate thumbnail from video {Path}", videoFilePath);
+            }
+
+            return false;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+            catch
+            {
+                // ignore temp cleanup failures
+            }
+        }
+    }
 }

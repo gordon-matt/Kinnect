@@ -8,12 +8,17 @@ public interface IFileStorageService
 
     string GetFullPath(string relativePath);
 
-    Task<string> SaveFileAsync(Stream fileStream, string category, string fileName);
+    /// <summary>Saves a file under <c>{userId}/{category}/{uniqueName}</c>.</summary>
+    Task<string> SaveFileAsync(Stream fileStream, string category, string fileName, string userId);
 
     /// <summary>
-    /// Saves an image, optionally shrinking it and always generating a thumbnail.
-    /// Also extracts GPS coordinates from EXIF metadata if present.
-    /// Returns (ImagePath, ThumbnailPath, Latitude, Longitude).
+    /// Saves an image under <c>{userId}/{category}/</c>, optionally shrinking it and generating a thumbnail under
+    /// <c>{userId}/{category}/thumbnails/</c>. Also extracts GPS coordinates from EXIF metadata if present.
     /// </summary>
-    Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category);
+    Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category, string userId);
+
+    /// <summary>
+    /// Saves a single profile image as <c>{userId}/_profile.jpg</c> (processed JPEG, same resize rules as other images).
+    /// </summary>
+    Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, string userId);
 }

@@ -34,9 +34,9 @@ public class FileStorageServiceTests : IDisposable
         var sut = new FileStorageService(config, Options.Create(new ImageProcessingOptions()));
 
         await using var stream = new MemoryStream("hello"u8.ToArray());
-        string relative = await sut.SaveFileAsync(stream, "docs", "note.txt");
+        string relative = await sut.SaveFileAsync(stream, "docs", "note.txt", "user-abc");
 
-        Assert.Contains("docs/", relative, StringComparison.Ordinal);
+        Assert.Contains("user-abc/docs/", relative, StringComparison.Ordinal);
         string full = sut.GetFullPath(relative);
         Assert.True(File.Exists(full));
         Assert.Equal("hello", await File.ReadAllTextAsync(full));
