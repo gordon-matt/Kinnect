@@ -1,9 +1,83 @@
+/* Fill viewport below <header> via flex (no fixed top / no JS). */
+body.family-tree-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+}
+
+body.family-tree-page > header {
+    flex-shrink: 0;
+}
+
+body.family-tree-page > div {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body.family-tree-page > div > main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.family-tree-page-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.family-tree-toolbar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0.5rem max(0.75rem, env(safe-area-inset-right, 0px)) 0.25rem
+        max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
 #FamilyChart {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    position: relative;
     background: #f8f9fa;
     /* override library dark-theme defaults */
     --background-color: #ffffff;
     --text-color: #212529;
     overflow: hidden;
+}
+
+.family-tree-toolbar .btn-export-gedcom {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    font-weight: 500;
+    line-height: 1.25;
+    border-radius: 0.5rem;
+    color: #2c3e50;
+    background-color: rgba(255, 255, 255, 0.96);
+    border-color: rgba(44, 62, 80, 0.18);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.family-tree-toolbar .btn-export-gedcom:hover {
+    color: #1a252f;
+    background-color: #fff;
+    border-color: rgba(44, 62, 80, 0.28);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.family-tree-toolbar .btn-export-gedcom:focus-visible {
+    box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.2);
 }
 
 /* SVG connector lines (family-chart renders links as <path class="link">) */

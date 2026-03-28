@@ -6,13 +6,17 @@
     int? myPersonId = ViewData["MyPersonId"] as int?;
 }
 
-<div id="FamilyChart" class="f3" style="width:100%; height:calc(100vh - 56px); position:relative;"></div>
-
-<!-- GEDCOM toolbar (top-right corner) -->
-<div style="position:fixed; top:66px; right:16px; z-index:1000; display:flex; gap:6px;">
-    <a href="/api/gedcom/export" class="btn btn-sm btn-outline-secondary" title="Export GEDCOM" download>
-        <i class="bi bi-download"></i>
-    </a>
+<div class="family-tree-page-frame">
+    <div class="family-tree-toolbar" role="toolbar" aria-label="Family tree actions">
+        <a href="/api/gedcom/export"
+           class="btn btn-sm btn-outline-secondary btn-export-gedcom"
+           title="Download your tree as a GEDCOM file"
+           download>
+            <i class="bi bi-download" aria-hidden="true"></i>
+            <span>Export</span>
+        </a>
+    </div>
+    <div id="FamilyChart" class="f3"></div>
 </div>
 
 @section Styles {
