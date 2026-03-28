@@ -2,6 +2,12 @@ namespace Kinnect.Services;
 
 public class VideoProcessingOptions
 {
+    /// <summary>
+    /// Directory containing <c>ffmpeg</c> and <c>ffprobe</c> (same folder). Empty = probe <c>/usr/bin</c>, Windows defaults,
+    /// then download under the app content root (<c>ffmpeg-tools</c>) via <see cref="FfmpegBootstrapper"/>.
+    /// </summary>
+    public string? ToolsPath { get; set; }
+
     /// <summary>When true, videos exceeding MaxWidth/MaxHeight are compressed and resized.</summary>
     public bool AutoShrinkVideos { get; set; } = true;
 

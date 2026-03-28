@@ -20,6 +20,7 @@ services:
       DocumentProcessing__MaxFileSizeBytes: "5242880"
       DocumentProcessing__AutoShrinkDocuments: "true"
       VideoProcessing__AutoShrinkVideos: "true"
+      VideoProcessing__ToolsPath: /usr/bin
       VideoProcessing__MaxWidth: "1280"
       VideoProcessing__MaxHeight: "720"
       VideoProcessing__Crf: "28"

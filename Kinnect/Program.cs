@@ -7,6 +7,7 @@ using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Sejil;
 using Serilog;
 using Serilog.Sinks.PostgreSQL.ColumnWriters;
@@ -173,6 +174,11 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 try
 {
+    await FfmpegBootstrapper.EnsureConfiguredAsync(
+        services.GetRequiredService<IOptions<VideoProcessingOptions>>(),
+        services.GetRequiredService<IHostEnvironment>(),
+        services.GetRequiredService<ILoggerFactory>().CreateLogger("Ffmpeg"));
+
     var context = services.GetRequiredService<ApplicationDbContext>();
     await context.Database.MigrateAsync();
 
