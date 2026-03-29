@@ -30,9 +30,12 @@
         <div class="chat-sidebar-header">
             <span class="fw-semibold">Rooms</span>
             <div class="d-flex gap-2 align-items-center">
-                <a role="button" title="New room" data-bs-toggle="modal" data-bs-target="#create-room-modal">
-                    <i class="bi bi-plus-circle"></i>
-                </a>
+                @if (User.IsInRole(Constants.Roles.Administrator) || User.IsInRole(Constants.Roles.Editor))
+                {
+                    <a role="button" title="New room" data-bs-toggle="modal" data-bs-target="#create-room-modal">
+                        <i class="bi bi-plus-circle"></i>
+                    </a>
+                }
                 <a role="button" title="Toggle users" id="expand-users-list">
                     <i class="bi bi-people"></i>
                 </a>
@@ -198,24 +201,27 @@
     </div>
 </div>
 
-<!-- Create room modal -->
-<div class="modal fade" id="create-room-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title">Create Room</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="form-control form-control-sm" id="new-room-name" maxlength="100" placeholder="Room name&hellip;" />
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-bind="click: createRoom">Create</button>
+@if (User.IsInRole(Constants.Roles.Administrator) || User.IsInRole(Constants.Roles.Editor))
+{
+    <!-- Create room modal -->
+    <div class="modal fade" id="create-room-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">Create Room</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control form-control-sm" id="new-room-name" maxlength="100" placeholder="Room name&hellip;" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-bind="click: createRoom">Create</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
 
 <!-- Rename room modal -->
 <div class="modal fade" id="rename-room-modal" tabindex="-1" aria-hidden="true">

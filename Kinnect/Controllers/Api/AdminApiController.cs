@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Security.Claims;
 using Kinnect.Infrastructure;
 using Kinnect.Models.Requests.Admin;
 using Kinnect.Services.Abstractions;
@@ -46,6 +47,7 @@ public class AdminApiController(
                 && user.LockoutEnd > DateTimeOffset.UtcNow;
 
             personsByUserId.TryGetValue(user.Id, out var person);
+            var roles = await userManager.GetRolesAsync(user);
 
             result.Add(new
             {
@@ -54,7 +56,8 @@ public class AdminApiController(
                 userName = user.UserName,
                 isPendingApproval = isLocked,
                 personId = person?.Id,
-                personName = person?.FullName
+                personName = person?.FullName,
+                role = roles.FirstOrDefault() ?? string.Empty
             });
         }
 
@@ -100,6 +103,40 @@ public class AdminApiController(
         await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
 
         return Ok(new { message = "User locked successfully." });
+    }
+
+    [HttpPut("users/{userId}/role")]
+    public async Task<IActionResult> ChangeUserRole(string userId, [FromBody] ChangeUserRoleRequest request)
+    {
+        var userManager = GetUserManager();
+        if (userManager is null)
+        {
+            return BadRequest("User management is only available when using ASP.NET Identity.");
+        }
+
+        string? currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == currentUserId)
+        {
+            return BadRequest("You cannot change your own role.");
+        }
+
+        string[] validRoles = [Constants.Roles.Administrator, Constants.Roles.Editor, Constants.Roles.User];
+        if (!validRoles.Contains(request.Role))
+        {
+            return BadRequest($"Invalid role. Must be one of: {string.Join(", ", validRoles)}.");
+        }
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return NotFound("User not found.");
+        }
+
+        var currentRoles = await userManager.GetRolesAsync(user);
+        await userManager.RemoveFromRolesAsync(user, currentRoles);
+        await userManager.AddToRoleAsync(user, request.Role);
+
+        return Ok(new { role = request.Role });
     }
 
     [HttpGet("person-backups")]

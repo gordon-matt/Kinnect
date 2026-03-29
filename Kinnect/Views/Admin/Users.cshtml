@@ -1,5 +1,6 @@
 @{
     ViewData["Title"] = "User Management";
+    var currentUserId = ViewData["CurrentUserId"]?.ToString() ?? string.Empty;
 }
 
 <div class="row">
@@ -27,19 +28,38 @@
                         <tr>
                             <th>Email</th>
                             <th>Status</th>
+                            <th>Role</th>
                             <th>Linked Person</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody data-bind="foreach: filteredUsers">
                         <tr>
-                            <td data-bind="text: email"></td>
+                            <td>
+                                <span data-bind="text: email"></span>
+                                <!-- ko if: isCurrentUser -->
+                                <span class="badge bg-secondary ms-1">You</span>
+                                <!-- /ko -->
+                            </td>
                             <td>
                                 <!-- ko if: isPendingApproval -->
                                 <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Approval</span>
                                 <!-- /ko -->
                                 <!-- ko ifnot: isPendingApproval -->
                                 <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                <!-- /ko -->
+                            </td>
+                            <td>
+                                <!-- ko if: isCurrentUser -->
+                                <span class="badge rounded-pill text-bg-primary" data-bind="text: role()"></span>
+                                <!-- /ko -->
+                                <!-- ko ifnot: isCurrentUser -->
+                                <select class="form-select form-select-sm" style="width:auto;"
+                                        data-bind="value: role, event: { change: function (user, evt) { $root.changeRole(user, evt); } }">
+                                    <option value="Administrator">Administrator</option>
+                                    <option value="Editor">Editor</option>
+                                    <option value="User">User</option>
+                                </select>
                                 <!-- /ko -->
                             </td>
                             <td>
@@ -57,7 +77,7 @@
                                 </button>
                                 <!-- /ko -->
                                 <!-- ko ifnot: isPendingApproval -->
-                                <button class="btn btn-sm btn-outline-warning" data-bind="click: $root.lockUser">
+                                <button class="btn btn-sm btn-outline-warning" data-bind="click: $root.lockUser, disable: isCurrentUser">
                                     <i class="bi bi-lock"></i> Lock
                                 </button>
                                 <!-- /ko -->
@@ -77,6 +97,8 @@
 @section Scripts {
     <script>
         (function () {
+            const currentUserId = '@currentUserId';
+
             function AdminUsersViewModel() {
                 this.loading = ko.observable(true);
                 this.users = ko.observableArray([]);
@@ -97,7 +119,11 @@
                         const res = await fetch('/api/admin/users');
                         if (res.ok) {
                             const data = await res.json();
-                            this.users(data);
+                            this.users(data.map(u => ({
+                                ...u,
+                                role: ko.observable(u.role),
+                                isCurrentUser: u.userId === currentUserId
+                            })));
                         }
                     } finally {
                         this.loading(false);
@@ -132,6 +158,30 @@
                         }
                     } catch {
                         toast.error('Error locking user.');
+                    }
+                };
+
+                this.changeRole = async (user, evt) => {
+                    // Read from the DOM: Knockout's `change` can run before `value` updates the observable,
+                    // so user.role() would still be the previous selection (often wrong).
+                    const newRole = evt?.target?.value ?? user.role();
+                    try {
+                        const res = await fetch(`/api/admin/users/${user.userId}/role`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ role: newRole })
+                        });
+                        if (res.ok) {
+                            user.role(newRole);
+                            toast.success(`${user.email} is now ${newRole}.`);
+                        } else {
+                            const err = await res.json().catch(() => null);
+                            toast.error(err?.title || err?.message || 'Could not update role.');
+                            await this.load();
+                        }
+                    } catch {
+                        toast.error('Error updating role.');
+                        await this.load();
                     }
                 };
 
