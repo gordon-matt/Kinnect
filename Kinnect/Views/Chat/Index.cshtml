@@ -101,7 +101,7 @@
                                 <span class="fw-semibold small" data-bind="text: fromFullName"></span>
                                 <span class="text-muted chat-timestamp ms-2" data-bind="text: timestampDisplay"></span>
                             </div>
-                            <div class="chat-message-content" data-bind="html: content"></div>
+                            <div class="chat-message-content" data-bind="text: content"></div>
                         </div>
                         <div class="chat-message-actions" data-bind="visible: isMine()">
                             <button type="button" class="btn btn-link btn-sm p-0 text-muted"
@@ -114,9 +114,10 @@
                 </ul>
             </div>
             <div class="chat-input-area">
+                @* Use 'input' not afterkeydown — KO updates after the browser applies the character (avoids one-char lag, esp. Firefox). *@
                 <input id="chat-message-input" type="text" class="form-control" maxlength="500"
                        placeholder="Type a message&hellip;"
-                       data-bind="value: messageText, valueUpdate: 'afterkeydown', event: { keypress: onEnterKey }, disable: !canPostToActiveRoom()" />
+                       data-bind="value: messageText, valueUpdate: 'input', event: { keydown: onEnterKey }, disable: !canPostToActiveRoom()" />
                 <button class="btn btn-primary ms-2 flex-shrink-0" type="button" data-bind="click: sendRoomMessage, disable: !canPostToActiveRoom()">
                     <i class="bi bi-send"></i>
                 </button>
@@ -139,7 +140,7 @@
                                 <span class="fw-semibold small" data-bind="text: fromFullName"></span>
                                 <span class="text-muted chat-timestamp ms-2" data-bind="text: timestampDisplay"></span>
                             </div>
-                            <div class="chat-message-content" data-bind="html: content"></div>
+                            <div class="chat-message-content" data-bind="text: content"></div>
                         </div>
                     </li>
                 </ul>
@@ -147,7 +148,7 @@
             <div class="chat-input-area">
                 <input id="private-message-input" type="text" class="form-control" maxlength="500"
                        placeholder="Type a message&hellip;"
-                       data-bind="value: privateMessageText, valueUpdate: 'afterkeydown', event: { keypress: onPrivateEnterKey }" />
+                       data-bind="value: privateMessageText, valueUpdate: 'input', event: { keydown: onPrivateEnterKey }" />
                 <button class="btn btn-primary ms-2 flex-shrink-0" type="button" data-bind="click: sendPrivateMessage">
                     <i class="bi bi-send"></i>
                 </button>

@@ -177,8 +177,10 @@ class ChatViewModel {
     };
 
     onEnterKey = (data, event) => {
-        if (event.key === 'Enter') this.sendRoomMessage();
-        return true;
+        if (event.key !== 'Enter') return true;
+        event.preventDefault();
+        this.sendRoomMessage();
+        return false;
     };
 
     deleteMessage = async () => {
@@ -227,8 +229,10 @@ class ChatViewModel {
     };
 
     onPrivateEnterKey = (data, event) => {
-        if (event.key === 'Enter') this.sendPrivateMessage();
-        return true;
+        if (event.key !== 'Enter') return true;
+        event.preventDefault();
+        this.sendPrivateMessage();
+        return false;
     };
 
     startPrivateChatWith = (userId, fullName) => {
@@ -241,9 +245,12 @@ class ChatViewModel {
     };
 
     // Called from the online users panel dropdown
-    startPrivateChatWithUser = (user) => {
+    startPrivateChatWithUser = (user, event) => {
+        event?.preventDefault();
+        event?.stopPropagation();
         this.selectedOnlineUser(null);
         this.startPrivateChatWith(user.userId(), user.fullName());
+        return false;
     };
 
     /** Primary click: programmatic nav so Bootstrap dropdown handlers do not swallow the default. Keep href for middle-click / modified clicks. */
@@ -264,6 +271,9 @@ class ChatViewModel {
     // Toggle the action menu for an online user
     selectOnlineUser = (user, event) => {
         event?.stopPropagation();
+        // Clicks on the menu (e.g. Send Message) bubble here; ignore so we do not re-select after closing.
+        if (event?.target?.closest?.('.chat-user-menu'))
+            return;
         this.selectedOnlineUser(this.selectedOnlineUser() === user ? null : user);
     };
 
