@@ -32,6 +32,8 @@ class ViewProfileViewModel {
         this.mediaFolders = ko.observableArray([]);
         this.currentMediaFolderId = ko.observable(null);
         this.currentUserPersonId = ko.observable(null);
+        /** Display name from the signed-in user's linked person record (for invite signature). */
+        this.currentUserDisplayName = ko.observable('');
         this.events = ko.observableArray([]);
         this.spouses = ko.observableArray([]);
         this.inMediaFolder = ko.computed(() => this.currentMediaFolderId() != null);
@@ -149,7 +151,9 @@ class ViewProfileViewModel {
     };
 
     prepareInviteDefaults = () => {
-        const name = this.fullName() || 'someone';
+        const name = this.fullName() || 'there';
+        const inviter = this.currentUserDisplayName().trim();
+        const signature = inviter ? `\n\n${inviter}` : '';
         this.inviteEmail('');
         this.inviteSubject(`You're invited to join Kinnect`);
         this.inviteBody(
@@ -157,7 +161,7 @@ class ViewProfileViewModel {
             `You've been invited to join our family tree on Kinnect. ` +
             `Your profile has already been created — just sign up and claim it!\n\n` +
             `Visit: ${window.location.origin}\n\n` +
-            `See you there!`
+            `See you there!${signature}`
         );
     };
 
@@ -224,16 +228,20 @@ class ViewProfileViewModel {
                 if (meRes.ok) {
                     const meData = await meRes.json();
                     const me = meData.value || meData;
+                    const inviterName = (me?.fullName || `${me?.givenNames ?? ''} ${me?.familyName ?? ''}`).trim();
+                    this.currentUserDisplayName(inviterName);
                     this.currentUserPersonId(me?.id ?? null);
                     const isOwn = me?.id != null && me.id === this.personId;
                     this.canEditOwn(isOwn);
                     this.canEdit(this.isAdminUser || isOwn || (this.isEditorOrAbove && !person.userId));
                 } else {
+                    this.currentUserDisplayName('');
                     this.currentUserPersonId(null);
                     this.canEditOwn(false);
                     this.canEdit(this.isAdminUser || (this.isEditorOrAbove && !person.userId));
                 }
             } catch {
+                this.currentUserDisplayName('');
                 this.currentUserPersonId(null);
                 this.canEditOwn(false);
                 this.canEdit(this.isAdminUser || (this.isEditorOrAbove && !person.userId));
