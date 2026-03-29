@@ -3,7 +3,6 @@ using Autofac.Extensions.DependencyInjection;
 using Hangfire;
 using Kinnect.Data;
 using Kinnect.Infrastructure;
-using Kinnect.Services;
 using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
