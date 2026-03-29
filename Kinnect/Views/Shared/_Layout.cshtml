@@ -60,8 +60,13 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Chat" asp-action="Index">
+                                <a class="nav-link position-relative" asp-controller="Chat" asp-action="Index">
                                     <i class="bi bi-chat-dots"></i> Messages
+                                    <span id="msg-notification-badge"
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                          style="display:none;font-size:.6rem;min-width:1.2em;">
+                                        <span id="msg-notification-count">0</span>
+                                    </span>
                                 </a>
                             </li>
                             @if (User.IsInRole("Administrator"))
@@ -170,6 +175,47 @@
             }
         });
     </script>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
+        <script>
+            (function () {
+                let _unreadCount = 0;
+
+                window.clearMessageBadge = function () {
+                    _unreadCount = 0;
+                    const badge = document.getElementById('msg-notification-badge');
+                    if (badge) badge.style.display = 'none';
+                };
+
+                function incrementBadge() {
+                    _unreadCount++;
+                    const badge = document.getElementById('msg-notification-badge');
+                    const countEl = document.getElementById('msg-notification-count');
+                    if (badge && countEl) {
+                        countEl.textContent = _unreadCount;
+                        badge.style.display = '';
+                    }
+                }
+
+                const notifHub = new signalR.HubConnectionBuilder()
+                    .withUrl('/notificationHub')
+                    .withAutomaticReconnect()
+                    .build();
+
+                notifHub.on('newPrivateMessage', function (data) {
+                    // Suppress badge when already viewing the chat page
+                    if (window.location.pathname.toLowerCase().startsWith('/chat')) return;
+                    incrementBadge();
+                });
+
+                notifHub.start().catch(function (err) {
+                    console.warn('Notification hub connection failed:', err);
+                });
+            })();
+        </script>
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

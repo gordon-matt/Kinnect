@@ -248,6 +248,39 @@ body.chat-page {
     background: #18bc9c;
 }
 
+/* ── Online user rows ─────────────────────────────────────────────────── */
+
+.chat-user-row {
+    cursor: pointer;
+    border-radius: .25rem;
+    padding-left: .25rem;
+    padding-right: .25rem;
+    transition: background .15s;
+}
+
+.chat-user-row:hover {
+    background: rgba(0,0,0,.06);
+}
+
+.chat-user-row-dots {
+    opacity: 0;
+    font-size: .7rem;
+    transition: opacity .15s;
+    flex-shrink: 0;
+}
+
+.chat-user-row:hover .chat-user-row-dots {
+    opacity: 1;
+}
+
+.chat-user-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 1050;
+    min-width: 160px;
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {

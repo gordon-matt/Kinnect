@@ -161,9 +161,27 @@
             <span class="fw-semibold">Online (<span data-bind="text: onlineUsers().length"></span>)</span>
         </div>
         <ul class="list-unstyled px-2 mb-0" data-bind="foreach: onlineUsers">
-            <li class="py-1 d-flex align-items-center gap-2">
+            <li class="py-1 d-flex align-items-center gap-2 chat-user-row position-relative"
+                data-bind="click: $root.selectOnlineUser">
                 <div class="chat-avatar text-uppercase flex-shrink-0" data-bind="text: fullName()[0]"></div>
-                <span class="small text-truncate" data-bind="text: fullName"></span>
+                <span class="small text-truncate flex-grow-1" data-bind="text: fullName"></span>
+                <i class="bi bi-three-dots-vertical chat-user-row-dots text-muted"></i>
+
+                <!-- ko if: $root.selectedOnlineUser() === $data -->
+                <div class="chat-user-menu dropdown-menu show shadow-sm"
+                     data-bind="click: function(d,e){ e.stopPropagation(); }">
+                    <!-- ko if: personId() -->
+                    <a class="dropdown-item small py-1"
+                       data-bind="attr: { href: '/Profile/View/' + personId() }">
+                        <i class="bi bi-person me-1"></i>View Profile
+                    </a>
+                    <!-- /ko -->
+                    <button class="dropdown-item small py-1" type="button"
+                            data-bind="click: $root.startPrivateChatWithUser">
+                        <i class="bi bi-chat-dots me-1"></i>Send Message
+                    </button>
+                </div>
+                <!-- /ko -->
             </li>
         </ul>
     </div>
@@ -251,6 +269,5 @@
         const chatInitialPrivateUserId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserId));
         const chatInitialPrivateUserName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserName));
     </script>
-    <script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
     <script src="~/js/chat.js" asp-append-version="true"></script>
 }

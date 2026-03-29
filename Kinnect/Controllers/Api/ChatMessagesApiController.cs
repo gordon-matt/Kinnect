@@ -12,6 +12,16 @@ public class ChatMessagesApiController(
     IHubContext<ChatHub> hubContext) : ControllerBase
 {
     [TranslateResultToActionResult]
+    [HttpGet("private-conversations")]
+    public async Task<Result<IEnumerable<ChatPrivateConversationTargetDto>>> GetPrivateConversations()
+    {
+        string? currentUserId = userContextService.GetCurrentUserId();
+        return currentUserId is null
+            ? (Result<IEnumerable<ChatPrivateConversationTargetDto>>)Result.Unauthorized()
+            : await chatService.GetPrivateConversationPartnersAsync(currentUserId);
+    }
+
+    [TranslateResultToActionResult]
     [HttpGet("private/{otherUserId}")]
     public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50)
     {

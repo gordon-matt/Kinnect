@@ -186,16 +186,54 @@ public partial class ChatService(
         var userInfo = await userInfoService.GetUserInfoAsync([currentUserId]);
         string userName = userInfo.GetValueOrDefault(currentUserId)?.Username ?? fallbackUserName;
 
-        var displayNames = await GetDisplayNamesAsync([currentUserId]);
-        string fullName = displayNames.GetValueOrDefault(currentUserId) ?? userName;
+        var people = await personRepository.FindAsync(new SearchOptions<Person>
+        {
+            Query = p => p.UserId == currentUserId
+        });
+        var person = people.FirstOrDefault();
+        string fullName = person is not null
+            ? $"{person.GivenNames} {person.FamilyName}".Trim()
+            : userName;
 
         return Result.Success(new ChatUserDto
         {
             UserId = currentUserId,
             UserName = userName,
             FullName = fullName,
+            PersonId = person?.Id,
             CurrentRoom = string.Empty
         });
+    }
+
+    public async Task<Result<IEnumerable<ChatPrivateConversationTargetDto>>> GetPrivateConversationPartnersAsync(string currentUserId)
+    {
+        var messages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
+        {
+            Query = m => m.ToUserId != null && (m.FromUserId == currentUserId || m.ToUserId == currentUserId)
+        });
+
+        var partnerLatest = messages
+            .GroupBy(m => m.FromUserId == currentUserId ? m.ToUserId! : m.FromUserId)
+            .Select(g => new { PartnerId = g.Key, Latest = g.Max(m => m.Timestamp) })
+            .OrderByDescending(x => x.Latest)
+            .ToList();
+
+        if (partnerLatest.Count == 0)
+            return Result.Success(Enumerable.Empty<ChatPrivateConversationTargetDto>());
+
+        var partnerIds = partnerLatest.Select(x => x.PartnerId).ToList();
+        var userInfo = await userInfoService.GetUserInfoAsync(partnerIds);
+        var displayNames = await GetDisplayNamesAsync(partnerIds);
+
+        var dtos = partnerLatest.Select(x => new ChatPrivateConversationTargetDto
+        {
+            UserId = x.PartnerId,
+            DisplayName = displayNames.GetValueOrDefault(x.PartnerId)
+                ?? userInfo.GetValueOrDefault(x.PartnerId)?.Username
+                ?? x.PartnerId
+        });
+
+        return Result.Success(dtos);
     }
 
     public async Task<Result<ChatPrivateConversationTargetDto>> GetPrivateConversationTargetAsync(string userId)

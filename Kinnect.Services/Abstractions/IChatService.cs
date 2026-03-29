@@ -16,6 +16,8 @@ public interface IChatService
 
     Task<Result<ChatPrivateConversationTargetDto>> GetPrivateConversationTargetAsync(string userId);
 
+    Task<Result<IEnumerable<ChatPrivateConversationTargetDto>>> GetPrivateConversationPartnersAsync(string currentUserId);
+
     Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessagesAsync(string currentUserId, string otherUserId, int take);
 
     Task<Result<ChatRoomDto>> GetRoomByIdAsync(int roomId);

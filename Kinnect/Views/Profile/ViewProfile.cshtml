@@ -186,9 +186,9 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
                                                 <strong data-bind="text: eventTypeLabel || eventType"></strong>
-                                                <!-- ko if: _source === 'spouse' -->
+                                                @* <!-- ko if: _source === 'spouse' -->
                                                 <span class="badge bg-secondary ms-1" style="font-size:.7rem;">via spouse</span>
-                                                <!-- /ko -->
+                                                <!-- /ko --> *@
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-muted small" data-bind="text: $data.dateDisplay != null && $data.dateDisplay !== '' ? $data.dateDisplay : ($data.year != null ? $data.year : '')"></span>

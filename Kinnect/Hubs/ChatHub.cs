@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.SignalR;
 namespace Kinnect.Hubs;
 
 [Authorize]
-public class ChatHub(IChatService chatService, IUserContextService userContextService) : Hub
+public class ChatHub(
+    IChatService chatService,
+    IUserContextService userContextService,
+    IHubContext<NotificationHub> notificationHub) : Hub
 {
-    // In-memory presence tracking keyed by ConnectionId
     private static readonly Dictionary<string, ConnectedUser> Connections = new();
-
     private static readonly Lock ConnectionsLock = new();
 
     private string CurrentUserId =>
@@ -15,17 +16,6 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
         ?? Context.User?.FindFirst("sub")?.Value
         ?? throw new InvalidOperationException("User is not authenticated.");
-
-    public IEnumerable<object> GetUsers(string roomName)
-    {
-        lock (ConnectionsLock)
-        {
-            return Connections.Values
-                .Where(c => c.CurrentRoom == roomName)
-                .Select(BuildUserVm)
-                .ToList();
-        }
-    }
 
     public async Task Join(string roomName)
     {
@@ -38,10 +28,7 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         if (conn is null) return;
 
         if (!string.IsNullOrEmpty(conn.CurrentRoom))
-        {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, conn.CurrentRoom);
-            await Clients.OthersInGroup(conn.CurrentRoom).SendAsync("removeUser", BuildUserVm(conn));
-        }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
 
@@ -49,8 +36,6 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         {
             conn.CurrentRoom = roomName;
         }
-
-        await Clients.OthersInGroup(roomName).SendAsync("addUser", BuildUserVm(conn));
     }
 
     public async Task Leave(string roomName)
@@ -72,15 +57,24 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
             FullName = profileResult.IsSuccess && profileResult.Value is not null
                 ? profileResult.Value.FullName
                 : userName,
+            PersonId = profileResult.IsSuccess ? profileResult.Value?.PersonId : null,
             IsAdmin = isAdmin,
             ConnectionId = Context.ConnectionId,
             CurrentRoom = string.Empty
         };
 
+        IEnumerable<object> existingUsers;
         lock (ConnectionsLock)
         {
+            existingUsers = Connections.Values.Select(BuildUserVm).ToList();
             Connections[Context.ConnectionId] = conn;
         }
+
+        // Send current online users to the new connection
+        await Clients.Caller.SendAsync("setOnlineUsers", existingUsers);
+
+        // Notify all other connections of the new user
+        await Clients.Others.SendAsync("addUser", BuildUserVm(conn));
 
         await Clients.Caller.SendAsync("getProfileInfo", BuildUserVm(conn));
         await base.OnConnectedAsync();
@@ -95,8 +89,8 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
             Connections.Remove(Context.ConnectionId);
         }
 
-        if (conn is not null && !string.IsNullOrEmpty(conn.CurrentRoom))
-            await Clients.OthersInGroup(conn.CurrentRoom).SendAsync("removeUser", BuildUserVm(conn));
+        if (conn is not null)
+            await Clients.Others.SendAsync("removeUser", BuildUserVm(conn));
 
         await base.OnDisconnectedAsync(exception);
     }
@@ -107,12 +101,15 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         if (!result.IsSuccess || result.Value is null) return;
         var vm = result.Value;
 
-        // Deliver to recipient's active connection and back to sender
-        string? recipientConnectionId = GetConnectionId(toUserId);
-        if (recipientConnectionId is not null)
-            await Clients.Client(recipientConnectionId).SendAsync("newPrivateMessage", vm);
+        // Deliver to all of the recipient's active chat connections
+        await Clients.User(toUserId).SendAsync("newPrivateMessage", vm);
 
+        // Echo back to sender
         await Clients.Caller.SendAsync("newPrivateMessage", vm);
+
+        // Also push a lightweight notification to the recipient through the notification hub
+        // so they receive it even when not on the chat page
+        await notificationHub.Clients.User(toUserId).SendAsync("newPrivateMessage", vm);
     }
 
     private static object BuildUserVm(ConnectedUser c) => new
@@ -121,16 +118,9 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         userName = c.UserName,
         fullName = c.FullName,
         isAdmin = c.IsAdmin,
-        currentRoom = c.CurrentRoom
+        currentRoom = c.CurrentRoom,
+        personId = c.PersonId
     };
-
-    private static string? GetConnectionId(string userId)
-    {
-        lock (ConnectionsLock)
-        {
-            return Connections.FirstOrDefault(kv => kv.Value.UserId == userId).Key;
-        }
-    }
 
     private sealed class ConnectedUser
     {
@@ -140,5 +130,6 @@ public class ChatHub(IChatService chatService, IUserContextService userContextSe
         public bool IsAdmin { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
+        public int? PersonId { get; set; }
     }
 }

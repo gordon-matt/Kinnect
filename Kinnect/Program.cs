@@ -164,6 +164,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHub<Kinnect.Hubs.ChatHub>("/chatHub");
+app.MapHub<Kinnect.Hubs.NotificationHub>("/notificationHub");
 
 app.MapControllerRoute(
     name: "areas",

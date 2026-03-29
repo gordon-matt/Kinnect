@@ -41,6 +41,7 @@ class OnlineUserRow {
         this.userName = ko.observable(data.userName || '');
         this.fullName = ko.observable(data.fullName || data.userName || '?');
         this.currentRoom = ko.observable(data.currentRoom || '');
+        this.personId = ko.observable(data.personId || null);
     }
 }
 
@@ -83,6 +84,8 @@ class ChatViewModel {
 
         this.messageText = ko.observable('');
         this.privateMessageText = ko.observable('');
+
+        this.selectedOnlineUser = ko.observable(null);
 
         this.isRoomAdmin = ko.pureComputed(() => {
             const room = this.chatRooms().find(r => r.id() === this.activeRoomId());
@@ -237,11 +240,35 @@ class ChatViewModel {
         this.openPrivateChat(conv);
     };
 
-    loadInitialRooms = async (initialPrivateUserId, initialPrivateUserName) => {
+    // Called from the online users panel dropdown
+    startPrivateChatWithUser = (user) => {
+        this.selectedOnlineUser(null);
+        this.startPrivateChatWith(user.userId(), user.fullName());
+    };
+
+    // Toggle the action menu for an online user
+    selectOnlineUser = (user, event) => {
+        event?.stopPropagation();
+        this.selectedOnlineUser(this.selectedOnlineUser() === user ? null : user);
+    };
+
+    loadInitialData = async (initialPrivateUserId, initialPrivateUserName) => {
         try {
-            const res = await fetch('/api/chat-rooms');
-            const data = await res.json();
-            this.chatRooms((data || []).map(d => new ChatRoomRow(d)));
+            const [roomsRes, convsRes] = await Promise.all([
+                fetch('/api/chat-rooms'),
+                fetch('/api/chat-messages/private-conversations')
+            ]);
+            const rooms = await roomsRes.json();
+            const conversations = await convsRes.json();
+
+            this.chatRooms((rooms || []).map(d => new ChatRoomRow(d)));
+
+            // Populate existing private conversations (most recent first)
+            for (const conv of (conversations || [])) {
+                if (!this.privateConversations().some(c => c.userId() === conv.userId)) {
+                    this.privateConversations.push(new PrivateConversationRow(conv.userId, conv.displayName));
+                }
+            }
 
             if (initialPrivateUserId) {
                 this.startPrivateChatWith(initialPrivateUserId, initialPrivateUserName || initialPrivateUserId);
@@ -249,8 +276,8 @@ class ChatViewModel {
                 this.joinRoom(this.chatRooms()[0]);
             }
         } catch (err) {
-            console.error('Failed to load chat rooms:', err);
-            this.onError('Failed to load chat rooms.');
+            console.error('Failed to load initial data:', err);
+            this.onError('Failed to load chat data.');
         }
     };
 
@@ -286,7 +313,17 @@ class ChatViewModel {
         }
     };
 
+    // Replace the entire online users list (sent on connect with current users)
+    onSetOnlineUsers = (users) => {
+        const myId = this.myUserId();
+        this.onlineUsers((users || [])
+            .filter(u => u.userId !== myId)
+            .map(u => new OnlineUserRow(u)));
+    };
+
     onAddUser = (data) => {
+        // Don't add self
+        if (data.userId === this.myUserId()) return;
         if (!this.onlineUsers().some(u => u.userId() === data.userId))
             this.onlineUsers.push(new OnlineUserRow(data));
     };
@@ -342,6 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ko.applyBindings(vm);
 
     hub.on('getProfileInfo', vm.onGetProfileInfo);
+    hub.on('setOnlineUsers', vm.onSetOnlineUsers);
     hub.on('newMessage', vm.onNewMessage);
     hub.on('newPrivateMessage', vm.onNewPrivateMessage);
     hub.on('addUser', vm.onAddUser);
@@ -367,10 +405,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await hub.start();
         if (vm.isLoading()) vm.isLoading(false);
-        await vm.loadInitialRooms(initialUserId, initialUserName);
+        await vm.loadInitialData(initialUserId, initialUserName);
     } catch (err) {
         console.error('SignalR connection error:', err);
         vm.onError('SignalR connection failed.');
+    }
+
+    // Clear any unread notification badge now that we're on the chat page
+    if (typeof window.clearMessageBadge === 'function') {
+        window.clearMessageBadge();
     }
 
     document.addEventListener('show.bs.modal', (e) => {
@@ -383,6 +426,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const input = document.getElementById('rename-room-input');
             if (input) input.value = vm.activeRoomName() || '';
         }
+    });
+
+    // Close the user action menu when clicking anywhere outside
+    document.addEventListener('click', () => {
+        if (vm.selectedOnlineUser()) vm.selectedOnlineUser(null);
     });
 
     document.getElementById('expand-users-list')?.addEventListener('click', () => {

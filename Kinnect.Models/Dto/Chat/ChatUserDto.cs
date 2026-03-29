@@ -9,4 +9,6 @@ public class ChatUserDto
     public string FullName { get; set; } = null!;
 
     public string? CurrentRoom { get; set; }
+
+    public int? PersonId { get; set; }
 }
