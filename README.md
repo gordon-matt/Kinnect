@@ -8,7 +8,7 @@
 
 ## Why this exists
 
-This project exists to fill a gap. There are plenty of genealogical apps out there—even self-hosted ones like [webtrees](https://www.webtrees.net/). Those tools tend to be aimed at serious genealogical research. Most people I know would be happy with a family tree they can actually navigate, and a straightforward way to stay in touch.
+This project exists to fill a gap. There are plenty of genealogical apps out there—even self-hosted ones like [webtrees](https://www.webtrees.net/). Those tools tend to be aimed at serious genealogical research. Most people I know would find in adequate to simply have a family tree they can navigate and a straightforward way to stay in touch.
 
 I have come to dislike large social platforms: more ads than conversation, and mechanics like likes and dislikes that feel needlessly toxic. Kinnect is built for family members who want to share photos and videos, view a family tree, and talk to each other—on infrastructure you control.
 
