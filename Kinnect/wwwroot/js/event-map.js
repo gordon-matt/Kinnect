@@ -1,12 +1,11 @@
-(async function () {
+import { addOpenStreetMapTiles } from './leaflet-osm.js';
+
+async function initEventMap() {
     const personId = window.eventMapPersonId;
     if (!personId) return;
 
     const map = L.map('eventMap').setView([20, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
+    addOpenStreetMapTiles(map);
 
     let events = [];
     try {
@@ -146,4 +145,6 @@
     if (allCoords.length > 0) {
         map.fitBounds(allCoords, { padding: [40, 40] });
     }
-})();
+}
+
+initEventMap();

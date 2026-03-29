@@ -1,3 +1,5 @@
+import { addOpenStreetMapTiles } from './leaflet-osm.js';
+
 class MapViewModel {
     constructor() {
         this.pins = ko.observableArray([]);
@@ -23,10 +25,7 @@ class MapViewModel {
         const center = [pins[0].latitude, pins[0].longitude];
         const map = L.map('familyMap').setView(center, 4);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
+        addOpenStreetMapTiles(map);
 
         const bounds = L.latLngBounds([]);
 

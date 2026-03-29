@@ -280,5 +280,5 @@
         const chatInitialPrivateUserId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserId));
         const chatInitialPrivateUserName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initialPrivateUserName));
     </script>
-    <script src="~/js/chat.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/chat.js" asp-append-version="true"></script>
 }

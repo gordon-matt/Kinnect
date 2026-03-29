@@ -1,12 +1,11 @@
-(async function () {
+import { addOpenStreetMapTiles } from './leaflet-osm.js';
+
+async function initPhotoMap() {
     const personId = window.photoMapPersonId;
     if (!personId) return;
 
     const map = L.map('photoMap').setView([20, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
+    addOpenStreetMapTiles(map);
 
     let photos = [];
     try {
@@ -80,4 +79,6 @@
         const bounds = withCoords.map(p => [p.latitude, p.longitude]);
         map.fitBounds(bounds, { padding: [40, 40] });
     }
-})();
+}
+
+initPhotoMap();

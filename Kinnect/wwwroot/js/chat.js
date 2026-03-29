@@ -1,18 +1,4 @@
-function formatChatTimestamp(ts) {
-    const d = new Date(ts);
-    const now = new Date();
-    const diffDays = Math.floor((now - d) / 86400000);
-    const hh = d.getHours().toString().padStart(2, '0');
-    const mm = d.getMinutes().toString().padStart(2, '0');
-    if (diffDays === 0) return `${hh}:${mm}`;
-    if (diffDays === 1) return `Yesterday ${hh}:${mm}`;
-    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${hh}:${mm}`;
-}
-
-function scrollChatToBottom(elementId) {
-    const el = document.getElementById(elementId);
-    if (el) el.scrollTop = el.scrollHeight;
-}
+import { formatChatTimestamp, scrollElementToBottom } from './utils.js';
 
 const PAGE_SIZE = 50;
 
@@ -147,7 +133,7 @@ class ChatViewModel {
                 this.chatMessages(newMessages);
                 this._roomOldestId = newMessages.length > 0 ? newMessages[0].id() : null;
                 this._roomHasMore = newMessages.length >= PAGE_SIZE;
-                setTimeout(() => scrollChatToBottom('chat-messages-room'), 50);
+                setTimeout(() => scrollElementToBottom('chat-messages-room'), 50);
             }
 
             if (newMessages.length > 0 && !beforeId) {
@@ -284,7 +270,7 @@ class ChatViewModel {
             } else {
                 this.privateMessages(newMessages);
                 this._privateHasMore = newMessages.length >= PAGE_SIZE;
-                setTimeout(() => scrollChatToBottom('chat-messages-private'), 50);
+                setTimeout(() => scrollElementToBottom('chat-messages-private'), 50);
             }
 
             if (newMessages.length > 0) {
@@ -418,7 +404,7 @@ class ChatViewModel {
     onNewMessage = (data) => {
         if (this.activeRoomId() === data.toRoomId) {
             this.chatMessages.push(new ChatMessageRow(data, this.myUserId()));
-            setTimeout(() => scrollChatToBottom('chat-messages-room'), 30);
+            setTimeout(() => scrollElementToBottom('chat-messages-room'), 30);
         } else {
             // Increment the unread badge on the room that received the message
             const room = this.chatRooms().find(r => r.id() === data.toRoomId);
@@ -441,7 +427,7 @@ class ChatViewModel {
 
         if (this.activePrivateUserId() === otherId) {
             this.privateMessages.push(new ChatMessageRow(data, me));
-            setTimeout(() => scrollChatToBottom('chat-messages-private'), 30);
+            setTimeout(() => scrollElementToBottom('chat-messages-private'), 30);
 
             // The conversation is open: mark the new notification read immediately
             if (data.fromUserId !== me) {
