@@ -112,10 +112,9 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
         return (mainRelative, thumbRelative, latitude, longitude);
     }
 
-    public async Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, string userId)
+    public async Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, int personId)
     {
         var opts = imageOptions.Value;
-        string safeUserId = SanitizePathSegment(userId);
 
         using var buffer = new MemoryStream();
         await fileStream.CopyToAsync(buffer);
@@ -145,7 +144,7 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
         buffer.Position = 0;
 
-        string relative = Path.Combine(safeUserId, "_profile.jpg").Replace('\\', '/');
+        string relative = Path.Combine("people", personId.ToString(), "_profile.jpg").Replace('\\', '/');
         string full = Path.Combine(BasePath, relative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(full)!);
 

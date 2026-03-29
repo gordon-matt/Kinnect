@@ -18,7 +18,7 @@ public interface IFileStorageService
     Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category, string userId);
 
     /// <summary>
-    /// Saves a single profile image as <c>{userId}/_profile.jpg</c> (processed JPEG, same resize rules as other images).
+    /// Saves a single profile image as <c>people/{personId}/_profile.jpg</c> (processed JPEG, same resize rules as other images).
     /// </summary>
-    Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, string userId);
+    Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, int personId);
 }
