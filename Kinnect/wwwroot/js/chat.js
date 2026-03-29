@@ -246,6 +246,21 @@ class ChatViewModel {
         this.startPrivateChatWith(user.userId(), user.fullName());
     };
 
+    /** Primary click: programmatic nav so Bootstrap dropdown handlers do not swallow the default. Keep href for middle-click / modified clicks. */
+    openOnlineUserProfile = (user, event) => {
+        if (event && event.button !== 0)
+            return true;
+        if (event && (event.ctrlKey || event.metaKey || event.shiftKey))
+            return true;
+
+        event?.preventDefault();
+        event?.stopPropagation();
+        const id = user.personId();
+        if (id != null)
+            window.location.assign(`/Profile/View/${id}`);
+        return false;
+    };
+
     // Toggle the action menu for an online user
     selectOnlineUser = (user, event) => {
         event?.stopPropagation();
