@@ -34,6 +34,57 @@ public class UserContextServiceTests
     }
 
     [Fact]
+    public void IsEditor_TrueWhenEditorRole()
+    {
+        var accessor = new HttpContextAccessor();
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "editor"),
+                new Claim(ClaimTypes.Role, Constants.Roles.Editor)
+            ],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+
+        var sut = new UserContextService(accessor);
+
+        Assert.True(sut.IsEditor());
+    }
+
+    [Fact]
+    public void IsEditor_TrueWhenAdministratorRole()
+    {
+        var accessor = new HttpContextAccessor();
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "admin"),
+                new Claim(ClaimTypes.Role, Constants.Roles.Administrator)
+            ],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+
+        var sut = new UserContextService(accessor);
+
+        Assert.True(sut.IsEditor());
+    }
+
+    [Fact]
+    public void IsEditor_FalseWhenUserRole()
+    {
+        var accessor = new HttpContextAccessor();
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "user"),
+                new Claim(ClaimTypes.Role, Constants.Roles.User)
+            ],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+
+        var sut = new UserContextService(accessor);
+
+        Assert.False(sut.IsEditor());
+    }
+
+    [Fact]
     public void IsAuthenticated_TrueWhenIdentityIsAuthenticated()
     {
         var accessor = new HttpContextAccessor();

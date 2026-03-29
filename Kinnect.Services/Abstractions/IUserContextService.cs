@@ -6,5 +6,7 @@ public interface IUserContextService
 
     bool IsAdmin();
 
+    bool IsEditor();
+
     bool IsAuthenticated();
 }

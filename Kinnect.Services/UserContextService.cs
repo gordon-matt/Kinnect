@@ -9,5 +9,9 @@ public class UserContextService(IHttpContextAccessor httpContextAccessor) : IUse
 
     public bool IsAdmin() => httpContextAccessor.HttpContext?.User?.IsInRole(Constants.Roles.Administrator) == true;
 
+    public bool IsEditor() =>
+        IsAdmin() ||
+        httpContextAccessor.HttpContext?.User?.IsInRole(Constants.Roles.Editor) == true;
+
     public bool IsAuthenticated() => httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
 }

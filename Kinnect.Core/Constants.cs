@@ -27,7 +27,11 @@ public static class Constants
     public static class Roles
     {
         public const string Administrator = "Administrator";
+        public const string Editor = "Editor";
         public const string User = "User";
+
+        /// <summary>Comma-separated value suitable for use in <c>[Authorize(Roles = ...)]</c>.</summary>
+        public const string AdministratorOrEditor = Administrator + "," + Editor;
     }
 
     public static class FileStorage

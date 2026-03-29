@@ -8,7 +8,8 @@ public class FamilyTreeController(
     public async Task<IActionResult> Index()
     {
         bool isAdmin = User.IsInRole(Constants.Roles.Administrator);
-        ViewData["IsAdmin"] = isAdmin;
+        bool isEditorOrAbove = isAdmin || User.IsInRole(Constants.Roles.Editor);
+        ViewData["IsAdmin"] = isEditorOrAbove;
 
         int? myPersonId = null;
 

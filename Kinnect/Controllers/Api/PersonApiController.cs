@@ -12,6 +12,7 @@ public class PersonApiController(
     IEmailService emailService) : ControllerBase
 {
     private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
+    private bool IsEditorOrAbove => User.IsInRole(Constants.Roles.Administrator) || User.IsInRole(Constants.Roles.Editor);
 
     [TranslateResultToActionResult]
     [HttpGet]
@@ -39,7 +40,7 @@ public class PersonApiController(
 
     [TranslateResultToActionResult]
     [HttpPost]
-    [Authorize(Roles = Constants.Roles.Administrator)]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result<PersonDto>> Create([FromBody] PersonEditRequest request) => await personService.CreateAsync(request);
 
     [TranslateResultToActionResult]
@@ -47,12 +48,12 @@ public class PersonApiController(
     public async Task<Result<PersonDto>> Update(int id, [FromBody] PersonEditRequest request)
     {
         string? userId = userContextService.GetCurrentUserId();
-        return userId is null ? (Result<PersonDto>)Result.Unauthorized() : await personService.UpdateAsync(id, request, userId, IsAdmin);
+        return userId is null ? (Result<PersonDto>)Result.Unauthorized() : await personService.UpdateAsync(id, request, userId, IsAdmin, IsEditorOrAbove);
     }
 
     [TranslateResultToActionResult]
     [HttpPut("{id:int}/parents")]
-    [Authorize(Roles = Constants.Roles.Administrator)]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result> UpdateParents(int id, [FromBody] PersonParentLinkRequest request)
     {
         string? userId = userContextService.GetCurrentUserId();
@@ -63,7 +64,7 @@ public class PersonApiController(
 
     [TranslateResultToActionResult]
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = Constants.Roles.Administrator)]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result> Delete(int id)
     {
         string? userId = userContextService.GetCurrentUserId();
@@ -90,7 +91,7 @@ public class PersonApiController(
 
         using var stream = file.OpenReadStream();
         var (imagePath, _, _) = await fileStorageService.SaveProfileImageAsync(stream, userId);
-        var updateResult = await personService.UpdateProfileImageAsync(id, imagePath, userId, IsAdmin);
+        var updateResult = await personService.UpdateProfileImageAsync(id, imagePath, userId, IsAdmin, IsEditorOrAbove);
         return !updateResult.IsSuccess ? (Result<object>)Result.Forbidden() : Result.Success<object>(new { imagePath });
     }
 
@@ -98,12 +99,12 @@ public class PersonApiController(
 
     [TranslateResultToActionResult]
     [HttpPost("{personId:int}/spouse/{spouseId:int}")]
-    [Authorize(Roles = Constants.Roles.Administrator)]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result> AddSpouse(int personId, int spouseId) => await personService.AddSpouseAsync(personId, spouseId);
 
     [TranslateResultToActionResult]
     [HttpDelete("{personId:int}/spouse/{spouseId:int}")]
-    [Authorize(Roles = Constants.Roles.Administrator)]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result> RemoveSpouse(int personId, int spouseId) => await personService.RemoveSpouseAsync(personId, spouseId);
 
     [TranslateResultToActionResult]
@@ -117,7 +118,7 @@ public class PersonApiController(
         string? userId = userContextService.GetCurrentUserId();
         return userId is null
             ? Result.Unauthorized()
-            : await personService.UpdateSpouseRelationshipAsync(personId, spouseId, request, userId, IsAdmin);
+            : await personService.UpdateSpouseRelationshipAsync(personId, spouseId, request, userId, IsAdmin, IsEditorOrAbove);
     }
 
     #endregion Spouse

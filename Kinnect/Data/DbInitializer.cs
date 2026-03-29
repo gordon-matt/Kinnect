@@ -22,7 +22,7 @@ public static class DbInitializer
 
     private static async Task<bool> SeedRolesAsync(RoleManager<ApplicationRole> roleManager)
     {
-        string[] roleNames = [Constants.Roles.Administrator, Constants.Roles.User];
+        string[] roleNames = [Constants.Roles.Administrator, Constants.Roles.Editor, Constants.Roles.User];
 
         bool isFirstRun = false;
 

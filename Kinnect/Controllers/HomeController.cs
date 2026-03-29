@@ -25,9 +25,6 @@ public class HomeController(
     }
 
     [AllowAnonymous]
-    public IActionResult Privacy() => View();
-
-    [AllowAnonymous]
     public IActionResult AccessDenied() => View();
 
     [AllowAnonymous]

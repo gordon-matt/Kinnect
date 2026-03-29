@@ -2,10 +2,11 @@ import { MONTHS, TAGGED_FOLDER_KEY, daysInMonth, partialDateDisplay } from './pr
 import { addOpenStreetMapTiles } from './leaflet-osm.js';
 
 class ViewProfileViewModel {
-    constructor(personId, isAdminUser) {
+    constructor(personId, isAdminUser, isEditorOrAbove) {
         this.loading = ko.observable(true);
         this.personId = personId;
         this.isAdminUser = isAdminUser;
+        this.isEditorOrAbove = isEditorOrAbove;
         this.fullName = ko.observable('');
         this.profileImagePath = ko.observable(null);
         this.bio = ko.observable(null);
@@ -226,16 +227,16 @@ class ViewProfileViewModel {
                     this.currentUserPersonId(me?.id ?? null);
                     const isOwn = me?.id != null && me.id === this.personId;
                     this.canEditOwn(isOwn);
-                    this.canEdit(this.isAdminUser || !person.userId || isOwn);
+                    this.canEdit(this.isAdminUser || isOwn || (this.isEditorOrAbove && !person.userId));
                 } else {
                     this.currentUserPersonId(null);
                     this.canEditOwn(false);
-                    this.canEdit(this.isAdminUser || !person.userId);
+                    this.canEdit(this.isAdminUser || (this.isEditorOrAbove && !person.userId));
                 }
             } catch {
                 this.currentUserPersonId(null);
                 this.canEditOwn(false);
-                this.canEdit(this.isAdminUser || !person.userId);
+                this.canEdit(this.isAdminUser || (this.isEditorOrAbove && !person.userId));
             }
 
             const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes, foldersRes] = await Promise.all([
@@ -514,7 +515,7 @@ class ViewProfileViewModel {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const vm = new ViewProfileViewModel(viewPersonId, isAdmin);
+    const vm = new ViewProfileViewModel(viewPersonId, isAdmin, isEditorOrAbove);
     ko.applyBindings(vm);
 
     const lightboxModal = document.getElementById('photoLightboxModal');

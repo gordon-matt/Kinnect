@@ -2,6 +2,7 @@
     ViewData["Title"] = "Profile";
     var personId = ViewData["PersonId"];
     bool isAdmin = (bool)(ViewData["IsAdmin"] ?? false);
+    bool isEditorOrAbove = (bool)(ViewData["IsEditorOrAbove"] ?? false);
 }
 
 <div class="row">
@@ -486,6 +487,7 @@
     <script>
         const viewPersonId = @personId;
         const isAdmin = @(isAdmin ? "true" : "false");
+        const isEditorOrAbove = @(isEditorOrAbove ? "true" : "false");
     </script>
     <environment include="Development">
         <script src="~/lib/leaflet/dist/leaflet.js"></script>

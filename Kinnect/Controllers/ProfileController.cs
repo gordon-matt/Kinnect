@@ -21,7 +21,8 @@ public class ProfileController(IPersonService personService, IUserContextService
 
         var person = personResult.Value;
         bool isAdmin = User.IsInRole(Constants.Roles.Administrator);
-        bool canEdit = isAdmin || person.UserId == null || person.UserId == userId;
+        bool isEditorOrAbove = isAdmin || User.IsInRole(Constants.Roles.Editor);
+        bool canEdit = isAdmin || person.UserId == userId || (isEditorOrAbove && person.UserId == null);
         if (!canEdit)
         {
             return Forbid();
@@ -36,6 +37,7 @@ public class ProfileController(IPersonService personService, IUserContextService
     {
         ViewData["PersonId"] = id;
         ViewData["IsAdmin"] = User.IsInRole(Constants.Roles.Administrator);
+        ViewData["IsEditorOrAbove"] = User.IsInRole(Constants.Roles.Administrator) || User.IsInRole(Constants.Roles.Editor);
         return View("ViewProfile");
     }
 

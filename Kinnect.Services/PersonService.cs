@@ -375,7 +375,7 @@ public class PersonService(
         return Result.Success();
     }
 
-    public async Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false)
+    public async Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false)
     {
         var person = await personRepository.FindOneAsync(id);
         if (person is null)
@@ -383,9 +383,11 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin &&
-            person.UserId is not null &&
-            person.UserId != currentUserId)
+        bool canEdit = person.UserId == currentUserId
+            || isAdmin
+            || (isEditorOrAbove && person.UserId is null);
+
+        if (!canEdit)
         {
             return Result.Forbidden();
         }
@@ -451,7 +453,7 @@ public class PersonService(
         return Result.Success();
     }
 
-    public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false)
+    public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false)
     {
         var person = await personRepository.FindOneAsync(id);
         if (person is null)
@@ -459,9 +461,11 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin &&
-            person.UserId is not null &&
-            person.UserId != currentUserId)
+        bool canEdit = person.UserId == currentUserId
+            || isAdmin
+            || (isEditorOrAbove && person.UserId is null);
+
+        if (!canEdit)
         {
             return Result.Forbidden();
         }
@@ -477,7 +481,8 @@ public class PersonService(
         int spouseId,
         PersonSpouseUpdateRequest request,
         string currentUserId,
-        bool isAdmin = false)
+        bool isAdmin = false,
+        bool isEditorOrAbove = false)
     {
         var person = await personRepository.FindOneAsync(personId);
         if (person is null)
@@ -485,9 +490,11 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!isAdmin &&
-            person.UserId is not null &&
-            person.UserId != currentUserId)
+        bool canEdit = person.UserId == currentUserId
+            || isAdmin
+            || (isEditorOrAbove && person.UserId is null);
+
+        if (!canEdit)
         {
             return Result.Forbidden();
         }

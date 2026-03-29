@@ -32,11 +32,11 @@ public interface IPersonService
 
     Task<Result> UnlinkUserAccountAsync(int personId, string? currentUserId);
 
-    Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false);
+    Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false);
 
     Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false);
 
-    Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false);
+    Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false);
 
-    Task<Result> UpdateSpouseRelationshipAsync(int personId, int spouseId, PersonSpouseUpdateRequest request, string currentUserId, bool isAdmin = false);
+    Task<Result> UpdateSpouseRelationshipAsync(int personId, int spouseId, PersonSpouseUpdateRequest request, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false);
 }

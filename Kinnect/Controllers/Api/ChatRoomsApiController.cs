@@ -23,6 +23,7 @@ public class ChatRoomsApiController(
 
     [TranslateResultToActionResult]
     [HttpPost]
+    [Authorize(Roles = Constants.Roles.AdministratorOrEditor)]
     public async Task<Result<ChatRoomDto>> Create([FromBody] ChatRoomUpsertRequest request)
     {
         string? currentUserId = userContextService.GetCurrentUserId();
