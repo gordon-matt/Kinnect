@@ -22,13 +22,13 @@ Browse your family as an interactive chart—pan, zoom, and follow links between
 
 <img src="https://github.com/gordon-matt/Kinnect/blob/master/_Misc/Screenshots/family-tree.png" alt="Family Tree" />
 
-### GEDCOM import
+### GEDCOM import (optional)
 
-Bring in an existing tree from standard **GEDCOM** files (available during onboarding when the database is empty and you have administrator access). Individuals, relationships, and many common life events are mapped into the app’s model so you are not starting from scratch.
+If you already have a tree elsewhere, you can bring it in with a standard **GEDCOM** file (offered during onboarding when the database is empty and you have administrator access). Individuals, relationships, and many common life events are mapped into the app’s model. **Import is entirely optional**—you can skip it and **build the tree from scratch** by adding people manually, one at a time, with the same end result: a tree you grow and maintain inside Kinnect.
 
 ### Home feed
 
-A single timeline for **posts**, **photos**, and **videos** from people in your family—similar in spirit to a social feed, but without engagement metrics or algorithmic games. Share what is on your mind or let new media appear in the stream.
+A single timeline for **posts**, **photos**, and **videos** from people in your family—similar in spirit to a social feed, but without engagement metrics or algorithmic games. Share what is on your mind or let new posts appear in the stream.
 
 <img src="https://github.com/gordon-matt/Kinnect/blob/master/_Misc/Screenshots/feed.png" alt="Feed" />
 
