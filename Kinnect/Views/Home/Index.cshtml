@@ -68,9 +68,9 @@
                     <!-- ko if: type() === 'video' -->
                     <p class="card-text fw-semibold" data-bind="text: title"></p>
                     <!-- ko if: thumbnailPath -->
-                    <a href="#" class="d-block position-relative" style="display:inline-block;"
+                    <a href="#" class="position-relative d-inline-block text-decoration-none"
                        data-bind="click: function(data, event) { $root.openVideoLightbox($data); return false; }">
-                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt=""
+                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded d-block" alt=""
                              style="cursor:pointer; max-height:400px; max-width:100%; object-fit:cover;" />
                         <div class="position-absolute top-50 start-50 translate-middle"
                              style="pointer-events:none; background:rgba(0,0,0,0.5); border-radius:50%; width:52px; height:52px; display:flex; align-items:center; justify-content:center;">
