@@ -181,23 +181,43 @@
         <script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
         <script>
             (function () {
+                // Persisted per-sender unread data — populated on load and updated in real-time.
+                // chat.js reads this to initialise sidebar badges without a second round-trip.
+                window._notifData = [];
+
                 let _unreadCount = 0;
 
-                window.clearMessageBadge = function () {
-                    _unreadCount = 0;
-                    const badge = document.getElementById('msg-notification-badge');
-                    if (badge) badge.style.display = 'none';
-                };
-
-                function incrementBadge() {
-                    _unreadCount++;
+                function setBadge(count) {
+                    _unreadCount = count;
                     const badge = document.getElementById('msg-notification-badge');
                     const countEl = document.getElementById('msg-notification-count');
-                    if (badge && countEl) {
-                        countEl.textContent = _unreadCount;
+                    if (!badge || !countEl) return;
+                    if (count > 0) {
+                        countEl.textContent = count;
                         badge.style.display = '';
+                    } else {
+                        badge.style.display = 'none';
                     }
                 }
+
+                window.clearMessageBadge = function () {
+                    setBadge(0);
+                };
+
+                window.decrementMessageBadge = function (amount) {
+                    setBadge(Math.max(0, _unreadCount - amount));
+                };
+
+                // Load persisted unread count from the server on every page load.
+                // This ensures the badge is correct even after the user was offline.
+                fetch('/api/notifications')
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .then(function (data) {
+                        window._notifData = data || [];
+                        const total = window._notifData.reduce(function (s, n) { return s + n.unreadCount; }, 0);
+                        setBadge(total);
+                    })
+                    .catch(function () { /* non-critical */ });
 
                 const notifHub = new signalR.HubConnectionBuilder()
                     .withUrl('/notificationHub')
@@ -205,9 +225,19 @@
                     .build();
 
                 notifHub.on('newPrivateMessage', function (data) {
-                    // Suppress badge when already viewing the chat page
+                    // Suppress badge when already viewing the chat page — chat.js manages it there.
                     if (window.location.pathname.toLowerCase().startsWith('/chat')) return;
-                    incrementBadge();
+
+                    // Update the in-memory sender entry so chat.js sidebar badge is current if the
+                    // user later navigates to chat without a full reload.
+                    var entry = window._notifData.find(function (n) { return n.fromUserId === data.fromUserId; });
+                    if (entry) {
+                        entry.unreadCount++;
+                    } else {
+                        window._notifData.push({ fromUserId: data.fromUserId, fromDisplayName: data.fromFullName || data.fromUserId, unreadCount: 1 });
+                    }
+
+                    setBadge(_unreadCount + 1);
                 });
 
                 notifHub.start().catch(function (err) {

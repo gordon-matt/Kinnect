@@ -164,12 +164,14 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<IFeedService, FeedService>();
             services.AddScoped<IGedcomService, GedcomService>();
             services.AddScoped<IChatService, ChatService>();
+            services.AddScoped<INotificationService, NotificationService>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
             services.AddScoped<IPersonBackupService, PersonBackupService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<PersonBackupJob>();
             services.AddScoped<VideoTranscodeJob>();
+            services.AddScoped<UnreadMessageEmailJob>();
         }
 
         public void KinnectAddImageProcessing(IConfiguration configuration)

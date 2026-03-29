@@ -41,7 +41,12 @@
 
         <ul class="chat-rooms-list list-unstyled mb-0" data-bind="foreach: chatRooms">
             <li data-bind="css: { active: $root.activeRoomId() === id() }">
-                <a href="#" data-bind="text: name, click: $root.joinRoom.bind($data)"></a>
+                <a href="#" data-bind="click: $root.joinRoom.bind($data)" class="d-flex align-items-center justify-content-between w-100">
+                    <span data-bind="text: name"></span>
+                    <!-- ko if: unreadCount() > 0 -->
+                    <span class="badge rounded-pill bg-danger chat-unread-badge" data-bind="text: unreadCount()"></span>
+                    <!-- /ko -->
+                </a>
             </li>
         </ul>
 
@@ -51,7 +56,12 @@
         </div>
         <ul class="chat-rooms-list list-unstyled mb-0" data-bind="foreach: privateConversations">
             <li data-bind="css: { active: $root.activePrivateUserId() === userId() }">
-                <a href="#" data-bind="text: fullName, click: $root.openPrivateChat.bind($data)"></a>
+                <a href="#" data-bind="click: $root.openPrivateChat.bind($data)" class="d-flex align-items-center justify-content-between w-100">
+                    <span data-bind="text: fullName"></span>
+                    <!-- ko if: unreadCount() > 0 -->
+                    <span class="badge rounded-pill bg-danger chat-unread-badge" data-bind="text: unreadCount()"></span>
+                    <!-- /ko -->
+                </a>
             </li>
         </ul>
 

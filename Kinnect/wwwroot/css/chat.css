@@ -60,7 +60,9 @@ body.chat-page {
 }
 
 .chat-rooms-list li a {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: .45rem 1rem;
     color: #bdc3c7;
     text-decoration: none;
@@ -69,6 +71,14 @@ body.chat-page {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.chat-unread-badge {
+    font-size: .65rem;
+    min-width: 1.25em;
+    padding: .2em .45em;
+    flex-shrink: 0;
+    margin-left: .35rem;
 }
 
 .chat-rooms-list li a:hover,

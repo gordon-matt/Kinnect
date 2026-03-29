@@ -3,6 +3,7 @@ using Autofac.Extensions.DependencyInjection;
 using Hangfire;
 using Kinnect.Data;
 using Kinnect.Infrastructure;
+using Kinnect.Services;
 using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -157,6 +158,11 @@ RecurringJob.AddOrUpdate<PersonBackupJob>(
     "weekly-person-tree-backup",
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Weekly(DayOfWeek.Sunday, 3));
+
+RecurringJob.AddOrUpdate<UnreadMessageEmailJob>(
+    "hourly-unread-message-emails",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Hourly());
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,3 +1,4 @@
+using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Kinnect.Hubs;
@@ -6,7 +7,8 @@ namespace Kinnect.Hubs;
 public class ChatHub(
     IChatService chatService,
     IUserContextService userContextService,
-    IHubContext<NotificationHub> notificationHub) : Hub
+    IHubContext<NotificationHub> notificationHub,
+    INotificationService notificationService) : Hub
 {
     private static readonly Dictionary<string, ConnectedUser> Connections = new();
     private static readonly Lock ConnectionsLock = new();
@@ -101,14 +103,17 @@ public class ChatHub(
         if (!result.IsSuccess || result.Value is null) return;
         var vm = result.Value;
 
+        // Persist a notification so the recipient sees it even when they were offline
+        await notificationService.CreateAsync(vm.Id, CurrentUserId, toUserId);
+
         // Deliver to all of the recipient's active chat connections
         await Clients.User(toUserId).SendAsync("newPrivateMessage", vm);
 
         // Echo back to sender
         await Clients.Caller.SendAsync("newPrivateMessage", vm);
 
-        // Also push a lightweight notification to the recipient through the notification hub
-        // so they receive it even when not on the chat page
+        // Push a lightweight notification through the notification hub so the nav badge
+        // updates immediately for online users who are not on the chat page
         await notificationHub.Clients.User(toUserId).SendAsync("newPrivateMessage", vm);
     }
 

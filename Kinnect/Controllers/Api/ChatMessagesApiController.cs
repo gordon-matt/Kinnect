@@ -23,18 +23,18 @@ public class ChatMessagesApiController(
 
     [TranslateResultToActionResult]
     [HttpGet("private/{otherUserId}")]
-    public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50)
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessages(string otherUserId, [FromQuery] int take = 50, [FromQuery] int? beforeId = null)
     {
         string? currentUserId = userContextService.GetCurrentUserId();
         return currentUserId is null
             ? (Result<IEnumerable<ChatMessageDto>>)Result.Unauthorized()
-            : await chatService.GetPrivateMessagesAsync(currentUserId, otherUserId, take);
+            : await chatService.GetPrivateMessagesAsync(currentUserId, otherUserId, take, beforeId);
     }
 
     [TranslateResultToActionResult]
     [HttpGet("room/{roomId:int}")]
-    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessages(int roomId, [FromQuery] int take = 50) =>
-        await chatService.GetRoomMessagesAsync(roomId, take);
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessages(int roomId, [FromQuery] int take = 50, [FromQuery] int? beforeId = null) =>
+        await chatService.GetRoomMessagesAsync(roomId, take, beforeId);
 
     [TranslateResultToActionResult]
     [HttpPost("room")]

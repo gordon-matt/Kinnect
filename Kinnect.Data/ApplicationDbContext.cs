@@ -9,6 +9,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<ChatRoom> ChatRooms { get; set; }
 
+    public DbSet<MessageNotification> MessageNotifications { get; set; }
+
     public DbSet<Document> Documents { get; set; }
 
     public DbSet<DocumentTag> DocumentTags { get; set; }

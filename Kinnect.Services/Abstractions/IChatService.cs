@@ -18,11 +18,11 @@ public interface IChatService
 
     Task<Result<IEnumerable<ChatPrivateConversationTargetDto>>> GetPrivateConversationPartnersAsync(string currentUserId);
 
-    Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessagesAsync(string currentUserId, string otherUserId, int take);
+    Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessagesAsync(string currentUserId, string otherUserId, int take, int? beforeId = null);
 
     Task<Result<ChatRoomDto>> GetRoomByIdAsync(int roomId);
 
-    Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessagesAsync(int roomId, int take);
+    Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessagesAsync(int roomId, int take, int? beforeId = null);
 
     Task<Result<IEnumerable<ChatRoomDto>>> GetRoomsAsync();
 

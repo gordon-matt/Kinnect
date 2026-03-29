@@ -256,7 +256,7 @@ public partial class ChatService(
         });
     }
 
-    public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessagesAsync(string currentUserId, string otherUserId, int take)
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetPrivateMessagesAsync(string currentUserId, string otherUserId, int take, int? beforeId = null)
     {
         int takeCount = Math.Clamp(take, 1, 200);
 
@@ -266,7 +266,8 @@ public partial class ChatService(
                 (
                     (m.FromUserId == currentUserId && m.ToUserId == otherUserId) ||
                     (m.FromUserId == otherUserId && m.ToUserId == currentUserId)
-                ),
+                ) &&
+                (!beforeId.HasValue || m.Id < beforeId.Value),
 
             OrderBy = query => query.OrderByDescending(m => m.Timestamp),
             PageNumber = 1,
@@ -298,7 +299,7 @@ public partial class ChatService(
         });
     }
 
-    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessagesAsync(int roomId, int take)
+    public async Task<Result<IEnumerable<ChatMessageDto>>> GetRoomMessagesAsync(int roomId, int take, int? beforeId = null)
     {
         int takeCount = Math.Clamp(take, 1, 200);
 
@@ -310,7 +311,7 @@ public partial class ChatService(
 
         var messages = await chatMessageRepository.FindAsync(new SearchOptions<ChatMessage>
         {
-            Query = m => m.ToRoomId == roomId,
+            Query = m => m.ToRoomId == roomId && (!beforeId.HasValue || m.Id < beforeId.Value),
             OrderBy = query => query.OrderByDescending(m => m.Timestamp),
             PageNumber = 1,
             PageSize = takeCount

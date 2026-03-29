@@ -14,11 +14,14 @@ function scrollChatToBottom(elementId) {
     if (el) el.scrollTop = el.scrollHeight;
 }
 
+const PAGE_SIZE = 50;
+
 class ChatRoomRow {
     constructor(data) {
         this.id = ko.observable(data.id);
         this.name = ko.observable(data.name);
         this.adminUserId = ko.observable(data.adminUserId);
+        this.unreadCount = ko.observable(0);
     }
 }
 
@@ -49,6 +52,7 @@ class PrivateConversationRow {
     constructor(userId, fullName) {
         this.userId = ko.observable(userId);
         this.fullName = ko.observable(fullName || userId);
+        this.unreadCount = ko.observable(0);
     }
 }
 
@@ -87,6 +91,14 @@ class ChatViewModel {
 
         this.selectedOnlineUser = ko.observable(null);
 
+        // Infinite scroll state
+        this._roomOldestId = null;
+        this._roomHasMore = true;
+        this._loadingMoreRoom = false;
+        this._privateOldestId = null;
+        this._privateHasMore = true;
+        this._loadingMorePrivate = false;
+
         this.isRoomAdmin = ko.pureComputed(() => {
             const room = this.chatRooms().find(r => r.id() === this.activeRoomId());
             return !!(room && this.myUserId() && room.adminUserId() === this.myUserId());
@@ -104,20 +116,56 @@ class ChatViewModel {
         this.activeRoomId(room.id());
         this.activeRoomName(room.name());
 
+        // Clear room unread badge
+        room.unreadCount(0);
+
         this.hub.invoke('Join', room.name()).catch(console.error);
         this.loadRoomMessages(room.id());
     };
 
-    loadRoomMessages = async (roomId) => {
+    loadRoomMessages = async (roomId, beforeId = null) => {
+        const container = document.getElementById('chat-messages-room');
         try {
-            const res = await fetch(`/api/chat-messages/room/${roomId}`);
+            const url = beforeId
+                ? `/api/chat-messages/room/${roomId}?take=${PAGE_SIZE}&beforeId=${beforeId}`
+                : `/api/chat-messages/room/${roomId}?take=${PAGE_SIZE}`;
+            const res = await fetch(url);
             const data = await res.json();
             const myId = this.myUserId();
-            this.chatMessages((data || []).map(m => new ChatMessageRow(m, myId)));
-            setTimeout(() => scrollChatToBottom('chat-messages-room'), 50);
+            const newMessages = (data || []).map(m => new ChatMessageRow(m, myId));
+
+            if (beforeId) {
+                // Prepend older messages and preserve scroll position
+                const prevHeight = container ? container.scrollHeight : 0;
+                this.chatMessages([...newMessages, ...this.chatMessages()]);
+                if (container) {
+                    // Keep the viewport at the same relative position
+                    container.scrollTop = container.scrollHeight - prevHeight;
+                }
+                this._roomHasMore = newMessages.length >= PAGE_SIZE;
+            } else {
+                this.chatMessages(newMessages);
+                this._roomOldestId = newMessages.length > 0 ? newMessages[0].id() : null;
+                this._roomHasMore = newMessages.length >= PAGE_SIZE;
+                setTimeout(() => scrollChatToBottom('chat-messages-room'), 50);
+            }
+
+            if (newMessages.length > 0 && !beforeId) {
+                this._roomOldestId = newMessages[0].id();
+            } else if (newMessages.length > 0 && beforeId) {
+                this._roomOldestId = newMessages[0].id();
+            }
         } catch (err) {
             console.error('Error loading room messages:', err);
+        } finally {
+            this._loadingMoreRoom = false;
         }
+    };
+
+    loadMoreRoomMessages = async () => {
+        if (this._loadingMoreRoom || !this._roomHasMore || this.activeRoomId() == null) return;
+        this._loadingMoreRoom = true;
+        await this.loadRoomMessages(this.activeRoomId(), this._roomOldestId);
     };
 
     createRoom = async () => {
@@ -201,19 +249,58 @@ class ChatViewModel {
         this.privateMessages([]);
         this.activePrivateUserId(conv.userId());
         this.activePrivateUserName(conv.fullName());
+
+        // Clear unread badge and notify server
+        if (conv.unreadCount() > 0) {
+            if (typeof window.decrementMessageBadge === 'function') {
+                window.decrementMessageBadge(conv.unreadCount());
+            }
+            conv.unreadCount(0);
+            fetch(`/api/notifications/mark-read/${encodeURIComponent(conv.userId())}`, { method: 'POST' })
+                .catch(console.error);
+        }
+
         this.loadPrivateMessages(conv.userId());
     };
 
-    loadPrivateMessages = async (otherUserId) => {
+    loadPrivateMessages = async (otherUserId, beforeId = null) => {
+        const container = document.getElementById('chat-messages-private');
         try {
-            const res = await fetch(`/api/chat-messages/private/${otherUserId}`);
+            const url = beforeId
+                ? `/api/chat-messages/private/${otherUserId}?take=${PAGE_SIZE}&beforeId=${beforeId}`
+                : `/api/chat-messages/private/${otherUserId}?take=${PAGE_SIZE}`;
+            const res = await fetch(url);
             const data = await res.json();
             const myId = this.myUserId();
-            this.privateMessages((data || []).map(m => new ChatMessageRow(m, myId)));
-            setTimeout(() => scrollChatToBottom('chat-messages-private'), 50);
+            const newMessages = (data || []).map(m => new ChatMessageRow(m, myId));
+
+            if (beforeId) {
+                const prevHeight = container ? container.scrollHeight : 0;
+                this.privateMessages([...newMessages, ...this.privateMessages()]);
+                if (container) {
+                    container.scrollTop = container.scrollHeight - prevHeight;
+                }
+                this._privateHasMore = newMessages.length >= PAGE_SIZE;
+            } else {
+                this.privateMessages(newMessages);
+                this._privateHasMore = newMessages.length >= PAGE_SIZE;
+                setTimeout(() => scrollChatToBottom('chat-messages-private'), 50);
+            }
+
+            if (newMessages.length > 0) {
+                this._privateOldestId = newMessages[0].id();
+            }
         } catch (err) {
             console.error('Error loading private messages:', err);
+        } finally {
+            this._loadingMorePrivate = false;
         }
+    };
+
+    loadMorePrivateMessages = async () => {
+        if (this._loadingMorePrivate || !this._privateHasMore || !this.activePrivateUserId()) return;
+        this._loadingMorePrivate = true;
+        await this.loadPrivateMessages(this.activePrivateUserId(), this._privateOldestId);
     };
 
     sendPrivateMessage = async () => {
@@ -295,6 +382,9 @@ class ChatViewModel {
                 }
             }
 
+            // Apply persisted unread notification badges from the layout's prefetched data
+            this._applyPersistedNotifications();
+
             if (initialPrivateUserId) {
                 this.startPrivateChatWith(initialPrivateUserId, initialPrivateUserName || initialPrivateUserId);
             } else if (this.chatRooms().length > 0) {
@@ -303,6 +393,19 @@ class ChatViewModel {
         } catch (err) {
             console.error('Failed to load initial data:', err);
             this.onError('Failed to load chat data.');
+        }
+    };
+
+    _applyPersistedNotifications = () => {
+        const data = window._notifData || [];
+        for (const entry of data) {
+            if (!entry.fromUserId || !entry.unreadCount) continue;
+            let conv = this.privateConversations().find(c => c.userId() === entry.fromUserId);
+            if (!conv) {
+                conv = new PrivateConversationRow(entry.fromUserId, entry.fromDisplayName || entry.fromUserId);
+                this.privateConversations.push(conv);
+            }
+            conv.unreadCount(entry.unreadCount);
         }
     };
 
@@ -316,6 +419,10 @@ class ChatViewModel {
         if (this.activeRoomId() === data.toRoomId) {
             this.chatMessages.push(new ChatMessageRow(data, this.myUserId()));
             setTimeout(() => scrollChatToBottom('chat-messages-room'), 30);
+        } else {
+            // Increment the unread badge on the room that received the message
+            const room = this.chatRooms().find(r => r.id() === data.toRoomId);
+            if (room) room.unreadCount(room.unreadCount() + 1);
         }
     };
 
@@ -335,6 +442,15 @@ class ChatViewModel {
         if (this.activePrivateUserId() === otherId) {
             this.privateMessages.push(new ChatMessageRow(data, me));
             setTimeout(() => scrollChatToBottom('chat-messages-private'), 30);
+
+            // The conversation is open: mark the new notification read immediately
+            if (data.fromUserId !== me) {
+                fetch(`/api/notifications/mark-read/${encodeURIComponent(data.fromUserId)}`, { method: 'POST' })
+                    .catch(console.error);
+            }
+        } else if (data.fromUserId !== me) {
+            // Message arrived for a conversation that is not currently open
+            conv.unreadCount(conv.unreadCount() + 1);
         }
     };
 
@@ -436,11 +552,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         vm.onError('SignalR connection failed.');
     }
 
-    // Clear any unread notification badge now that we're on the chat page
+    // Clear nav-bar notification badge now that we are on the chat page
     if (typeof window.clearMessageBadge === 'function') {
         window.clearMessageBadge();
     }
 
+    // ── Infinite scroll ──────────────────────────────────────────────────────
+    const setupInfiniteScroll = (elementId, loader) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.addEventListener('scroll', () => {
+            if (el.scrollTop === 0) loader();
+        });
+    };
+
+    setupInfiniteScroll('chat-messages-room', () => vm.loadMoreRoomMessages());
+    setupInfiniteScroll('chat-messages-private', () => vm.loadMorePrivateMessages());
+
+    // ── Modal helpers ────────────────────────────────────────────────────────
     document.addEventListener('show.bs.modal', (e) => {
         if (e.target.id === 'remove-message-modal') {
             const msgId = e.relatedTarget?.getAttribute('data-message-id');
