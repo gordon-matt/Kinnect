@@ -418,6 +418,7 @@ FodyWeavers.xsd
 *.msp
 
 Kinnect/wwwroot/lib
+Kinnect/ffmpeg-tools
 
 Sejil-*.sqlite
 Kinnect/Sejil-*.sqlite

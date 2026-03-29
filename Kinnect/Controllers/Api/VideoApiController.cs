@@ -27,7 +27,7 @@ public class VideoApiController(
     public async Task<Result<VideoDto>> GetById(int id) => await videoService.GetByIdAsync(id);
 
     [HttpPost]
-    [RequestSizeLimit(524_288_000)]
+    [RequestSizeLimit(Constants.MaxUploadBytes)]
     public async Task<IActionResult> Upload(IFormFile file, [FromForm] string title, [FromForm] string? description, [FromForm] string? tags, [FromForm] int? folderId)
     {
         string? userId = userContextService.GetCurrentUserId();

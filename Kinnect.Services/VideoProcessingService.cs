@@ -1,10 +1,14 @@
 using Microsoft.Extensions.Options;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 using Xabe.FFmpeg;
 
 namespace Kinnect.Services;
 
 public class VideoProcessingService(
     IOptions<VideoProcessingOptions> videoOptions,
+    IOptions<ImageProcessingOptions> imageOptions,
     ILogger<VideoProcessingService> logger) : IVideoProcessingService
 {
     public async Task CompressAsync(string inputPath, string outputPath)
@@ -63,14 +67,23 @@ public class VideoProcessingService(
                 return false;
             }
 
-            byte[] bytes = await File.ReadAllBytesAsync(tempPath, cancellationToken);
             string? dir = Path.GetDirectoryName(outputJpegPath);
             if (!string.IsNullOrEmpty(dir))
             {
                 Directory.CreateDirectory(dir);
             }
 
-            await File.WriteAllBytesAsync(outputJpegPath, bytes, cancellationToken);
+            // Resize the raw FFmpeg snapshot to match the configured thumbnail dimensions,
+            // consistent with how photo thumbnails are generated.
+            var imgOpts = imageOptions.Value;
+            using var thumbImage = await Image.LoadAsync(tempPath, cancellationToken);
+            thumbImage.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(imgOpts.ThumbnailWidth, imgOpts.ThumbnailHeight)
+            }));
+            await thumbImage.SaveAsync(outputJpegPath, new JpegEncoder { Quality = imgOpts.ThumbnailQuality }, cancellationToken);
+
             return File.Exists(outputJpegPath);
         }
         catch (Exception ex)

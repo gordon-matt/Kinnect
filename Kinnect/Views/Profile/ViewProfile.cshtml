@@ -48,6 +48,13 @@
                                 </button>
                             </div>
                             <!-- /ko -->
+                            <!-- Invite button: only when no account linked -->
+                            <div data-bind="ifnot: hasAccount">
+                                <button type="button" class="btn btn-sm btn-outline-info"
+                                        data-bs-toggle="modal" data-bs-target="#inviteModal">
+                                    <i class="bi bi-envelope-plus"></i> Invite
+                                </button>
+                            </div>
                             @if (isAdmin)
                             {
                                 <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#linkUserModal" data-bind="visible: !hasAccount()">
@@ -424,6 +431,40 @@
         </div>
     </div>
 }
+
+<!-- Invite Modal -->
+<div class="modal fade" id="inviteModal" tabindex="-1" aria-labelledby="inviteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inviteModalLabel"><i class="bi bi-envelope-plus"></i> Send Invite</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Send an invitation email to <span data-bind="text: fullName"></span> to join Kinnect and claim their profile.</p>
+                <div class="mb-3">
+                    <label for="inviteEmail" class="form-label">Email address <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="inviteEmail" data-bind="value: inviteEmail" placeholder="recipient@example.com" />
+                </div>
+                <div class="mb-3">
+                    <label for="inviteSubject" class="form-label">Subject</label>
+                    <input type="text" class="form-control" id="inviteSubject" data-bind="value: inviteSubject" />
+                </div>
+                <div class="mb-3">
+                    <label for="inviteBody" class="form-label">Message</label>
+                    <textarea class="form-control" id="inviteBody" rows="6" data-bind="value: inviteBody"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info text-white" data-bind="click: sendInvite, disable: inviteSending">
+                    <span data-bind="visible: !inviteSending()"><i class="bi bi-send"></i> Send Invite</span>
+                    <span data-bind="visible: inviteSending()"><span class="spinner-border spinner-border-sm me-1"></span> Sending…</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Styles {
     <environment include="Development">

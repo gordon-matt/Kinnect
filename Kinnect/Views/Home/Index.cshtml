@@ -68,7 +68,15 @@
                     <!-- ko if: type() === 'video' -->
                     <p class="card-text fw-semibold" data-bind="text: title"></p>
                     <!-- ko if: thumbnailPath -->
-                    <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt="" />
+                    <a href="#" class="d-block position-relative" style="display:inline-block;"
+                       data-bind="click: function(data, event) { $root.openVideoLightbox($data); return false; }">
+                        <img data-bind="attr: { src: '/uploads/' + thumbnailPath() }" class="img-fluid rounded" alt=""
+                             style="cursor:pointer; max-height:400px; max-width:100%; object-fit:cover;" />
+                        <div class="position-absolute top-50 start-50 translate-middle"
+                             style="pointer-events:none; background:rgba(0,0,0,0.5); border-radius:50%; width:52px; height:52px; display:flex; align-items:center; justify-content:center;">
+                            <i class="bi bi-play-fill text-white" style="font-size:1.6rem; margin-left:4px;"></i>
+                        </div>
+                    </a>
                     <!-- /ko -->
                     <!-- /ko -->
                 </div>
@@ -104,6 +112,22 @@
                 <div id="homeLightboxImageArea" class="text-center">
                     <img id="homeLightboxImage" data-bind="attr: { src: lightboxUrl }" class="img-fluid rounded" style="max-height:85vh;" alt="" />
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Video lightbox -->
+<div class="modal fade" id="homeVideoLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-lg-down">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary py-2">
+                <span class="fw-semibold" data-bind="text: videoLightboxTitle"></span>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2 d-flex justify-content-center align-items-center bg-black">
+                <video id="homeVideoLightboxPlayer" controls playsinline class="w-100 rounded" style="max-height:85vh;"
+                       data-bind="attr: { src: videoLightboxUrl }"></video>
             </div>
         </div>
     </div>

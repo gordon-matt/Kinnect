@@ -39,13 +39,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             .setFields([
                 { id: 'first name',  label: 'First name',  type: 'text' },
                 { id: 'last name',   label: 'Last name',   type: 'text' },
-                { id: 'birthday',    label: 'Birthday',    type: 'text' },
-                { id: 'gender',      label: 'Gender',      type: 'select', options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }] }
+                // The library only renders 'text'/'textarea'/'select'/'rel_reference'.
+                // We declare birthday as 'text' and upgrade it to type="date" via
+                // setOnFormCreation so the browser shows a native date picker.
+                { id: 'birthday',    label: 'Birthday',    type: 'text' }
             ])
+            .setOnFormCreation(({ cont }) => {
+                const input = cont.querySelector('input[name="birthday"]');
+                if (input) {
+                    input.type = 'date';
+                    input.classList.add('form-control');
+                }
+            })
             .setOnSubmit((e, datum, applyChanges, postSubmit) => {
                 e.preventDefault();
+                const isNewPerson = !datum.data.personId;
                 applyChanges();
-                savePersonFromDatum(datum).then(postSubmit);
+                savePersonFromDatum(datum).then(() => {
+                    postSubmit();
+                    if (isNewPerson) {
+                        setTimeout(() => {
+                            // onCancel() resets the "add relative" state so the Add Son/Daughter
+                            // cards disappear. Its internal cancelCallback synchronously reopens
+                            // the parent's edit form as a side effect.
+                            if (f3EditTree.addRelativeInstance.is_active) {
+                                f3EditTree.addRelativeInstance.onCancel();
+                            }
+                            // closeForm() then hides that form and triggers a clean tree redraw.
+                            f3EditTree.closeForm();
+                        }, 150);
+                    }
+                });
             })
             .setOnDelete((datum, deletePerson, postSubmit) => {
                 if (confirm('Are you sure you want to remove this person from the tree?')) {
@@ -57,20 +81,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             })
             .setCardClickOpen(f3Card);
-    } else {
-        // View-only: clicking a card opens the profile
-        f3Card.setOnCardClick((e, d) => {
-            // "d" is the family-chart datum; the server record is usually at d.data.data
-            const data = d?.data?.data ?? d?.data;
-            const personId = data?.personId;
-            if (personId) {
-                window.location.href = `/Profile/View/${personId}`;
-                return;
-            }
 
-            // Fallback: keep the original chart behavior (center the clicked node)
-            f3Card.onCardClickDefault?.(e, d);
-        });
+        // The library has no option to disable history navigation, but its own
+        // controls object exposes a destroy() method that removes the buttons cleanly.
+        f3EditTree.history.controls.destroy();
+    } else {
+        // View-only: clicking a card uses the default library behavior (centers the node).
+        // The profile icon (👤) on each card still links to the person's profile.
     }
 
     f3Chart.updateMainId(initialId);

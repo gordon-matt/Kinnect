@@ -167,6 +167,7 @@ internal static class ServiceCollectionExtensions
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
             services.AddScoped<IPersonBackupService, PersonBackupService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<PersonBackupJob>();
             services.AddScoped<VideoTranscodeJob>();
         }
@@ -176,6 +177,7 @@ internal static class ServiceCollectionExtensions
             services.Configure<ImageProcessingOptions>(configuration.GetSection("ImageProcessing"));
             services.Configure<DocumentProcessingOptions>(configuration.GetSection("DocumentProcessing"));
             services.Configure<VideoProcessingOptions>(configuration.GetSection("VideoProcessing"));
+            services.Configure<SmtpOptions>(configuration.GetSection("Smtp"));
         }
 
         public void KinnectAddUserInfoService(IConfiguration configuration)

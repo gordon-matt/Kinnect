@@ -6,6 +6,7 @@ using Kinnect.Infrastructure;
 using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Sejil;
@@ -14,6 +15,18 @@ using Serilog.Sinks.PostgreSQL.ColumnWriters;
 using Constants = Kinnect.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Allow large video uploads (500 MB) for both Kestrel and multipart form parsing.
+// The web.config handles the equivalent limit for IIS deployments.
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = Constants.MaxUploadBytes;
+});
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = Constants.MaxUploadBytes;
+});
 
 string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 

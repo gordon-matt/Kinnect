@@ -6,7 +6,7 @@ class HomeViewModel {
         this.page = ko.observable(1);
         this.hasMore = ko.observable(false);
 
-        // Photo lightbox (item 12)
+        // Photo lightbox
         this.lightboxUrl = ko.observable(null);
         this.lightboxTitle = ko.observable('');
         this.lightboxHasAnnotations = ko.observable(false);
@@ -16,6 +16,10 @@ class HomeViewModel {
         this._annotationHoverLabelEl = null;
         this._lastMouseX = 0;
         this._lastMouseY = 0;
+
+        // Video lightbox
+        this.videoLightboxUrl = ko.observable(null);
+        this.videoLightboxTitle = ko.observable('');
 
         this.lightboxShowAnnotations.subscribe(() => this.syncLightboxAnnotations());
     }
@@ -81,6 +85,15 @@ class HomeViewModel {
         if (this.loading()) return;
         this.page(this.page() + 1);
         this.loadFeed();
+    };
+
+    openVideoLightbox = (item) => {
+        const path = item.filePath?.();
+        if (!path) return;
+        this.videoLightboxUrl('/uploads/' + path);
+        this.videoLightboxTitle(item.title?.() || '');
+        const el = document.getElementById('homeVideoLightboxModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
     };
 
     openLightbox = (item) => {
@@ -217,6 +230,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (lightboxModal) {
         lightboxModal.addEventListener('shown.bs.modal', () => vm.syncLightboxAnnotations());
         lightboxModal.addEventListener('hidden.bs.modal', () => vm.destroyLightboxAnnotorious());
+    }
+
+    const videoLightboxModal = document.getElementById('homeVideoLightboxModal');
+    if (videoLightboxModal) {
+        videoLightboxModal.addEventListener('hidden.bs.modal', () => {
+            const player = document.getElementById('homeVideoLightboxPlayer');
+            if (player) {
+                player.pause();
+                player.removeAttribute('src');
+                player.load();
+            }
+            vm.videoLightboxUrl(null);
+            vm.videoLightboxTitle('');
+        });
     }
 
     // Item 2: infinite scroll via IntersectionObserver

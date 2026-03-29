@@ -8,7 +8,8 @@ namespace Kinnect.Controllers.Api;
 public class PersonApiController(
     IPersonService personService,
     IUserContextService userContextService,
-    IUserInfoService userInfoService) : ControllerBase
+    IUserInfoService userInfoService,
+    IEmailService emailService) : ControllerBase
 {
     private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
 
@@ -140,6 +141,40 @@ public class PersonApiController(
     }
 
     #endregion Link/Unlink User Account
+
+    #region Invite
+
+    [HttpPost("{id:int}/invite")]
+    public async Task<IActionResult> SendInvite(int id, [FromBody] PersonInviteRequest request)
+    {
+        var personResult = await personService.GetByIdAsync(id);
+        if (!personResult.IsSuccess)
+        {
+            return NotFound();
+        }
+
+        if (personResult.Value.UserId != null)
+        {
+            return BadRequest(new { title = "This person already has an account linked." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { title = "Email address is required." });
+        }
+
+        try
+        {
+            await emailService.SendAsync(request.Email, request.Subject, request.Body, HttpContext.RequestAborted);
+            return Ok();
+        }
+        catch (Exception)
+        {
+            return StatusCode(502, new { title = "Failed to send the invite email. Please check the SMTP settings." });
+        }
+    }
+
+    #endregion Invite
 
     #region Versioning
 

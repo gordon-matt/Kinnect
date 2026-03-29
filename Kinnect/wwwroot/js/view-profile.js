@@ -156,11 +156,63 @@ class ViewProfileViewModel {
         });
 
         this.MONTHS = MONTHS;
+
+        // Invite modal observables
+        this.inviteEmail = ko.observable('');
+        this.inviteSubject = ko.observable('');
+        this.inviteBody = ko.observable('');
+        this.inviteSending = ko.observable(false);
     }
 
     showNotSignedUpMessage = () => {
         const name = this.fullName() || 'This person';
         toast.info(`${name} is not yet signed up. Invite them to join.`);
+    };
+
+    prepareInviteDefaults = () => {
+        const name = this.fullName() || 'someone';
+        this.inviteEmail('');
+        this.inviteSubject(`You're invited to join Kinnect`);
+        this.inviteBody(
+            `Hi ${name},\n\n` +
+            `You've been invited to join our family tree on Kinnect. ` +
+            `Your profile has already been created — just sign up and claim it!\n\n` +
+            `Visit: ${window.location.origin}\n\n` +
+            `See you there!`
+        );
+    };
+
+    sendInvite = async () => {
+        const email = this.inviteEmail().trim();
+        if (!email) {
+            toast.warning('Please enter an email address.');
+            return;
+        }
+
+        this.inviteSending(true);
+        try {
+            const res = await fetch(`/api/people/${this.personId}/invite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    subject: this.inviteSubject(),
+                    body: this.inviteBody()
+                })
+            });
+
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('inviteModal'))?.hide();
+                toast.success('Invite sent successfully!');
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error('Failed to send invite: ' + (err?.title || 'Unknown error'));
+            }
+        } catch {
+            toast.error('An error occurred while sending the invite.');
+        } finally {
+            this.inviteSending(false);
+        }
     };
 
     loadProfile = async () => {
@@ -185,10 +237,28 @@ class ViewProfileViewModel {
 
             this.birthInfo('');
 
-            // Read-only: never enable editing on the view-profile page.
-            this.currentUserPersonId(null);
-            this.canEditOwn(false);
-            this.canEdit(false);
+            // Determine edit permissions based on current user and person association.
+            // Admins can always edit; anyone can edit a person with no linked user account;
+            // users can edit their own linked person.
+            try {
+                const meRes = await fetch('/api/people/me');
+                if (meRes.ok) {
+                    const meData = await meRes.json();
+                    const me = meData.value || meData;
+                    this.currentUserPersonId(me?.id ?? null);
+                    const isOwn = me?.id != null && me.id === this.personId;
+                    this.canEditOwn(isOwn);
+                    this.canEdit(this.isAdminUser || !person.userId || isOwn);
+                } else {
+                    this.currentUserPersonId(null);
+                    this.canEditOwn(false);
+                    this.canEdit(this.isAdminUser || !person.userId);
+                }
+            } catch {
+                this.currentUserPersonId(null);
+                this.canEditOwn(false);
+                this.canEdit(this.isAdminUser || !person.userId);
+            }
 
             const [postsRes, photosRes, videosRes, docsRes, eventsRes, spousesRes, foldersRes] = await Promise.all([
                 fetch(`/api/posts/person/${this.personId}`),
@@ -480,6 +550,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 vm._lightboxAnno = null;
             }
         });
+    }
+
+    const inviteModal = document.getElementById('inviteModal');
+    if (inviteModal) {
+        inviteModal.addEventListener('show.bs.modal', () => vm.prepareInviteDefaults());
     }
 
     const videoLightboxModal = document.getElementById('videoLightboxModal');

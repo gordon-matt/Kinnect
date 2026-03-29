@@ -24,6 +24,14 @@ services:
       VideoProcessing__OutputVideoSize: "Hd720" # Possible values: https://ffmpeg.xabe.net/docs/Xabe.FFmpeg.VideoSize.html
       VideoProcessing__Crf: "28"
       VideoProcessing__AudioBitrate: "128000"
+      # ── SMTP (optional) ──────────────────────────────────────────────────────
+      # Smtp__Host: smtp.example.com
+      # Smtp__Port: "587"
+      # Smtp__EnableSsl: "true"
+      # Smtp__Username: user@example.com
+      # Smtp__Password: "${SMTP_PASSWORD}"
+      # Smtp__FromAddress: noreply@kinnect.local
+      # Smtp__FromName: Kinnect
       # SeedAdmin__Email: admin@example.com
       # SeedAdmin__Password: "${ADMIN_PASSWORD}"
       # SeedAdmin__FirstName: Admin

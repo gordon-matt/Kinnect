@@ -17,6 +17,8 @@ public static class Constants
         useKeyCloakHasBeenSet = true;
     }
 
+    public const long MaxUploadBytes = 524_288_000;
+
     public static class Chat
     {
         public const string AnnouncementsRoomName = "Announcements";

@@ -1,4 +1,3 @@
-using Kinnect.Services;
 using Xabe.FFmpeg;
 
 namespace Kinnect.Tests;
@@ -8,12 +7,18 @@ public class VideoProcessingServiceTests
     [Fact]
     public void Service_ReadsOptions()
     {
-        var options = Options.Create(new VideoProcessingOptions
+        var videoOptions = Options.Create(new VideoProcessingOptions
         {
             OutputVideoSize = VideoSize.Hd720,
             Crf = 24
         });
-        var sut = new VideoProcessingService(options, NullLogger<VideoProcessingService>.Instance);
+        var imageOptions = Options.Create(new ImageProcessingOptions
+        {
+            ThumbnailWidth = 400,
+            ThumbnailHeight = 400,
+            ThumbnailQuality = 70
+        });
+        var sut = new VideoProcessingService(videoOptions, imageOptions, NullLogger<VideoProcessingService>.Instance);
 
         Assert.NotNull(sut);
     }
