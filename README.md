@@ -66,6 +66,105 @@ Explore **events** or **photo locations** on a map when geographic data is prese
 
 ---
 
+### Getting Started
+
+The easiest way to use this app is with Docker. Here's what my stack looks like in Portainer:
+
+```yaml
+services:
+  app:
+    image: ghcr.io/gordon-matt/kinnect:latest
+    ports:
+      - "7005:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=kinnect;Username=postgres;Password=your_password"
+      FileStorage__BasePath: /app/data
+      ImageProcessing__AutoShrinkImages: "true"
+      ImageProcessing__MaxWidth: "1920"
+      ImageProcessing__MaxHeight: "1080"
+      ImageProcessing__Quality: "80"
+      ImageProcessing__ThumbnailWidth: "400"
+      ImageProcessing__ThumbnailHeight: "400"
+      ImageProcessing__ThumbnailQuality: "70"
+      DocumentProcessing__AllowedExtensions: ".pdf,.jpg,.jpeg,.png,.gif,.webp"
+      DocumentProcessing__MaxFileSizeBytes: "5242880"
+      DocumentProcessing__AutoShrinkDocuments: "true"
+      VideoProcessing__AutoShrinkVideos: "true"
+      VideoProcessing__ToolsPath: /usr/bin
+      VideoProcessing__OutputVideoSize: "Hd720"
+      VideoProcessing__Crf: "28"
+      VideoProcessing__AudioBitrate: "128000"
+      Smtp__Host: smtp.something.com
+      Smtp__Port: "587"
+      Smtp__EnableSsl: "true"
+      Smtp__Username: smtp_email
+      Smtp__Password: smtp_password
+      Smtp__FromAddress: smtp_email
+      Smtp__FromName: Kinnect
+      SeedAdmin__Email: your_email
+      SeedAdmin__Password: your_password
+      SeedAdmin__FirstName: Admin
+      SeedAdmin__LastName: User
+    volumes:
+      - /volume1/docker/kinnect:/app/data
+    networks:
+      - postgres-net
+
+networks:
+  postgres-net:
+    external: true
+```
+
+You can add postgres directly in the stack if you prefer, but I find that adding a separate postgres install for every app that needs it gets messy and wastes resources. I use one postgres stack for all apps that need it and I include pgadmin with it, so I can manage the databases myself. Here's an example:
+
+```yaml
+version: "3.9"
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_password
+    volumes:
+      - /volume1/docker/postgresql/data:/var/lib/postgresql:rw
+    ports:
+      - "7001:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - postgres-net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: your_email
+      PGADMIN_DEFAULT_PASSWORD: your_password
+    ports:
+      - "7002:80"
+    volumes:
+      - /volume1/docker/postgresql/pgadmin:/var/lib/pgadmin:rw
+      - /volume1/docker/postgresql/backups:/var/lib/pgadmin/storage/your_email_replace_at/backups:rw
+    restart: unless-stopped
+    networks:
+      - postgres-net
+
+networks:
+  postgres-net:
+    external: true
+```
+
+where `your_email_replace_at` is the `@` signed replaced by an underscore `_` for your email address. Example: `test_something.com` instead of `test@something.com`.
+
+---
+
 ## Tech stack (overview)
 
 - **ASP.NET Core** web application (**.NET 10**)
@@ -91,5 +190,6 @@ Kinnect builds on excellent open work from the community:
 |--------|-------------|------------|
 | **family-chart.js** | D3-based interactive family tree visualization (npm package `family-chart`; used in the tree UI) | [github.com/donatso/family-chart](https://github.com/donatso/family-chart) |
 | **GeneGenie.Gedcom** | .NET library for loading, parsing, and working with GEDCOM data | [github.com/TheGeneGenieProject/GeneGenie.Gedcom](https://github.com/TheGeneGenieProject/GeneGenie.Gedcom) |
+| **SignalR-Chat** | A real-time chat application using .NET 7, SignalR and Knockout.js | [github.com/AKouki/SignalR-Chat](https://github.com/AKouki/SignalR-Chat) |
 
 Thank you to the authors and contributors of these and other projects this app is built on.

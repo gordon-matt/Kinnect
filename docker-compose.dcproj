@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" Sdk="Microsoft.Docker.Sdk">
-  <PropertyGroup Label="Globals">
-    <ProjectVersion>2.1</ProjectVersion>
-    <ProjectGuid>CFB4EACD-EE1C-490C-BC84-ADB8CAEDBEB4</ProjectGuid>
-    <DockerTargetOS>Linux</DockerTargetOS>
-    <DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
-    <DockerServiceName>app</DockerServiceName>
-    <DockerServiceUrl>http://localhost:8080</DockerServiceUrl>
-    <!-- Use depends_on and healthcheck so app waits for PostgreSQL -->
-    <DependencyAwareStart>true</DependencyAwareStart>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Include="docker-compose.yml" />
-  </ItemGroup>
+	<PropertyGroup Label="Globals">
+		<ProjectVersion>2.1</ProjectVersion>
+		<ProjectGuid>CFB4EACD-EE1C-490C-BC84-ADB8CAEDBEB4</ProjectGuid>
+		<DockerTargetOS>Linux</DockerTargetOS>
+		<DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
+		<DockerServiceName>app</DockerServiceName>
+		<DockerServiceUrl>http://localhost:8080</DockerServiceUrl>
+		<!-- Use depends_on and healthcheck so app waits for PostgreSQL -->
+		<DependencyAwareStart>true</DependencyAwareStart>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="docker-compose.yml" />
+	</ItemGroup>
 </Project>

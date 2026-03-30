@@ -1,34 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Version>1.0.0</Version>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="PersonService.cs~RF3eea5ea6.TMP" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="PersonService.cs~RF3eea5ea6.TMP" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
-    <PackageReference Include="Ardalis.Result" Version="10.1.0" />
-    <PackageReference Include="GeneGenie.Gedcom" Version="1.0.3" />
-    <PackageReference Include="Keycloak.NETCore.Client" Version="1.0.2" />
-    <PackageReference Include="MetadataExtractor" Version="2.9.2" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="Xabe.FFmpeg" Version="6.0.2" />
-    <PackageReference Include="Xabe.FFmpeg.Downloader" Version="6.0.2" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Hangfire.Core" Version="1.8.23" />
+		<PackageReference Include="Ardalis.Result" Version="10.1.0" />
+		<PackageReference Include="GeneGenie.Gedcom" Version="1.0.3" />
+		<PackageReference Include="Keycloak.NETCore.Client" Version="1.0.2" />
+		<PackageReference Include="MetadataExtractor" Version="2.9.2" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+		<PackageReference Include="Xabe.FFmpeg" Version="6.0.2" />
+		<PackageReference Include="Xabe.FFmpeg.Downloader" Version="6.0.2" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
-    <ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
-    <ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
+		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
+		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
 
 </Project>
