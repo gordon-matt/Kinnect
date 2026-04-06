@@ -44,11 +44,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // setOnFormCreation so the browser shows a native date picker.
                 { id: 'birthday',    label: 'Birthday',    type: 'text' }
             ])
-            .setOnFormCreation(({ cont }) => {
+            .setOnFormCreation(({ cont, form_creator }) => {
                 const input = cont.querySelector('input[name="birthday"]');
                 if (input) {
                     input.type = 'date';
                     input.classList.add('form-control');
+                }
+
+                // Add "Edit Profile" button for persons already saved to the database.
+                const datum = f3Chart.store.getDatum(form_creator.datum_id);
+                const personId = datum?.data?.personId;
+                if (personId) {
+                    const form = cont.querySelector('form');
+                    if (form && !form.querySelector('.btn-edit-profile')) {
+                        const editLink = document.createElement('a');
+                        editLink.href = `/Profile/Edit/${personId}`;
+                        editLink.className = 'btn btn-sm btn-outline-secondary w-100 btn-edit-profile';
+                        editLink.textContent = 'Edit Profile';
+                        editLink.style.cssText = 'display:block;margin-top:0.5rem;';
+                        form.appendChild(editLink);
+                    }
                 }
             })
             .setOnSubmit((e, datum, applyChanges, postSubmit) => {
@@ -86,12 +101,103 @@ document.addEventListener('DOMContentLoaded', async () => {
         // controls object exposes a destroy() method that removes the buttons cleanly.
         f3EditTree.history.controls.destroy();
     } else {
-        // View-only: clicking a card uses the default library behavior (centers the node).
-        // The profile icon (👤) on each card still links to the person's profile.
+        // Non-editors: show the edit pane in readonly mode so they can view details
+        // and navigate to a person's profile, but cannot make changes.
+        const f3ReadTree = f3Chart.editTree()
+            .setFields([
+                { id: 'first name', label: 'First name', type: 'text' },
+                { id: 'last name',  label: 'Last name',  type: 'text' },
+                { id: 'birthday',   label: 'Birthday',   type: 'text' }
+            ])
+            .setNoEdit()
+            .setCanDelete(() => false)
+            .setOnFormCreation(({ cont, form_creator }) => {
+                const form = cont.querySelector('form');
+                if (!form) return;
+
+                // Upgrade birthday to date type for display.
+                const birthdayInput = form.querySelector('input[name="birthday"]');
+                if (birthdayInput) birthdayInput.type = 'date';
+
+                // Disable all form controls so data is clearly readonly.
+                form.querySelectorAll('input, select, textarea').forEach(el => {
+                    el.disabled = true;
+                });
+
+                // Relabel "Cancel" → "Close" and hide the submit/delete actions.
+                const cancelBtn = form.querySelector('.f3-cancel-btn');
+                if (cancelBtn) cancelBtn.textContent = 'Close';
+
+                form.querySelector('button[type="submit"]')?.setAttribute('style', 'display:none');
+                form.querySelector('.f3-delete-btn')?.closest('div')?.setAttribute('style', 'display:none');
+                form.querySelector('.f3-remove-relative-btn')?.closest('div')?.setAttribute('style', 'display:none');
+                const hr = form.querySelector('hr');
+                if (hr) hr.style.display = 'none';
+
+                // Add "View Profile" link for persons linked to a profile page.
+                const datum = f3Chart.store.getDatum(form_creator.datum_id);
+                const personId = datum?.data?.personId;
+                if (personId && !form.querySelector('.btn-view-profile')) {
+                    const viewLink = document.createElement('a');
+                    viewLink.href = `/Profile/View/${personId}`;
+                    viewLink.className = 'btn btn-sm btn-outline-primary w-100 btn-view-profile';
+                    viewLink.textContent = 'View Profile';
+                    viewLink.style.cssText = 'display:block;margin-top:0.5rem;';
+                    const formButtons = form.querySelector('.f3-form-buttons');
+                    if (formButtons) formButtons.after(viewLink);
+                    else form.appendChild(viewLink);
+                }
+            })
+            .setOnSubmit((e) => {
+                // Readonly: swallow the submit event so nothing is saved.
+                e.preventDefault();
+            })
+            .setCardClickOpen(f3Card);
+
+        f3ReadTree.history.controls.destroy();
     }
 
     f3Chart.updateMainId(initialId);
     f3Chart.updateTree({ initial: true });
+
+    // ── Alphabetical people sidebar ────────────────────────────────────────────
+    buildSidebar(data, initialId);
+
+    function buildSidebar(treeData, activeChartId) {
+        const list = document.getElementById('SidebarPersonList');
+        if (!list) return;
+
+        const people = treeData
+            .filter(d => d.data)
+            .map(d => ({
+                chartId: d.id,
+                name: `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim() || 'Unknown'
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        list.innerHTML = '';
+
+        people.forEach(person => {
+            const item = document.createElement('div');
+            item.className = 'sidebar-person-item';
+            item.textContent = person.name;
+            item.title = person.name;
+            item.dataset.chartId = person.chartId;
+
+            if (person.chartId === activeChartId) {
+                item.classList.add('active');
+            }
+
+            item.addEventListener('click', () => {
+                list.querySelectorAll('.sidebar-person-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                f3Chart.updateMainId(person.chartId);
+                f3Chart.updateTree({});
+            });
+
+            list.appendChild(item);
+        });
+    }
 
     // ── Card inner HTML ────────────────────────────────────────────────────────
     function cardInnerHtmlCreator(d) {
