@@ -110,7 +110,19 @@ body.family-tree-page > div > main {
         max(0.75rem, env(safe-area-inset-left, 0px));
 }
 
+.family-tree-toolbar-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
 .family-tree-toolbar .btn-toggle-people {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.family-tree-toolbar .btn-find-me {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;

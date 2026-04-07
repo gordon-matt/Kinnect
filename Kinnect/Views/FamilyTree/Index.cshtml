@@ -8,15 +8,24 @@
 
 <div class="family-tree-page-frame">
     <div class="family-tree-toolbar" role="toolbar" aria-label="Family tree actions">
-        <button id="TogglePeoplePane"
-                type="button"
-                class="btn btn-sm btn-outline-secondary btn-toggle-people"
-                aria-expanded="false"
-                aria-controls="FamilyTreeSidebar"
-                title="Toggle people pane">
-            <i class="bi bi-list" aria-hidden="true"></i>
-            <span>People</span>
-        </button>
+        <div class="family-tree-toolbar-left">
+            <button id="TogglePeoplePane"
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary btn-toggle-people"
+                    aria-expanded="false"
+                    aria-controls="FamilyTreeSidebar"
+                    title="Toggle people pane">
+                <i class="bi bi-list" aria-hidden="true"></i>
+                <span>People</span>
+            </button>
+            <button id="FindMeButton"
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary btn-find-me d-none"
+                    title="Center on your profile person">
+                <i class="bi bi-person-circle" aria-hidden="true"></i>
+                <span>Find Me</span>
+            </button>
+        </div>
         <a href="/api/gedcom/export"
            class="btn btn-sm btn-outline-secondary btn-export-gedcom"
            title="Download your tree as a GEDCOM file"

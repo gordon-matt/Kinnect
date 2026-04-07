@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    const LAST_MAIN_ID_STORAGE_KEY = 'familyTree.lastMainId';
     const response = await fetch('/api/people/family-tree');
     const result = await response.json();
     const data = result.value || result || [];
@@ -16,8 +17,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Determine the initial person: prefer the logged-in user's person, else first record.
     // Chart defaults main_id to data[0].id; updateTree({ id }) is NOT supported — must call updateMainId().
-    let initialId = data[0].id;
-    if (myPersonId != null && myPersonId !== '') {
+    const storedMainId = localStorage.getItem(LAST_MAIN_ID_STORAGE_KEY);
+    const storedNode = storedMainId ? data.find(d => d.id === storedMainId) : null;
+    let initialId = storedNode ? storedNode.id : data[0].id;
+    if (!storedNode && myPersonId != null && myPersonId !== '') {
         const myNode = data.find(d => {
             const pid = d.data?.personId;
             return pid != null && Number(pid) === Number(myPersonId);
@@ -39,6 +42,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const familyTreeBody = document.getElementById('FamilyTreeBody');
     const sidebar = document.getElementById('FamilyTreeSidebar');
     const togglePeoplePaneButton = document.getElementById('TogglePeoplePane');
+    const findMeButton = document.getElementById('FindMeButton');
+    const myChartNode = myPersonId != null && myPersonId !== ''
+        ? data.find(d => Number(d.data?.personId) === Number(myPersonId))
+        : null;
+    const myChartId = myChartNode?.id || null;
 
     function updatePeoplePaneButtonState() {
         if (!togglePeoplePaneButton || !familyTreeBody) return;
@@ -71,6 +79,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePeoplePaneButtonState();
     document.getElementById('FamilyChart')?.addEventListener('click', () => {
         setTimeout(syncSidebarActiveFromMainId, 0);
+    });
+    findMeButton?.addEventListener('click', () => {
+        if (!myChartId) return;
+        selectPerson(myChartId, !isMobile);
     });
 
     if (!isMobile && isAdmin) {
@@ -256,6 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         f3Chart.updateMainId(chartId);
         f3Chart.updateTree({});
+        persistMainId(chartId);
+        updateFindMeButtonVisibility(chartId);
 
         if (!isMobile && openForm && activeEditTree?.openFormWithId) {
             activeEditTree.openFormWithId(chartId);
@@ -275,6 +289,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         list.querySelectorAll('.sidebar-person-item').forEach(el => {
             el.classList.toggle('active', el.dataset.chartId === String(mainId));
         });
+        persistMainId(mainId);
+        updateFindMeButtonVisibility(mainId);
+    }
+
+    function persistMainId(chartId) {
+        if (!chartId) return;
+        localStorage.setItem(LAST_MAIN_ID_STORAGE_KEY, String(chartId));
+    }
+
+    function updateFindMeButtonVisibility(activeChartId) {
+        if (!findMeButton || !myChartId) return;
+        const show = String(activeChartId) !== String(myChartId);
+        findMeButton.classList.toggle('d-none', !show);
     }
 
     function getBirthYear(birthday) {
@@ -288,6 +315,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const match = value.match(/\b(1[6-9]\d{2}|20\d{2})\b/);
         return match ? match[1] : '';
     }
+
+    persistMainId(initialId);
+    updateFindMeButtonVisibility(initialId);
 
     // ── Card inner HTML ────────────────────────────────────────────────────────
     function cardInnerHtmlCreator(d) {
@@ -307,7 +337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     color:#fff;display:flex;align-items:center;justify-content:center;
                     font-size:1.3rem;flex-shrink:0;">${genderIcon}</div>`;
 
-        const profileBtn = personId
+        const profileBtn = (isMobile && personId)
             ? `<a href="/Profile/View/${personId}"
                   title="View profile"
                   onclick="event.stopPropagation();"
