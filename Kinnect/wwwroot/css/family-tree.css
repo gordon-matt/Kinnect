@@ -36,17 +36,26 @@ body.family-tree-page > div > main {
     min-height: 0;
     display: flex;
     flex-direction: row;
+    position: relative;
 }
 
 /* ── Alphabetical people sidebar ─────────────────────────────────────────── */
 .family-tree-sidebar {
-    width: 190px;
+    width: 240px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     border-right: 1px solid #dee2e6;
     background: #fff;
     overflow: hidden;
+    transition: width 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.family-tree-body.sidebar-collapsed .family-tree-sidebar {
+    width: 0;
+    border-right: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .sidebar-header {
@@ -94,10 +103,17 @@ body.family-tree-page > div > main {
 .family-tree-toolbar {
     flex-shrink: 0;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
     padding: 0.5rem max(0.75rem, env(safe-area-inset-right, 0px)) 0.25rem
         max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.family-tree-toolbar .btn-toggle-people {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 #FamilyChart {
@@ -160,4 +176,54 @@ body.family-tree-page > div > main {
 }
 #FamilyChart .card_edit.pencil_icon:hover {
     color: #3498db;
+}
+
+@media (max-width: 768px) {
+    .family-tree-toolbar {
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .family-tree-sidebar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: min(82vw, 320px);
+        z-index: 20;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+        border-right: 1px solid #d0d7de;
+        transform: translateX(-102%);
+    }
+
+    .family-tree-body:not(.sidebar-collapsed) .family-tree-sidebar {
+        width: min(82vw, 320px);
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
+
+    .family-tree-body:not(.sidebar-collapsed)::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+
+    .sidebar-header {
+        font-size: 0.8rem;
+        padding: 0.65rem 0.9rem;
+    }
+
+    .sidebar-person-list {
+        padding: 0.4rem 0;
+    }
+
+    .sidebar-person-item {
+        font-size: 0.92rem;
+        line-height: 1.35;
+        padding: 0.5rem 0.9rem;
+        margin: 2px 6px;
+    }
 }

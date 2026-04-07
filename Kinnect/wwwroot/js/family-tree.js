@@ -33,6 +33,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         .setCardDim({ w: 220, h: 70, height_auto: true })
         .setCardInnerHtmlCreator(cardInnerHtmlCreator)
         .setMiniTree(true);
+    let activeEditTree = null;
+
+    const familyTreeBody = document.getElementById('FamilyTreeBody');
+    const sidebar = document.getElementById('FamilyTreeSidebar');
+    const togglePeoplePaneButton = document.getElementById('TogglePeoplePane');
+
+    function updatePeoplePaneButtonState() {
+        if (!togglePeoplePaneButton || !familyTreeBody) return;
+        const isCollapsed = familyTreeBody.classList.contains('sidebar-collapsed');
+        togglePeoplePaneButton.setAttribute('aria-expanded', (!isCollapsed).toString());
+    }
+
+    function setPeoplePaneCollapsed(isCollapsed) {
+        if (!familyTreeBody) return;
+        familyTreeBody.classList.toggle('sidebar-collapsed', isCollapsed);
+        updatePeoplePaneButtonState();
+    }
+
+    togglePeoplePaneButton?.addEventListener('click', () => {
+        if (!familyTreeBody) return;
+        const isCollapsed = familyTreeBody.classList.contains('sidebar-collapsed');
+        setPeoplePaneCollapsed(!isCollapsed);
+    });
+
+    familyTreeBody?.addEventListener('click', (event) => {
+        if (!familyTreeBody || !sidebar) return;
+        if (familyTreeBody.classList.contains('sidebar-collapsed')) return;
+        if (window.innerWidth > 768) return;
+        const target = event.target;
+        if (target instanceof Element && !sidebar.contains(target) && target.id !== 'TogglePeoplePane') {
+            setPeoplePaneCollapsed(true);
+        }
+    });
+
+    updatePeoplePaneButtonState();
+    document.getElementById('FamilyChart')?.addEventListener('click', () => {
+        setTimeout(syncSidebarActiveFromMainId, 0);
+    });
 
     if (isAdmin) {
         const f3EditTree = f3Chart.editTree()
@@ -97,6 +135,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             })
             .setCardClickOpen(f3Card);
 
+        activeEditTree = f3EditTree;
+
         // The library has no option to disable history navigation, but its own
         // controls object exposes a destroy() method that removes the buttons cleanly.
         f3EditTree.history.controls.destroy();
@@ -154,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             })
             .setCardClickOpen(f3Card);
 
+        activeEditTree = f3ReadTree;
         f3ReadTree.history.controls.destroy();
     }
 
@@ -171,17 +212,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             .filter(d => d.data)
             .map(d => ({
                 chartId: d.id,
-                name: `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim() || 'Unknown'
+                name: `${d.data['first name'] || ''} ${d.data['last name'] || ''}`.trim() || 'Unknown',
+                birthYear: getBirthYear(d.data.birthday)
             }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .sort((a, b) => {
+                const byName = a.name.localeCompare(b.name);
+                if (byName !== 0) return byName;
+                return (a.birthYear || '').localeCompare(b.birthYear || '');
+            });
 
         list.innerHTML = '';
 
         people.forEach(person => {
             const item = document.createElement('div');
             item.className = 'sidebar-person-item';
-            item.textContent = person.name;
-            item.title = person.name;
+            const itemLabel = person.birthYear
+                ? `${person.name} (${person.birthYear})`
+                : person.name;
+            item.textContent = itemLabel;
+            item.title = itemLabel;
             item.dataset.chartId = person.chartId;
 
             if (person.chartId === activeChartId) {
@@ -189,14 +238,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             item.addEventListener('click', () => {
-                list.querySelectorAll('.sidebar-person-item').forEach(el => el.classList.remove('active'));
-                item.classList.add('active');
-                f3Chart.updateMainId(person.chartId);
-                f3Chart.updateTree({});
+                selectPerson(person.chartId, true);
             });
 
             list.appendChild(item);
         });
+    }
+
+    function selectPerson(chartId, openForm) {
+        const list = document.getElementById('SidebarPersonList');
+        if (list) {
+            list.querySelectorAll('.sidebar-person-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.chartId === String(chartId));
+            });
+        }
+
+        f3Chart.updateMainId(chartId);
+        f3Chart.updateTree({});
+
+        if (openForm && activeEditTree?.openFormWithId) {
+            activeEditTree.openFormWithId(chartId);
+        }
+
+        if (window.innerWidth <= 768) {
+            setPeoplePaneCollapsed(true);
+        }
+    }
+
+    function syncSidebarActiveFromMainId() {
+        const mainId = f3Chart.store?.getMainId?.();
+        if (!mainId) return;
+        const list = document.getElementById('SidebarPersonList');
+        if (!list) return;
+
+        list.querySelectorAll('.sidebar-person-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.chartId === String(mainId));
+        });
+    }
+
+    function getBirthYear(birthday) {
+        if (!birthday || typeof birthday !== 'string') return '';
+        const match = birthday.match(/^(\\d{4})/);
+        return match ? match[1] : '';
     }
 
     // ── Card inner HTML ────────────────────────────────────────────────────────

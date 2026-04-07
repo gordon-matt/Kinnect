@@ -8,6 +8,15 @@
 
 <div class="family-tree-page-frame">
     <div class="family-tree-toolbar" role="toolbar" aria-label="Family tree actions">
+        <button id="TogglePeoplePane"
+                type="button"
+                class="btn btn-sm btn-outline-secondary btn-toggle-people"
+                aria-expanded="false"
+                aria-controls="FamilyTreeSidebar"
+                title="Toggle people pane">
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span>People</span>
+        </button>
         <a href="/api/gedcom/export"
            class="btn btn-sm btn-outline-secondary btn-export-gedcom"
            title="Download your tree as a GEDCOM file"
@@ -16,7 +25,7 @@
             <span>Export</span>
         </a>
     </div>
-    <div class="family-tree-body">
+    <div id="FamilyTreeBody" class="family-tree-body sidebar-collapsed">
         <aside id="FamilyTreeSidebar" class="family-tree-sidebar" aria-label="People list">
             <div class="sidebar-header">People</div>
             <div id="SidebarPersonList" class="sidebar-person-list"></div>
