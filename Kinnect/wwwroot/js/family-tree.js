@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         .setCardInnerHtmlCreator(cardInnerHtmlCreator)
         .setMiniTree(true);
     let activeEditTree = null;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
     const familyTreeBody = document.getElementById('FamilyTreeBody');
     const sidebar = document.getElementById('FamilyTreeSidebar');
@@ -72,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(syncSidebarActiveFromMainId, 0);
     });
 
-    if (isAdmin) {
+    if (!isMobile && isAdmin) {
         const f3EditTree = f3Chart.editTree()
             .setFields([
                 { id: 'first name',  label: 'First name',  type: 'text' },
@@ -140,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // The library has no option to disable history navigation, but its own
         // controls object exposes a destroy() method that removes the buttons cleanly.
         f3EditTree.history.controls.destroy();
-    } else {
+    } else if (!isMobile) {
         // Non-editors: show the edit pane in readonly mode so they can view details
         // and navigate to a person's profile, but cannot make changes.
         const f3ReadTree = f3Chart.editTree()
@@ -256,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         f3Chart.updateMainId(chartId);
         f3Chart.updateTree({});
 
-        if (openForm && activeEditTree?.openFormWithId) {
+        if (!isMobile && openForm && activeEditTree?.openFormWithId) {
             activeEditTree.openFormWithId(chartId);
         }
 
@@ -277,8 +278,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function getBirthYear(birthday) {
-        if (!birthday || typeof birthday !== 'string') return '';
-        const match = birthday.match(/^(\\d{4})/);
+        if (!birthday) return '';
+
+        // Accept common formats:
+        // - "1985-09-20"
+        // - "20/09/1985"
+        // - "Sep 20, 1985"
+        const value = String(birthday).trim();
+        const match = value.match(/\b(1[6-9]\d{2}|20\d{2})\b/);
         return match ? match[1] : '';
     }
 
