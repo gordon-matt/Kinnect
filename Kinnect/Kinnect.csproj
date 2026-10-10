@@ -3,10 +3,16 @@
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
+		<!--
+		  LogVue's dashboard needs the framework's blazor.web.js. The Web SDK only restores that
+		  file when this property is set on the host, and package props are not imported during
+		  restore, so it has to be set here.
+		-->
+		<RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UserSecretsId>aspnet-Kinnect-2a96d4b7-af17-411d-87aa-36a68600b70f</UserSecretsId>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-		<Version>1.0.2</Version>
+		<Version>1.0.3</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -27,9 +33,9 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
-		<PackageReference Include="Sejil" Version="3.0.4" />
+		<PackageReference Include="LogVue" Version="1.0.0" />
+		<PackageReference Include="LogVue.Data.Npgsql" Version="1.0.0" />
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-		<PackageReference Include="Serilog.Sinks.Postgresql.Alternative" Version="4.2.0" />
 	</ItemGroup>
 
 	<ItemGroup>

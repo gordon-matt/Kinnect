@@ -5,13 +5,13 @@ using Kinnect.Data;
 using Kinnect.Infrastructure;
 using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Http.Features;
+using LogVue;
+using LogVue.Data.Npgsql;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
-using Sejil;
 using Serilog;
-using Serilog.Sinks.PostgreSQL.ColumnWriters;
 using Constants = Kinnect.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,30 +37,20 @@ if (string.IsNullOrEmpty(connectionString))
         "appsettings, or environment variable ConnectionStrings__DefaultConnection (e.g. in Docker).");
 }
 
-Log.Logger = new LoggerConfiguration()
+builder.Services.AddLogVue(options =>
+    builder.Configuration.GetSection(LogVueOptions.SectionName).Bind(options));
+
+builder.Services.AddSerilog((services, configuration) => configuration
     .MinimumLevel.Information()
     .WriteTo.Console()
-    .WriteTo.PostgreSQL(
-        connectionString: connectionString!,
-        tableName: "Log",
-        columnOptions: new Dictionary<string, ColumnWriterBase>
-        {
-            { "message", new RenderedMessageColumnWriter() },
-            { "message_template", new MessageTemplateColumnWriter() },
-            { "level", new LevelColumnWriter() },
-            { "timestamp", new TimestampColumnWriter() },
-            { "exception", new ExceptionColumnWriter() },
-            { "properties", new LogEventSerializedColumnWriter() }
-        },
-        needAutoCreateTable: true)
-    .CreateLogger();
+    .WriteTo.LogVue(services));
 
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
-builder.Host.UseSerilog();
-builder.Host.UseSejil(writeToProviders: true);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddLogVueNpgsql(connectionString!);
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -69,17 +59,6 @@ bool useKeycloak = authProviderName.Equals("Keycloak", StringComparison.OrdinalI
 Constants.SetUseKeyCloak(useKeycloak);
 
 builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
-
-if (useKeycloak)
-{
-    builder.Services.ConfigureSejil(options =>
-        options.AuthenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme);
-}
-else
-{
-    builder.Services.ConfigureSejil(options =>
-        options.AuthenticationScheme = IdentityConstants.ApplicationScheme);
-}
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
@@ -146,7 +125,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseSerilogRequestLogging();
-app.UseSejil();
+app.MapLogVue().RequireAuthorization(new AuthorizeAttribute
+{
+    Roles = Constants.Roles.Administrator
+});
 
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
