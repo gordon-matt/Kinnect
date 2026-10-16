@@ -1,14 +1,10 @@
 using System.Net;
 using Hangfire;
+using Hangfire.PostgreSql;
+using Heroicsoft.NetForge.Authentication;
 using Kinnect.Services;
 using Kinnect.Services.Jobs;
-using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Kinnect.Infrastructure;
 
@@ -18,97 +14,28 @@ internal static class ServiceCollectionExtensions
     {
         public void KinnectAddAuthentication(IConfiguration configuration, bool useKeycloak)
         {
-            if (useKeycloak)
-            {
-                string? keycloakAuthority = configuration["Authentication:Keycloak:Authority"];
-                string? keycloakBackchannelBaseUrl = configuration["Authentication:Keycloak:BackchannelBaseUrl"];
-
-                services.AddSingleton<IAuthProviderService>(new AuthProviderService(AuthProvider.Keycloak, keycloakAuthority));
-
-                services.AddAuthentication(options =>
+            services.AddNetForgeAuthentication<ApplicationUser, ApplicationRole, Data.ApplicationDbContext>(
+                configuration,
+                options =>
                 {
-                    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-                })
-                .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-                {
-                    options.LoginPath = "/auth/login";
+                    if (useKeycloak)
+                    {
+                        options.Provider = AuthProviderNames.Keycloak;
+                    }
+
+                    options.IncludeAuthController = false;
+                    options.RegisterUserContext = false;
+                    options.Identity.UseRelaxedPasswordPolicy = false;
                     options.AccessDeniedPath = "/Home/AccessDenied";
-                })
-                .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
-                {
-                    options.Authority = keycloakAuthority;
-
-                    if (!string.IsNullOrWhiteSpace(keycloakBackchannelBaseUrl) && !string.IsNullOrWhiteSpace(keycloakAuthority))
-                    {
-                        options.BackchannelHttpHandler = new KeycloakBackchannelHandler(keycloakAuthority, keycloakBackchannelBaseUrl);
-                    }
-
-                    options.ClientId = configuration["Authentication:Keycloak:ClientId"];
-                    options.ClientSecret = configuration["Authentication:Keycloak:ClientSecret"];
-                    options.ResponseType = OpenIdConnectResponseType.Code;
-                    options.SaveTokens = true;
-                    options.GetClaimsFromUserInfoEndpoint = true;
-
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        NameClaimType = "preferred_username"
-                    };
-
-                    options.Scope.Clear();
-                    options.Scope.Add("openid");
-                    options.Scope.Add("profile");
-                    options.Scope.Add("email");
-
-                    options.RequireHttpsMetadata = false;
-                    options.CorrelationCookie.SameSite = SameSiteMode.None;
-                    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
-                    options.NonceCookie.SameSite = SameSiteMode.None;
-                    options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
-                    options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
-
-                    string? publicOrigin = configuration["Authentication:Keycloak:PublicOrigin"];
-                    bool useBackchannel = !string.IsNullOrWhiteSpace(keycloakBackchannelBaseUrl);
-                    if (!string.IsNullOrWhiteSpace(publicOrigin) || useBackchannel)
-                    {
-                        publicOrigin = publicOrigin?.TrimEnd('/');
-                        options.Events.OnRedirectToIdentityProvider = context =>
-                        {
-                            if (!string.IsNullOrWhiteSpace(publicOrigin))
-                            {
-                                context.ProtocolMessage.RedirectUri = publicOrigin + "/signin-oidc";
-                            }
-
-                            if (useBackchannel && !string.IsNullOrEmpty(keycloakAuthority))
-                            {
-                                string fullUrl = context.ProtocolMessage.CreateAuthenticationRequestUrl();
-                                int queryIndex = fullUrl.IndexOf('?');
-                                string query = queryIndex >= 0 ? fullUrl[queryIndex..] : string.Empty;
-                                string authUrl = keycloakAuthority.TrimEnd('/') + "/protocol/openid-connect/auth" + query;
-                                context.Response.Redirect(authUrl);
-                                context.HandleResponse();
-                            }
-                            return Task.CompletedTask;
-                        };
-
-                        if (!string.IsNullOrWhiteSpace(publicOrigin))
-                        {
-                            options.Events.OnRedirectToIdentityProviderForSignOut = context =>
-                            {
-                                context.ProtocolMessage.PostLogoutRedirectUri = publicOrigin + "/signout-callback-oidc";
-                                return Task.CompletedTask;
-                            };
-                        }
-                    }
-
-                    options.Events.OnRemoteFailure = context =>
-                    {
-                        context.Response.Redirect("/Home/Error");
-                        context.HandleResponse();
-                        return Task.CompletedTask;
-                    };
+                    options.RemoteFailurePath = "/Home/Error";
+                    options.Keycloak.RequireHttpsMetadata = false;
+                    options.Keycloak.CorrelationCookieSameSite = SameSiteMode.None;
+                    options.Keycloak.CorrelationCookieSecurePolicy = CookieSecurePolicy.Always;
+                    options.Keycloak.RedirectBrowserToPublicAuthority = true;
                 });
 
+            if (useKeycloak)
+            {
                 services.Configure<ForwardedHeadersOptions>(options =>
                 {
                     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
@@ -119,15 +46,6 @@ internal static class ServiceCollectionExtensions
                     options.KnownProxies.Add(IPAddress.Parse("::1"));
                     options.KnownProxies.Add(IPAddress.Parse("172.17.0.1"));
                 });
-            }
-            else
-            {
-                services.AddSingleton<IAuthProviderService>(new AuthProviderService(AuthProvider.Identity, null));
-
-                services.AddIdentity<ApplicationUser, ApplicationRole>()
-                    .AddEntityFrameworkStores<Data.ApplicationDbContext>()
-                    .AddDefaultTokenProviders()
-                    .AddDefaultUI();
             }
         }
 

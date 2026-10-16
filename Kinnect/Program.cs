@@ -1,6 +1,7 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Hangfire;
+using Heroicsoft.NetForge.Hangfire;
 using Kinnect.Data;
 using Kinnect.Infrastructure;
 using Kinnect.Services.Jobs;
@@ -132,7 +133,7 @@ app.MapLogVue().RequireAuthorization(new AuthorizeAttribute
 
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
-    Authorization = [new HangfireAuthorizationFilter()]
+    Authorization = [new AdministratorDashboardAuthorizationFilter()]
 });
 
 RecurringJob.AddOrUpdate<PersonBackupJob>(

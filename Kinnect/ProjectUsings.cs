@@ -1,4 +1,6 @@
 ﻿global using Ardalis.Result;
+global using Heroicsoft.NetForge.Abstractions.Auth;
+global using IUserContextService = Kinnect.Services.Abstractions.IUserContextService;
 global using Ardalis.Result.AspNetCore;
 global using Extenso.Data.Entity;
 global using Kinnect.Data.Entities;
