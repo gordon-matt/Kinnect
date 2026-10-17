@@ -12,30 +12,30 @@
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <div class="alert alert-info">@message</div>
+    <div class="kinnect-note">@message</div>
 }
 
-<div class="row g-3">
-    <div class="col-md-6">
-        <div class="kinnect-card d-flex flex-column gap-2">
-            <h2 class="h5">This is me</h2>
-            <input class="form-control" @bind="givenNames" placeholder="Given names" />
-            <input class="form-control" @bind="familyName" placeholder="Family name" />
-            <label class="form-check"><input type="checkbox" class="form-check-input" @bind="isMale" /> Male</label>
-            <button class="btn btn-primary" type="button" @onclick="CreateAsync">Create my profile</button>
+<div class="kinnect-columns-2">
+    <div>
+        <div class="kinnect-card kinnect-stack">
+            <h2>This is me</h2>
+            <input class="nf-input" @bind="givenNames" placeholder="Given names" />
+            <input class="nf-input" @bind="familyName" placeholder="Family name" />
+            <label class="nf-check"><input type="checkbox" @bind="isMale" /> Male</label>
+            <button class="nf-button nf-button-primary" type="button" @onclick="CreateAsync">Create my profile</button>
         </div>
     </div>
     @if (unlinked.Count > 0)
     {
-        <div class="col-md-6">
-            <div class="kinnect-card">
-                <h2 class="h5">I am already in the tree</h2>
-                <ul class="list-group">
+        <div>
+            <div class="kinnect-card kinnect-stack">
+                <h2>I am already in the tree</h2>
+                <ul class="kinnect-list">
                     @foreach (var person in unlinked)
                     {
-                        <li class="list-group-item d-flex justify-content-between">
+                        <li>
                             <span>@person.GivenNames @person.FamilyName</span>
-                            <button class="btn btn-sm btn-outline-primary" type="button" @onclick="() => LinkAsync(person.Id)">This is me</button>
+                            <button class="nf-button nf-button-sm" type="button" @onclick="() => LinkAsync(person.Id)">This is me</button>
                         </li>
                     }
                 </ul>
@@ -44,9 +44,9 @@
     }
     @if (canImport)
     {
-        <div class="col-12">
+        <div>
             <div class="kinnect-card">
-                <h2 class="h5">Import a GEDCOM</h2>
+                <h2>Import a GEDCOM</h2>
                 <InputFile OnChange="ImportAsync" accept=".ged,.gedcom" />
             </div>
         </div>

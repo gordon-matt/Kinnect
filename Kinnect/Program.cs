@@ -6,7 +6,7 @@ using ChatRoom = EasyChatz.Data.Entities.ChatRoom;
 using MessageNotification = EasyChatz.Data.Entities.MessageNotification;
 using Hangfire;
 using Heroicsoft.NetForge.Abstractions.Navigation;
-using Heroicsoft.NetForge.Components.Bootstrap;
+using Heroicsoft.NetForge.Components;
 using Heroicsoft.NetForge.Components.Shell;
 using Heroicsoft.NetForge.Hangfire;
 using Kinnect.Components;
@@ -57,7 +57,13 @@ builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorization();
-builder.Services.AddNetForgeBootstrapComponents(ui => ui.ThemeStorageKey = "kinnect-theme");
+builder.Services.AddNetForgeComponents(ui =>
+{
+    ui.ThemeStorageKey = "kinnect-theme";
+    ui.DefaultColorScheme = "system";
+    ui.AccentColor = "#0f766e";
+    ui.AccentColorDark = "#2dd4bf";
+});
 builder.Services.Configure<ForgeShellOptions>(shell =>
 {
     shell.Brand = "Kinnect";

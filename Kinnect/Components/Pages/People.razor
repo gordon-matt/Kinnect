@@ -16,14 +16,14 @@ else if (matches.Count == 0)
 }
 else
 {
-    <ul class="list-group">
+    <ul class="kinnect-list">
         @foreach (var person in matches)
         {
-            <li class="list-group-item">
+            <li>
                 <a href="@($"people/{person.Id}")">@person.FullName</a>
                 @if (person.IsDeceased)
                 {
-                    <span class="text-secondary"> · deceased</span>
+                    <span class="kinnect-muted"> · deceased</span>
                 }
             </li>
         }

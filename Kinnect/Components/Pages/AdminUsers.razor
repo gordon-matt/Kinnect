@@ -15,7 +15,8 @@
 }
 else
 {
-    <table class="table">
+    <div class="nf-table-wrap">
+    <table class="nf-table">
         <thead>
             <tr><th>Name</th><th>Email</th><th>Role</th><th>Person</th><th></th></tr>
         </thead>
@@ -26,7 +27,7 @@ else
                     <td>@row.UserName</td>
                     <td>@row.Email</td>
                     <td>
-                        <select class="form-select form-select-sm" value="@row.Role" @onchange="e => ChangeRoleAsync(row, e.Value?.ToString())">
+                        <select class="nf-select" value="@row.Role" @onchange="e => ChangeRoleAsync(row, e.Value?.ToString())">
                             <option>@Constants.Roles.Administrator</option>
                             <option>@Constants.Roles.Editor</option>
                             <option>@Constants.Roles.User</option>
@@ -36,17 +37,18 @@ else
                     <td>
                         @if (row.Locked)
                         {
-                            <button class="btn btn-sm btn-primary" type="button" @onclick="() => ApproveAsync(row)">Approve</button>
+                            <button class="nf-button nf-button-sm nf-button-primary" type="button" @onclick="() => ApproveAsync(row)">Approve</button>
                         }
                         else
                         {
-                            <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="() => LockAsync(row)">Lock</button>
+                            <button class="nf-button nf-button-sm" type="button" @onclick="() => LockAsync(row)">Lock</button>
                         }
                     </td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
 }
 
 @code {
@@ -61,7 +63,8 @@ else
             ? people.Value.Where(p => p.UserId is not null).ToDictionary(p => p.UserId!)
             : [];
         var next = new List<UserRow>();
-        foreach (var user in UserManager.Users.OrderBy(u => u.Email))
+        var users = await UserManager.Users.OrderBy(u => u.Email).ToListAsync();
+        foreach (var user in users)
         {
             var roles = await UserManager.GetRolesAsync(user);
             byUser.TryGetValue(user.Id, out var person);

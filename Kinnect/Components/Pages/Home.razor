@@ -12,7 +12,7 @@
 @if (needsOnboarding)
 {
     <p>Your account is not linked to a person yet.</p>
-    <a class="btn btn-primary" href="onboarding">Get started</a>
+    <a class="nf-button nf-button-primary" href="onboarding">Get started</a>
 }
 else if (items is null)
 {
@@ -22,9 +22,9 @@ else
 {
     @if (myPersonId is not null)
     {
-        <div class="kinnect-card mb-3">
-            <textarea class="form-control mb-2" rows="3" @bind="postText" placeholder="Share something with the family"></textarea>
-            <button class="btn btn-primary" type="button" @onclick="AddPostAsync" disabled="@posting">Post</button>
+        <div class="kinnect-card kinnect-stack">
+            <textarea class="nf-textarea" rows="3" @bind="postText" placeholder="Share something with the family"></textarea>
+            <button class="nf-button nf-button-primary" type="button" @onclick="AddPostAsync" disabled="@posting">Post</button>
         </div>
     }
     @if (items.Count == 0)
@@ -35,34 +35,34 @@ else
         @foreach (var item in items)
         {
             <article class="kinnect-card">
-                <div class="d-flex justify-content-between">
+                <div class="kinnect-split">
                     <a href="@($"people/{item.AuthorPersonId}")">@item.AuthorName</a>
-                    <small class="text-secondary">@item.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy")</small>
+                    <small class="kinnect-muted">@item.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy")</small>
                 </div>
                 @if (!string.IsNullOrWhiteSpace(item.Title))
                 {
-                    <h2 class="h6 mt-2">@item.Title</h2>
+                    <h2>@item.Title</h2>
                 }
                 @if (!string.IsNullOrWhiteSpace(item.Content))
                 {
-                    <p class="mb-0">@item.Content</p>
+                    <p>@item.Content</p>
                 }
                 @if (item.Type.Equals("photo", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.FilePath ?? item.ThumbnailPath))
                 {
-                    <button type="button" class="btn p-0 border-0 mt-2" @onclick="() => selectedPhoto = item">
-                        <img class="rounded" style="max-width: 100%; max-height: 360px" src="@Url(item.ThumbnailPath ?? item.FilePath!)" alt="@item.Title" />
+                    <button type="button" class="kinnect-media-button" @onclick="() => selectedPhoto = item">
+                        <img src="@Url(item.ThumbnailPath ?? item.FilePath!)" alt="@item.Title" />
                     </button>
                 }
                 else if (item.Type.Equals("video", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.FilePath))
                 {
-                    <button type="button" class="btn p-0 border-0 mt-2" @onclick="() => selectedVideo = item">
+                    <button type="button" class="kinnect-media-button" @onclick="() => selectedVideo = item">
                         @if (!string.IsNullOrWhiteSpace(item.ThumbnailPath))
                         {
-                            <img class="rounded" style="max-width: 100%; max-height: 360px" src="@Url(item.ThumbnailPath)" alt="@item.Title" />
+                            <img src="@Url(item.ThumbnailPath)" alt="@item.Title" />
                         }
                         else
                         {
-                            <span class="kinnect-video-poster rounded"><i class="bi bi-play-circle"></i></span>
+                            <span class="kinnect-video-poster"><Icon Name="film" Size="32" /></span>
                         }
                     </button>
                 }
@@ -84,9 +84,9 @@ else
 {
     <div class="kinnect-lightbox" @onclick="() => selectedVideo = null">
         <div class="kinnect-card" @onclick:stopPropagation="true">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="h5 mb-0">@selectedVideo.Title</h2>
-                <button type="button" class="btn-close" @onclick="() => selectedVideo = null"></button>
+            <div class="kinnect-split">
+                <h2>@selectedVideo.Title</h2>
+                <button type="button" class="nf-icon-button" title="Close" @onclick="() => selectedVideo = null"><Icon Name="x" /></button>
             </div>
             <video controls autoplay src="@Url(selectedVideo.FilePath)"></video>
         </div>

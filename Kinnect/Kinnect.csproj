@@ -25,7 +25,7 @@
 	<ItemGroup>
 		<PackageReference Include="Ardalis.Result.AspNetCore" Version="10.1.0" />
 		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3-beta" />
-		<PackageReference Include="Heroicsoft.NetForge.Components.Bootstrap" Version="1.0.3-beta" />
+		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3.1-beta" />
 		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.0.3-beta" />
 		<PackageReference Include="Autofac" Version="9.1.0" />
 		<PackageReference Include="Autofac.Extensions.DependencyInjection" Version="11.0.0" />

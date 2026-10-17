@@ -1,19 +1,19 @@
 @inject IJSRuntime Js
 @implements IAsyncDisposable
 
-<div class="d-flex flex-column gap-2">
-    <input @ref="input" type="file" accept="@Accept" class="form-control" />
+<div class="kinnect-stack">
+    <input @ref="input" type="file" accept="@Accept" class="nf-input" />
     @if (progress is not null)
     {
-        <div class="progress">
-            <div class="progress-bar" style="width: @(progress)%">@progress%</div>
+        <div class="kinnect-progress" aria-valuenow="@progress" aria-valuemin="0" aria-valuemax="100">
+            <span style="width: @(progress)%"></span>
         </div>
     }
     @if (!string.IsNullOrWhiteSpace(error))
     {
-        <div class="text-danger small">@error</div>
+        <div class="kinnect-note kinnect-note-danger">@error</div>
     }
-    <button type="button" class="btn btn-primary" disabled="@busy" @onclick="SendAsync">@Label</button>
+    <button type="button" class="nf-button nf-button-primary" disabled="@busy" @onclick="SendAsync">@Label</button>
 </div>
 
 @code {

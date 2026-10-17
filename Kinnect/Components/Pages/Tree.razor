@@ -10,17 +10,17 @@
 <PageTitle>Family tree</PageTitle>
 <PageHeader Title="Family tree">
     <Actions>
-        <button type="button" class="btn btn-outline-secondary" aria-expanded="@showPeople" @onclick="() => showPeople = !showPeople">People</button>
+        <button type="button" class="nf-button" aria-expanded="@showPeople" @onclick="() => showPeople = !showPeople">People</button>
         @if (meId is not null)
         {
-            <button type="button" class="btn btn-outline-secondary" @onclick="FindMeAsync">Find me</button>
+            <button type="button" class="nf-button" @onclick="FindMeAsync">Find me</button>
         }
     </Actions>
 </PageHeader>
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
-    <div class="alert alert-danger">@error</div>
+    <div class="kinnect-note kinnect-note-danger">@error</div>
 }
 
 @if (people is null)
@@ -31,7 +31,7 @@ else
 {
     <div class="kinnect-tree-stage">
         <FamilyTree @ref="tree"
-                    Theme="bootstrap"
+                    Theme="netforge"
                     People="people"
                     FocusPersonId="@focusId"
                     HighlightedPersonId="@highlightId"
@@ -40,18 +40,18 @@ else
                     Changed="OnChanged"
                     OnOpenPerson="OnOpen" />
         <aside class="kinnect-people-drawer @(showPeople ? "is-open" : null)" aria-hidden="@(!showPeople)">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="h5 mb-0">People</h2>
-                <button type="button" class="btn-close" @onclick="() => showPeople = false"></button>
+            <div class="kinnect-split">
+                <h2>People</h2>
+                <button type="button" class="nf-icon-button" title="Close" @onclick="() => showPeople = false"><Heroicsoft.NetForge.Components.Icon Name="x" /></button>
             </div>
-            <div class="list-group">
+            <div class="kinnect-list">
                 @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
-                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => CenterAsync(person.Id)">
-                        @person.DisplayName
+                    <button type="button" @onclick="() => CenterAsync(person.Id)">
+                        <span>@person.DisplayName</span>
                         @if (person.Lifespan.Length > 0)
                         {
-                            <small class="text-secondary">@person.Lifespan</small>
+                            <small class="kinnect-muted">@person.Lifespan</small>
                         }
                     </button>
                 }

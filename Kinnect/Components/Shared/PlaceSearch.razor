@@ -1,17 +1,16 @@
 @using System.Text.Json
 @inject IHttpClientFactory Http
 
-<div class="d-flex flex-column gap-2">
-    <label class="form-label mb-0">@Label</label>
-    <div class="input-group">
-        <input class="form-control" placeholder="Search a place" @bind="query" @bind:event="oninput" @onkeyup="SearchAsync" />
-    </div>
+<div class="kinnect-stack">
+    <label class="nf-field">@Label
+        <input class="nf-input" placeholder="Search a place" @bind="query" @bind:event="oninput" @onkeyup="SearchAsync" />
+    </label>
     @if (hits.Count > 0)
     {
-        <div class="list-group">
+        <div class="kinnect-list">
             @foreach (var hit in hits)
             {
-                <button type="button" class="list-group-item list-group-item-action" @onclick="() => Pick(hit)">@hit.Label</button>
+                <button type="button" @onclick="() => Pick(hit)">@hit.Label</button>
             }
         </div>
     }

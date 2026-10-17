@@ -28,52 +28,52 @@ else
         <Actions>
             @if (canEdit && !Editing)
             {
-                <a class="btn btn-primary" href="@($"people/{PersonId}/edit")">Edit</a>
+                <a class="nf-button nf-button-primary" href="@($"people/{PersonId}/edit")">Edit</a>
             }
-            <a class="btn btn-outline-secondary" href="@($"people/{PersonId}/events/map")">Event map</a>
-            <a class="btn btn-outline-secondary" href="@($"people/{PersonId}/photos/map")">Photo map</a>
+            <a class="nf-button" href="@($"people/{PersonId}/events/map")">Event map</a>
+            <a class="nf-button" href="@($"people/{PersonId}/photos/map")">Photo map</a>
         </Actions>
     </PageHeader>
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="kinnect-tabs">
         @foreach (var name in new[] { "About", "Posts", "Timeline", "Photos", "Videos", "Documents" })
         {
-            <li class="nav-item">
-                <button type="button" class="nav-link @(tab == name ? "active" : null)" @onclick="() => tab = name">@name</button>
+            <li>
+                <button type="button" class="@(tab == name ? "is-active" : null)" @onclick="() => tab = name">@name</button>
             </li>
         }
     </ul>
 
     @if (!string.IsNullOrWhiteSpace(message))
     {
-        <div class="alert alert-info">@message</div>
+        <div class="kinnect-note">@message</div>
     }
 
     @if (tab == "About")
     {
-        <div class="row g-3">
-            <div class="col-lg-8">
+        <div class="kinnect-columns">
+            <div>
                 @if (Editing)
                 {
-                    <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card d-flex flex-column gap-2">
-                        <div class="row g-2">
-                            <div class="col"><label>Given names <InputText class="form-control" @bind-Value="form.GivenNames" /></label></div>
-                            <div class="col"><label>Family name <InputText class="form-control" @bind-Value="form.FamilyName" /></label></div>
+                    <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card kinnect-stack">
+                        <div class="kinnect-pair">
+                            <label class="nf-field">Given names <InputText class="nf-input" @bind-Value="form.GivenNames" /></label>
+                            <label class="nf-field">Family name <InputText class="nf-input" @bind-Value="form.FamilyName" /></label>
                         </div>
-                        <label class="form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="form.IsMale" /> Male
+                        <label class="nf-check">
+                            <InputCheckbox @bind-Value="form.IsMale" /> Male
                         </label>
-                        <label>Bio <InputTextArea class="form-control" @bind-Value="form.Bio" /></label>
-                        <label>Occupation <InputText class="form-control" @bind-Value="form.Occupation" /></label>
-                        <label>Education <InputText class="form-control" @bind-Value="form.Education" /></label>
-                        <label>Religion <InputText class="form-control" @bind-Value="form.Religion" /></label>
-                        <label>Notes <InputTextArea class="form-control" @bind-Value="form.Note" /></label>
-                        <label class="form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="form.IsDeceased" /> Deceased
+                        <label class="nf-field">Bio <InputTextArea class="nf-textarea" @bind-Value="form.Bio" /></label>
+                        <label class="nf-field">Occupation <InputText class="nf-input" @bind-Value="form.Occupation" /></label>
+                        <label class="nf-field">Education <InputText class="nf-input" @bind-Value="form.Education" /></label>
+                        <label class="nf-field">Religion <InputText class="nf-input" @bind-Value="form.Religion" /></label>
+                        <label class="nf-field">Notes <InputTextArea class="nf-textarea" @bind-Value="form.Note" /></label>
+                        <label class="nf-check">
+                            <InputCheckbox @bind-Value="form.IsDeceased" /> Deceased
                         </label>
                         <div>Location: @form.Latitude, @form.Longitude</div>
                         <PlaceSearch Selected="OnPlace" />
-                        <button class="btn btn-primary" type="submit">Save</button>
+                        <button class="nf-button nf-button-primary" type="submit">Save</button>
                     </EditForm>
                 }
                 else
@@ -81,7 +81,7 @@ else
                     <div class="kinnect-card">
                         @if (!string.IsNullOrWhiteSpace(person.ProfileImagePath))
                         {
-                            <img src="@MediaUrl(person.ProfileImagePath)" alt="" class="rounded mb-3" style="max-width: 180px" />
+                            <img src="@MediaUrl(person.ProfileImagePath)" alt="" style="max-width: 180px; border-radius: var(--nf-radius); margin-bottom: 0.75rem" />
                         }
                         <p>@person.Bio</p>
                         <p>@person.Occupation</p>
@@ -91,17 +91,17 @@ else
                     </div>
                 }
             </div>
-            <div class="col-lg-4">
+            <div class="kinnect-stack">
                 @if (canEdit)
                 {
                     <div class="kinnect-card">
-                        <h2 class="h6">Profile picture</h2>
+                        <h2>Profile picture</h2>
                         <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="ReloadAsync" />
                     </div>
                 }
                 @if (person.Latitude is not null && person.Longitude is not null)
                 {
-                    <div class="kinnect-card mt-3">
+                    <div class="kinnect-card">
                         <KinnectMap Pins="@(new[] { new MapPinDto { PersonId = person.Id, FullName = person.FullName, Latitude = person.Latitude.Value, Longitude = person.Longitude.Value } })" />
                     </div>
                 }
@@ -112,16 +112,16 @@ else
     {
         @if (canEdit && mine)
         {
-            <div class="kinnect-card mb-3">
-                <textarea class="form-control mb-2" rows="3" @bind="postText" placeholder="Write a post"></textarea>
-                <button class="btn btn-primary" type="button" @onclick="AddPostAsync">Post</button>
+            <div class="kinnect-card kinnect-stack">
+                <textarea class="nf-textarea" rows="3" @bind="postText" placeholder="Write a post"></textarea>
+                <button class="nf-button nf-button-primary" type="button" @onclick="AddPostAsync">Post</button>
             </div>
         }
         @foreach (var post in posts)
         {
-            <article class="kinnect-card mb-2">
-                <small class="text-secondary">@post.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy HH:mm")</small>
-                <p class="mb-0 mt-1">@post.Content</p>
+            <article class="kinnect-card">
+                <small class="kinnect-muted">@post.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy HH:mm")</small>
+                <p>@post.Content</p>
             </article>
         }
     }
@@ -129,28 +129,28 @@ else
     {
         @if (canEdit)
         {
-            <div class="kinnect-card mb-3 d-flex flex-column gap-2">
-                <select class="form-select" @bind="eventForm.EventType">
+            <div class="kinnect-card kinnect-stack">
+                <select class="nf-select" @bind="eventForm.EventType">
                     @foreach (var option in PersonEventType.TimelineSelectableTypes)
                     {
                         <option value="@option.Type">@option.Label</option>
                     }
                 </select>
-                <div class="d-flex gap-2">
-                    <input type="number" class="form-control" @bind="eventYear" placeholder="Year" />
-                    <input type="number" class="form-control" @bind="eventMonth" placeholder="Month" min="1" max="12" />
-                    <input type="number" class="form-control" @bind="eventDay" placeholder="Day" min="1" max="31" />
+                <div class="kinnect-row">
+                    <input type="number" class="nf-input" @bind="eventYear" placeholder="Year" />
+                    <input type="number" class="nf-input" @bind="eventMonth" placeholder="Month" min="1" max="12" />
+                    <input type="number" class="nf-input" @bind="eventDay" placeholder="Day" min="1" max="31" />
                 </div>
-                <input class="form-control" @bind="eventForm.Place" placeholder="Place" />
+                <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
                 <PlaceSearch Label="Event place" Selected="OnEventPlace" />
-                <input class="form-control" @bind="eventForm.Description" placeholder="Description" />
-                <button class="btn btn-primary" type="button" @onclick="AddEventAsync">Add event</button>
+                <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
+                <button class="nf-button nf-button-primary" type="button" @onclick="AddEventAsync">Add event</button>
             </div>
         }
-        <ul class="list-group">
+        <ul class="kinnect-list">
             @foreach (var item in events)
             {
-                <li class="list-group-item">
+                <li>
                     <strong>@item.EventTypeLabel</strong>
                     <span> @item.DateDisplay @item.Place</span>
                     @if (!string.IsNullOrWhiteSpace(item.Description))
@@ -165,15 +165,15 @@ else
     {
         @if (canEdit && mine)
         {
-            <div class="kinnect-card mb-3">
-                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+            <div class="kinnect-card kinnect-stack">
+                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                 <FileUpload Url="/api/photos" Accept="image/*" Label="Upload photo" Fields="@PhotoFields" Uploaded="ReloadAsync" />
             </div>
         }
         <div class="kinnect-media">
             @foreach (var photo in photos)
             {
-                <button type="button" class="kinnect-card text-start" @onclick="() => selectedPhoto = photo">
+                <button type="button" class="kinnect-card" @onclick="() => selectedPhoto = photo">
                     <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
                     <div>@photo.Title</div>
                 </button>
@@ -184,24 +184,24 @@ else
     {
         @if (canEdit && mine)
         {
-            <div class="kinnect-card mb-3">
-                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+            <div class="kinnect-card kinnect-stack">
+                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                 <FileUpload Url="/api/videos" Accept="video/*" Label="Upload video" Fields="@VideoFields" Uploaded="ReloadAsync" />
             </div>
         }
         <div class="kinnect-videos">
             @foreach (var video in videos)
             {
-                <button type="button" class="kinnect-card text-start" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
+                <button type="button" class="kinnect-card" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
                     @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
                     {
                         <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
                     }
                     else
                     {
-                        <div class="kinnect-video-poster"><i class="bi bi-play-circle"></i></div>
+                        <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
                     }
-                    <div class="mt-2">@(video.IsProcessing ? "Processing…" : video.Title)</div>
+                    <div>@(video.IsProcessing ? "Processing…" : video.Title)</div>
                 </button>
             }
         </div>
@@ -210,17 +210,17 @@ else
     {
         @if (canEdit && mine)
         {
-            <div class="kinnect-card mb-3">
-                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+            <div class="kinnect-card kinnect-stack">
+                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                 <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="ReloadAsync" />
             </div>
         }
-        <ul class="list-group">
+        <ul class="kinnect-list">
             @foreach (var document in documents)
             {
-                <li class="list-group-item">
+                <li>
                     <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
-                    <small class="text-secondary">@document.ContentType</small>
+                    <small class="kinnect-muted">@document.ContentType</small>
                 </li>
             }
         </ul>
@@ -242,9 +242,9 @@ else
     {
         <div class="kinnect-lightbox" @onclick="() => selectedVideo = null">
             <div class="kinnect-card" @onclick:stopPropagation="true">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h2 class="h5 mb-0">@selectedVideo.Title</h2>
-                    <button type="button" class="btn-close" @onclick="() => selectedVideo = null"></button>
+                <div class="kinnect-split">
+                    <h2>@selectedVideo.Title</h2>
+                    <button type="button" class="nf-icon-button" title="Close" @onclick="() => selectedVideo = null"><Icon Name="x" /></button>
                 </div>
                 <video controls autoplay src="@MediaUrl(selectedVideo.FilePath)"></video>
             </div>
