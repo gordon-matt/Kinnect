@@ -1,0 +1,53 @@
+@page "/people/{PersonId:int}/events/map"
+@attribute [Authorize]
+
+@inject IPersonService People
+@inject IPersonEventService Events
+
+<PageTitle>Event map</PageTitle>
+
+@if (pins is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <PageHeader Title="@title" />
+    @if (pins.Count == 0)
+    {
+        <EmptyState Title="No event places" Description="Events with a location will appear on this map." />
+    }
+    else
+    {
+        <KinnectMap Pins="pins" />
+    }
+}
+
+@code {
+    [Parameter]
+    public int PersonId { get; set; }
+
+    private string title = "Event map";
+    private List<MapPinDto>? pins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var person = await People.GetByIdAsync(PersonId);
+        if (person.IsSuccess)
+        {
+            title = person.Value.FullName + " — events";
+        }
+
+        var events = await Events.GetByPersonAsync(PersonId);
+        pins = events.IsSuccess
+            ? events.Value.Where(e => e.Latitude is not null && e.Longitude is not null)
+                .Select(e => new MapPinDto
+                {
+                    PersonId = PersonId,
+                    FullName = e.EventTypeLabel + (e.Place is null ? "" : " · " + e.Place),
+                    Latitude = e.Latitude!.Value,
+                    Longitude = e.Longitude!.Value,
+                }).ToList()
+            : [];
+    }
+}

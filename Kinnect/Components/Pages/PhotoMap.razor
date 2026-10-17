@@ -1,0 +1,54 @@
+@page "/people/{PersonId:int}/photos/map"
+@attribute [Authorize]
+
+@inject IPersonService People
+@inject IPhotoService Photos
+
+<PageTitle>Photo map</PageTitle>
+
+@if (pins is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <PageHeader Title="@title" />
+    @if (pins.Count == 0)
+    {
+        <EmptyState Title="No photo places" Description="Photos with coordinates will appear on this map." />
+    }
+    else
+    {
+        <KinnectMap Pins="pins" />
+    }
+}
+
+@code {
+    [Parameter]
+    public int PersonId { get; set; }
+
+    private string title = "Photo map";
+    private List<MapPinDto>? pins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var person = await People.GetByIdAsync(PersonId);
+        if (person.IsSuccess)
+        {
+            title = person.Value.FullName + " — photos";
+        }
+
+        var photos = await Photos.GetByPersonAsync(PersonId);
+        pins = photos.IsSuccess
+            ? photos.Value.Where(p => p.Latitude is not null && p.Longitude is not null)
+                .Select(p => new MapPinDto
+                {
+                    PersonId = PersonId,
+                    FullName = p.Title,
+                    Latitude = p.Latitude!.Value,
+                    Longitude = p.Longitude!.Value,
+                    ProfileImagePath = p.ThumbnailPath ?? p.FilePath,
+                }).ToList()
+            : [];
+    }
+}

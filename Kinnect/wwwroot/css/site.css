@@ -12,51 +12,121 @@ html {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
-html {
-    position: relative;
-    min-height: 100%;
-}
-
-body {
-    margin-bottom: 60px;
-}
-
-    body.family-tree-page {
-        margin-bottom: 0;
-        overflow: hidden;
-    }
-
-.footer {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    white-space: nowrap;
-    line-height: 60px;
-}
-
-.card-profile-link {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    color: #666;
-    font-size: 1rem;
-    text-decoration: none;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-    .card-profile-link:hover {
-        opacity: 1;
-        color: #2c3e50;
-    }
-
-/* Toasty.js: container ships with z-index:1 and ends up behind content; raise so toasts are visible */
 .toast-container {
     z-index: 9999 !important;
 }
 
-    /* Bootstrap defines `.toast:not(.show) { display: none; }` which hides Toasty.js messages.
-   Scope the override to Toasty’s container to avoid affecting any Bootstrap toasts. */
-    .toast-container .toast:not(.show) {
-        display: block !important;
+.toast-container .toast:not(.show) {
+    display: block !important;
+}
+
+.kinnect-feed,
+.kinnect-profile {
+    display: grid;
+    gap: 1rem;
+}
+
+.kinnect-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: 1rem;
+    background: var(--bs-body-bg);
+}
+
+.kinnect-media {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: .75rem;
+}
+
+.kinnect-media img,
+.kinnect-media video {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: .35rem;
+    background: var(--bs-secondary-bg);
+}
+
+.kinnect-videos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+}
+
+@media (min-width: 768px) {
+    .kinnect-videos {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+}
+
+@media (min-width: 1200px) {
+    .kinnect-videos {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.kinnect-videos .kinnect-card {
+    padding: .5rem;
+    cursor: pointer;
+    height: 100%;
+}
+
+.kinnect-videos img,
+.kinnect-video-poster {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: .35rem;
+    background: var(--bs-secondary-bg);
+}
+
+.kinnect-video-poster {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--bs-secondary-color);
+}
+
+.kinnect-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    background: rgba(0, 0, 0, .72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.kinnect-lightbox .kinnect-card {
+    width: min(960px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.kinnect-lightbox video,
+.kinnect-lightbox img {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    background: #000;
+    border-radius: .35rem;
+}
+
+html[data-bs-theme="dark"] .mwt-root[data-theme="bootstrap"],
+html[data-bs-theme="dark"] .ec-root[data-theme="bootstrap"] {
+    color-scheme: dark;
+}
+
+html[data-bs-theme="light"] .mwt-root[data-theme="bootstrap"],
+html[data-bs-theme="light"] .ec-root[data-theme="bootstrap"] {
+    color-scheme: light;
+}
+
+.kinnect-map {
+    height: 480px;
+    border-radius: .5rem;
+    overflow: hidden;
+}

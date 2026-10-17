@@ -1,0 +1,68 @@
+@page "/admin/backups"
+@attribute [Authorize(Roles = Constants.Roles.Administrator)]
+@using Kinnect.Models.Dto.Admin
+
+@inject IPersonBackupService Backups
+
+<PageTitle>Person backups</PageTitle>
+<PageHeader Title="Person backups">
+    <Actions>
+        <button class="btn btn-primary" type="button" @onclick="ExportAsync">Back up now</button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert alert-info">@message</div>
+}
+
+@if (files is null)
+{
+    <p>Loading…</p>
+}
+else if (files.Count == 0)
+{
+    <EmptyState Title="No backups yet" Description="The weekly job writes one here, or you can take one now." />
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var file in files)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>@file.FileName <small class="text-secondary">@file.CreatedUtc.ToLocalTime().ToString("g")</small></span>
+                <button class="btn btn-sm btn-outline-danger" type="button" @onclick="() => RestoreAsync(file.FileName)">Restore</button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<PersonBackupFileDto>? files;
+    private string? message;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Backups.ListBackupsAsync();
+        files = result.IsSuccess ? result.Value.ToList() : [];
+        if (!result.IsSuccess)
+        {
+            message = string.Join(" ", result.Errors);
+        }
+    }
+
+    private async Task ExportAsync()
+    {
+        await Backups.ExportToNewFileAsync();
+        message = "Backup written.";
+        await LoadAsync();
+    }
+
+    private async Task RestoreAsync(string fileName)
+    {
+        var result = await Backups.RestoreFromFileAsync(fileName);
+        message = result.IsSuccess ? "Restored." : string.Join(" ", result.Errors);
+    }
+}

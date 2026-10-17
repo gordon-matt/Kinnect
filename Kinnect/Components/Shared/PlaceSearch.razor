@@ -1,0 +1,86 @@
+@using System.Text.Json
+@inject IHttpClientFactory Http
+
+<div class="d-flex flex-column gap-2">
+    <label class="form-label mb-0">@Label</label>
+    <div class="input-group">
+        <input class="form-control" placeholder="Search a place" @bind="query" @bind:event="oninput" @onkeyup="SearchAsync" />
+    </div>
+    @if (hits.Count > 0)
+    {
+        <div class="list-group">
+            @foreach (var hit in hits)
+            {
+                <button type="button" class="list-group-item list-group-item-action" @onclick="() => Pick(hit)">@hit.Label</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string query = string.Empty;
+    private int searchVersion;
+    private List<NominatimHit> hits = [];
+
+    [Parameter]
+    public string Label { get; set; } = "Place";
+
+    [Parameter]
+    public EventCallback<NominatimHit> Selected { get; set; }
+
+    private async Task SearchAsync()
+    {
+        int version = ++searchVersion;
+        string text = query.Trim();
+        if (text.Length < 3)
+        {
+            hits = [];
+            return;
+        }
+
+        await Task.Delay(300);
+        if (version != searchVersion)
+        {
+            return;
+        }
+
+        var client = Http.CreateClient("nominatim");
+        using var response = await client.GetAsync("search?format=jsonv2&addressdetails=1&limit=5&q=" + Uri.EscapeDataString(text));
+        if (!response.IsSuccessStatusCode || version != searchVersion)
+        {
+            return;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var document = await JsonDocument.ParseAsync(stream);
+        var next = new List<NominatimHit>();
+        foreach (var place in document.RootElement.EnumerateArray())
+        {
+            if (!double.TryParse(place.GetProperty("lat").GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lat)
+                || !double.TryParse(place.GetProperty("lon").GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+            {
+                continue;
+            }
+
+            string label = place.TryGetProperty("address", out var address) ? Nominatim.FormatAddress(address) : string.Empty;
+            if (label.Length == 0 && place.TryGetProperty("display_name", out var display))
+            {
+                label = display.GetString() ?? string.Empty;
+            }
+
+            if (label.Length > 0)
+            {
+                next.Add(new NominatimHit(lat, lon, label));
+            }
+        }
+
+        hits = next;
+    }
+
+    private async Task Pick(NominatimHit hit)
+    {
+        hits = [];
+        query = hit.Label;
+        await Selected.InvokeAsync(hit);
+    }
+}

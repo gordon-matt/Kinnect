@@ -11,7 +11,7 @@ public class AspNetIdentityUserInfoService(IDbContextFactory dbContextFactory) :
     public async Task<IReadOnlyList<UserInfo>> GetAllUsersAsync(
         CancellationToken cancellationToken = default)
     {
-        using var context = (ApplicationDbContext)dbContextFactory.GetContext();
+        using var context = (ApplicationDbContextBase)dbContextFactory.GetContext();
         return await context.Users
             .OrderBy(u => u.UserName)
             .Select(u => new UserInfo(u.Id, u.UserName ?? u.Id, u.Email ?? string.Empty))
@@ -28,7 +28,7 @@ public class AspNetIdentityUserInfoService(IDbContextFactory dbContextFactory) :
             return new Dictionary<string, UserInfo>();
         }
 
-        using var context = (ApplicationDbContext)dbContextFactory.GetContext();
+        using var context = (ApplicationDbContextBase)dbContextFactory.GetContext();
         var users = await context.Users
             .Where(u => ids.Contains(u.Id))
             .Select(u => new UserInfo(u.Id, u.UserName ?? u.Id, u.Email ?? string.Empty))

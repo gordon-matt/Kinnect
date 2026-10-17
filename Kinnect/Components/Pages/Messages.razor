@@ -1,0 +1,30 @@
+@page "/messages"
+@attribute [Authorize]
+@using EasyChatz.Components
+@using EasyChatz.Models
+
+@inject NavigationManager Nav
+@inject IPersonService People
+
+<PageTitle>Messages</PageTitle>
+
+<div class="kinnect-card p-0">
+    <Chat Theme="bootstrap"
+          Height="calc(100vh - 8rem)"
+          WithUserId="@WithUser"
+          OnOpenUser="OpenUser" />
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "withUser")]
+    public string? WithUser { get; set; }
+
+    private async Task OpenUser(ChatPresenceDto person)
+    {
+        var linked = await People.GetByUserIdAsync(person.UserId);
+        if (linked.IsSuccess)
+        {
+            Nav.NavigateTo($"/people/{linked.Value.Id}");
+        }
+    }
+}

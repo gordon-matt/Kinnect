@@ -1,24 +1,27 @@
 using Autofac;
+using EasyChatz;
 using Autofac.Extensions.DependencyInjection;
+using ChatMessage = EasyChatz.Data.Entities.ChatMessage;
+using ChatRoom = EasyChatz.Data.Entities.ChatRoom;
+using MessageNotification = EasyChatz.Data.Entities.MessageNotification;
 using Hangfire;
+using Heroicsoft.NetForge.Abstractions.Navigation;
+using Heroicsoft.NetForge.Components.Bootstrap;
+using Heroicsoft.NetForge.Components.Shell;
 using Heroicsoft.NetForge.Hangfire;
+using Kinnect.Components;
 using Kinnect.Data;
 using Kinnect.Infrastructure;
 using Kinnect.Services.Jobs;
 using Kinnect.Services.Mapping;
 using LogVue;
-using LogVue.Data.Npgsql;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Constants = Kinnect.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Allow large video uploads (500 MB) for both Kestrel and multipart form parsing.
-// The web.config handles the equivalent limit for IIS deployments.
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -29,57 +32,67 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = Constants.MaxUploadBytes;
 });
 
-string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException(
-        "This application requires a connection string. Configure ConnectionStrings:DefaultConnection via User Secrets (local), " +
-        "appsettings, or environment variable ConnectionStrings__DefaultConnection (e.g. in Docker).");
-}
-
 builder.Services.AddLogVue(options =>
     builder.Configuration.GetSection(LogVueOptions.SectionName).Bind(options));
 
 builder.Services.AddSerilog((services, configuration) => configuration
     .MinimumLevel.Information()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
     .WriteTo.Console()
     .WriteTo.LogVue(services));
 
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
-
-builder.Services.AddLogVueNpgsql(connectionString!);
-
+builder.Services.AddKinnectDatabase(builder.Configuration);
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 string authProviderName = builder.Configuration.GetValue<string>("Authentication:Provider") ?? "Identity";
 bool useKeycloak = authProviderName.Equals("Keycloak", StringComparison.OrdinalIgnoreCase);
 Constants.SetUseKeyCloak(useKeycloak);
 
-builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
-
-builder.Services.AddControllersWithViews();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+builder.Services.AddControllers();
 builder.Services.AddRazorPages();
-builder.Services.AddSignalR();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddAuthorization();
+builder.Services.AddNetForgeBootstrapComponents(ui => ui.ThemeStorageKey = "kinnect-theme");
+builder.Services.Configure<ForgeShellOptions>(shell =>
+{
+    shell.Brand = "Kinnect";
+    shell.SearchPlaceholder = "Search people";
+    shell.NavigationPlacement = ForgeNavigationPlacement.Topbar;
+    shell.TopbarEndComponent = typeof(Kinnect.Components.Layout.MessagesMenu);
+    shell.UserMenuItems.Add(new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" });
+});
+builder.Services.AddScoped<IShellNavigation, Kinnect.Components.Layout.KinnectNavigation>();
+
+builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
+builder.Services.AddKinnectChat(builder.Configuration);
 builder.Services.AddEntityFrameworkRepository();
 KinnectMappingRegistration.Register();
 builder.Services.AddExtensoMapperEntityFrameworkRepository();
-
-builder.Services.KinnectAddHangfire(connectionString);
+builder.Services.AddKinnectHangfire(builder.Configuration);
 builder.Services.KinnectAddServices();
 builder.Services.KinnectAddImageProcessing(builder.Configuration);
 builder.Services.KinnectAddUserInfoService(builder.Configuration);
 
 builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {
-    containerBuilder.RegisterType<ApplicationDbContextFactory>().As<IDbContextFactory>().SingleInstance();
-
     containerBuilder.RegisterGeneric(typeof(EntityFrameworkRepository<>))
         .As(typeof(IRepository<>))
         .InstancePerLifetimeScope();
+
+    containerBuilder.Register(c => new EntityFrameworkRepository<ChatRoom>(c.Resolve<EasyChatz.Data.IEasyChatzDbContextFactory>()))
+        .As<IRepository<ChatRoom>>()
+        .SingleInstance();
+    containerBuilder.Register(c => new EntityFrameworkRepository<ChatMessage>(c.Resolve<EasyChatz.Data.IEasyChatzDbContextFactory>()))
+        .As<IRepository<ChatMessage>>()
+        .SingleInstance();
+    containerBuilder.Register(c => new EntityFrameworkRepository<MessageNotification>(c.Resolve<EasyChatz.Data.IEasyChatzDbContextFactory>()))
+        .As<IRepository<MessageNotification>>()
+        .SingleInstance();
 });
 
 var app = builder.Build();
@@ -95,7 +108,7 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/error", createScopeForErrors: true);
     app.UseHsts();
 }
 
@@ -106,13 +119,10 @@ if (!useKeycloak)
 
 app.UseStaticFiles();
 
-// Serve uploaded files
 {
     string uploadPath = app.Configuration.GetValue<string>("FileStorage:BasePath")
         ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-
     Directory.CreateDirectory(uploadPath);
-
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
@@ -121,11 +131,11 @@ app.UseStaticFiles();
 }
 
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseAntiforgery();
 app.UseSerilogRequestLogging();
+
 app.MapLogVue().RequireAuthorization(new AuthorizeAttribute
 {
     Roles = Constants.Roles.Administrator
@@ -146,31 +156,14 @@ RecurringJob.AddOrUpdate<UnreadMessageEmailJob>(
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Hourly());
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapStaticAssets();
-}
-
-app.MapHub<Kinnect.Hubs.ChatHub>("/chatHub");
-app.MapHub<Kinnect.Hubs.NotificationHub>("/notificationHub");
-
-app.MapControllerRoute(
-    name: "areas",
-    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
-
-var defaultRoute = app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-if (app.Environment.IsDevelopment())
-{
-    defaultRoute.WithStaticAssets();
-}
-
-var razorPages = app.MapRazorPages();
-if (app.Environment.IsDevelopment())
-{
-    razorPages.WithStaticAssets();
-}
+app.MapStaticAssets();
+app.MapEasyChatzApi().RequireAuthorization();
+app.MapEasyChatzHub().RequireAuthorization();
+app.MapControllers();
+app.MapRazorPages();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
+    .WithStaticAssets();
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
@@ -181,7 +174,7 @@ try
         services.GetRequiredService<IHostEnvironment>(),
         services.GetRequiredService<ILoggerFactory>().CreateLogger("Ffmpeg"));
 
-    var context = services.GetRequiredService<ApplicationDbContext>();
+    var context = services.GetRequiredService<ApplicationDbContextBase>();
     await context.Database.MigrateAsync();
 
     if (!useKeycloak)

@@ -1,0 +1,54 @@
+@using LeafletForBlazor
+@using static LeafletForBlazor.Map
+@using static LeafletForBlazor.techs.maps.Leaflet
+
+<div class="kinnect-map">
+    <Map @ref="map" loadParameters="@parameters" height="100%" width="100%" OnAfterMapLoaded="ShowPinsAsync" />
+</div>
+
+@code {
+    private LoadParameters parameters = new()
+    {
+        location = new Location { latitude = -34.9285, longitude = 138.6007 },
+        zoomLevel = 4,
+    };
+
+    private LeafletForBlazor.Map? map;
+
+    [Parameter]
+    public IReadOnlyList<MapPinDto> Pins { get; set; } = [];
+
+    private async Task ShowPinsAsync(MapEventArgs args)
+    {
+        if (map is null || Pins.Count == 0)
+        {
+            return;
+        }
+
+        var points = Pins.Select(pin => new StreamPoint
+        {
+            guid = Guid.NewGuid(),
+            type = "person",
+            timestamp = DateTime.UtcNow,
+            coordinates = new Coordinates { xy = [pin.Latitude, pin.Longitude] },
+            value = pin.FullName,
+        }).ToList();
+
+        await map.Geometric.Points.Add(points);
+    }
+
+    protected override void OnParametersSet()
+    {
+        var first = Pins.FirstOrDefault();
+        if (first is null)
+        {
+            return;
+        }
+
+        parameters = new LoadParameters
+        {
+            location = new Location { latitude = first.Latitude, longitude = first.Longitude },
+            zoomLevel = Pins.Count == 1 ? 12 : 4,
+        };
+    }
+}

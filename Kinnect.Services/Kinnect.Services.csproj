@@ -26,6 +26,8 @@
 		<ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
 		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
 		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
+		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Core\EasyChatz.Core.csproj" />
+		<ProjectReference Include="..\..\..\Components\MyWebTree\MyWebTree.Core\MyWebTree.Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

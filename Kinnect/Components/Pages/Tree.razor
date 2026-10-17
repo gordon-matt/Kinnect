@@ -1,0 +1,83 @@
+@page "/tree"
+@attribute [Authorize]
+@using MyWebTree.Components
+@using MyWebTree.Models
+
+@inject KinnectFamilyGraph Graph
+@inject IUserContextService Users
+@inject NavigationManager Nav
+
+<PageTitle>Family tree</PageTitle>
+<PageHeader Title="Family tree" />
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+@if (people is null)
+{
+    <p>Loading the family…</p>
+}
+else
+{
+    <FamilyTree Theme="bootstrap"
+                People="people"
+                FocusPersonId="@focusId"
+                HighlightedPersonId="@highlightId"
+                Editable="@editable"
+                Height="calc(100vh - 12rem)"
+                Changed="OnChanged"
+                OnOpenPerson="OnOpen" />
+}
+
+@code {
+    private IReadOnlyList<PersonData>? people;
+    private string? focusId;
+    private string? highlightId;
+    private string? error;
+    private bool editable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        editable = Users.IsAdmin() || Users.IsEditor();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var snapshot = await Graph.LoadAsync();
+        people = snapshot.People;
+        focusId = snapshot.FocusPersonId;
+        highlightId = snapshot.FocusPersonId;
+    }
+
+    private async Task OnChanged(FamilyTreeChange change)
+    {
+        error = null;
+        if (change.Kind != FamilyTreeChangeKind.FocusChanged)
+        {
+            var result = await Graph.ApplyAsync(change);
+            if (!result.IsSuccess)
+            {
+                error = string.Join(" ", result.Errors.Select(e => e));
+            }
+
+            await ReloadAsync();
+        }
+        else
+        {
+            focusId = change.FocusPersonId;
+        }
+    }
+
+    private Task OnOpen(PersonData person)
+    {
+        if (int.TryParse(person.Id, out int id))
+        {
+            Nav.NavigateTo($"/people/{id}");
+        }
+
+        return Task.CompletedTask;
+    }
+}

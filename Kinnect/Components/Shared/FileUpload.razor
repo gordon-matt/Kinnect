@@ -1,0 +1,80 @@
+@inject IJSRuntime Js
+@implements IAsyncDisposable
+
+<div class="d-flex flex-column gap-2">
+    <input @ref="input" type="file" accept="@Accept" class="form-control" />
+    @if (progress is not null)
+    {
+        <div class="progress">
+            <div class="progress-bar" style="width: @(progress)%">@progress%</div>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="text-danger small">@error</div>
+    }
+    <button type="button" class="btn btn-primary" disabled="@busy" @onclick="SendAsync">@Label</button>
+</div>
+
+@code {
+    private ElementReference input;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<FileUpload>? self;
+    private int? progress;
+    private string? error;
+    private bool busy;
+
+    [Parameter]
+    public string Url { get; set; } = "";
+
+    [Parameter]
+    public string Accept { get; set; } = "";
+
+    [Parameter]
+    public string Label { get; set; } = "Upload";
+
+    [Parameter]
+    public Dictionary<string, string?> Fields { get; set; } = [];
+
+    [Parameter]
+    public EventCallback Uploaded { get; set; }
+
+    [JSInvokable]
+    public void OnUploadProgress(int percent)
+    {
+        progress = percent;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SendAsync()
+    {
+        busy = true;
+        error = null;
+        progress = 0;
+        try
+        {
+            module ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/uploads.js");
+            self ??= DotNetObjectReference.Create(this);
+            await module.InvokeAsync<string>("uploadInput", Url, input, Fields, self);
+            progress = null;
+            await Uploaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        self?.Dispose();
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+}

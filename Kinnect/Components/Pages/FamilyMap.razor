@@ -1,0 +1,38 @@
+@page "/map"
+@attribute [Authorize]
+
+@inject IPersonService People
+
+<PageTitle>Map</PageTitle>
+<PageHeader Title="Map" />
+
+@if (pins is null)
+{
+    <p>Loading…</p>
+}
+else if (pins.Count == 0)
+{
+    <EmptyState Title="No places yet" Description="Add a location on a profile and it will show up here." />
+}
+else
+{
+    <KinnectMap Pins="pins" />
+    <ul class="list-group mt-3">
+        @foreach (var pin in pins)
+        {
+            <li class="list-group-item">
+                <a href="@($"people/{pin.PersonId}")">@pin.FullName</a>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<MapPinDto>? pins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await People.GetMapPinsAsync();
+        pins = result.IsSuccess ? result.Value.ToList() : [];
+    }
+}

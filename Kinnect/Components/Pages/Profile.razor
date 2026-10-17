@@ -1,0 +1,403 @@
+@page "/people/{PersonId:int}"
+@page "/people/{PersonId:int}/edit"
+@attribute [Authorize]
+
+@inject IPersonService People
+@inject IPersonEventService Events
+@inject IPostService Posts
+@inject IPhotoService Photos
+@inject IVideoService Videos
+@inject IDocumentService Documents
+@inject IUserContextService Users
+@inject NavigationManager Nav
+
+<PageTitle>@(person?.FullName ?? "Profile")</PageTitle>
+
+@if (missing)
+{
+    <EmptyState Title="Person not found" />
+}
+else if (person is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <PageHeader Title="@person.FullName">
+        <Actions>
+            @if (canEdit && !editing)
+            {
+                <a class="btn btn-primary" href="@($"people/{PersonId}/edit")">Edit</a>
+            }
+            <a class="btn btn-outline-secondary" href="@($"people/{PersonId}/events/map")">Event map</a>
+            <a class="btn btn-outline-secondary" href="@($"people/{PersonId}/photos/map")">Photo map</a>
+        </Actions>
+    </PageHeader>
+
+    <ul class="nav nav-tabs mb-3">
+        @foreach (var name in new[] { "About", "Posts", "Timeline", "Photos", "Videos", "Documents" })
+        {
+            <li class="nav-item">
+                <button type="button" class="nav-link @(tab == name ? "active" : null)" @onclick="() => tab = name">@name</button>
+            </li>
+        }
+    </ul>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert alert-info">@message</div>
+    }
+
+    @if (tab == "About")
+    {
+        <div class="row g-3">
+            <div class="col-lg-8">
+                @if (editing)
+                {
+                    <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card d-flex flex-column gap-2">
+                        <div class="row g-2">
+                            <div class="col"><label>Given names <InputText class="form-control" @bind-Value="form.GivenNames" /></label></div>
+                            <div class="col"><label>Family name <InputText class="form-control" @bind-Value="form.FamilyName" /></label></div>
+                        </div>
+                        <label class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="form.IsMale" /> Male
+                        </label>
+                        <label>Bio <InputTextArea class="form-control" @bind-Value="form.Bio" /></label>
+                        <label>Occupation <InputText class="form-control" @bind-Value="form.Occupation" /></label>
+                        <label>Education <InputText class="form-control" @bind-Value="form.Education" /></label>
+                        <label>Religion <InputText class="form-control" @bind-Value="form.Religion" /></label>
+                        <label>Notes <InputTextArea class="form-control" @bind-Value="form.Note" /></label>
+                        <label class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="form.IsDeceased" /> Deceased
+                        </label>
+                        <div>Location: @form.Latitude, @form.Longitude</div>
+                        <PlaceSearch Selected="OnPlace" />
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </EditForm>
+                }
+                else
+                {
+                    <div class="kinnect-card">
+                        @if (!string.IsNullOrWhiteSpace(person.ProfileImagePath))
+                        {
+                            <img src="@MediaUrl(person.ProfileImagePath)" alt="" class="rounded mb-3" style="max-width: 180px" />
+                        }
+                        <p>@person.Bio</p>
+                        <p>@person.Occupation</p>
+                        <p>@person.Education</p>
+                        <p>@person.Religion</p>
+                        <p>@person.Note</p>
+                    </div>
+                }
+            </div>
+            <div class="col-lg-4">
+                @if (canEdit)
+                {
+                    <div class="kinnect-card">
+                        <h2 class="h6">Profile picture</h2>
+                        <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="ReloadAsync" />
+                    </div>
+                }
+                @if (person.Latitude is not null && person.Longitude is not null)
+                {
+                    <div class="kinnect-card mt-3">
+                        <KinnectMap Pins="@(new[] { new MapPinDto { PersonId = person.Id, FullName = person.FullName, Latitude = person.Latitude.Value, Longitude = person.Longitude.Value } })" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (tab == "Posts")
+    {
+        @if (canEdit && mine)
+        {
+            <div class="kinnect-card mb-3">
+                <textarea class="form-control mb-2" rows="3" @bind="postText" placeholder="Write a post"></textarea>
+                <button class="btn btn-primary" type="button" @onclick="AddPostAsync">Post</button>
+            </div>
+        }
+        @foreach (var post in posts)
+        {
+            <article class="kinnect-card mb-2">
+                <small class="text-secondary">@post.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy HH:mm")</small>
+                <p class="mb-0 mt-1">@post.Content</p>
+            </article>
+        }
+    }
+    else if (tab == "Timeline")
+    {
+        @if (canEdit)
+        {
+            <div class="kinnect-card mb-3 d-flex flex-column gap-2">
+                <select class="form-select" @bind="eventForm.EventType">
+                    @foreach (var option in PersonEventType.TimelineSelectableTypes)
+                    {
+                        <option value="@option.Type">@option.Label</option>
+                    }
+                </select>
+                <div class="d-flex gap-2">
+                    <input type="number" class="form-control" @bind="eventYear" placeholder="Year" />
+                    <input type="number" class="form-control" @bind="eventMonth" placeholder="Month" min="1" max="12" />
+                    <input type="number" class="form-control" @bind="eventDay" placeholder="Day" min="1" max="31" />
+                </div>
+                <input class="form-control" @bind="eventForm.Place" placeholder="Place" />
+                <PlaceSearch Label="Event place" Selected="OnEventPlace" />
+                <input class="form-control" @bind="eventForm.Description" placeholder="Description" />
+                <button class="btn btn-primary" type="button" @onclick="AddEventAsync">Add event</button>
+            </div>
+        }
+        <ul class="list-group">
+            @foreach (var item in events)
+            {
+                <li class="list-group-item">
+                    <strong>@item.EventTypeLabel</strong>
+                    <span> @item.DateDisplay @item.Place</span>
+                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                    {
+                        <div>@item.Description</div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    else if (tab == "Photos")
+    {
+        @if (canEdit && mine)
+        {
+            <div class="kinnect-card mb-3">
+                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+                <FileUpload Url="/api/photos" Accept="image/*" Label="Upload photo" Fields="@PhotoFields" Uploaded="ReloadAsync" />
+            </div>
+        }
+        <div class="kinnect-media">
+            @foreach (var photo in photos)
+            {
+                <button type="button" class="kinnect-card text-start" @onclick="() => selectedPhoto = photo">
+                    <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
+                    <div>@photo.Title</div>
+                </button>
+            }
+        </div>
+    }
+    else if (tab == "Videos")
+    {
+        @if (canEdit && mine)
+        {
+            <div class="kinnect-card mb-3">
+                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+                <FileUpload Url="/api/videos" Accept="video/*" Label="Upload video" Fields="@VideoFields" Uploaded="ReloadAsync" />
+            </div>
+        }
+        <div class="kinnect-videos">
+            @foreach (var video in videos)
+            {
+                <button type="button" class="kinnect-card text-start" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
+                    @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
+                    {
+                        <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
+                    }
+                    else
+                    {
+                        <div class="kinnect-video-poster"><i class="bi bi-play-circle"></i></div>
+                    }
+                    <div class="mt-2">@(video.IsProcessing ? "Processing…" : video.Title)</div>
+                </button>
+            }
+        </div>
+    }
+    else if (tab == "Documents")
+    {
+        @if (canEdit && mine)
+        {
+            <div class="kinnect-card mb-3">
+                <input class="form-control mb-2" @bind="mediaTitle" placeholder="Title" />
+                <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="ReloadAsync" />
+            </div>
+        }
+        <ul class="list-group">
+            @foreach (var document in documents)
+            {
+                <li class="list-group-item">
+                    <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
+                    <small class="text-secondary">@document.ContentType</small>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (selectedPhoto is not null)
+    {
+        <div class="kinnect-lightbox" @onclick="() => selectedPhoto = null">
+            <div class="kinnect-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">@selectedPhoto.Title</h2>
+                    <button type="button" class="btn-close" @onclick="() => selectedPhoto = null"></button>
+                </div>
+                <img src="@MediaUrl(selectedPhoto.FilePath)" alt="@selectedPhoto.Title" />
+                @if (!string.IsNullOrWhiteSpace(selectedPhoto.Description))
+                {
+                    <p class="mt-2 mb-0">@selectedPhoto.Description</p>
+                }
+            </div>
+        </div>
+    }
+
+    @if (selectedVideo is not null)
+    {
+        <div class="kinnect-lightbox" @onclick="() => selectedVideo = null">
+            <div class="kinnect-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">@selectedVideo.Title</h2>
+                    <button type="button" class="btn-close" @onclick="() => selectedVideo = null"></button>
+                </div>
+                <video controls autoplay src="@MediaUrl(selectedVideo.FilePath)"></video>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int PersonId { get; set; }
+
+    private PersonDto? person;
+    private PersonEditRequest form = new();
+    private PersonEventRequest eventForm = new() { EventType = PersonEventType.Birth };
+    private List<PostDto> posts = [];
+    private List<PersonEventDto> events = [];
+    private List<PhotoDto> photos = [];
+    private List<VideoDto> videos = [];
+    private List<DocumentDto> documents = [];
+    private PhotoDto? selectedPhoto;
+    private VideoDto? selectedVideo;
+    private string tab = "About";
+    private string? message;
+    private string postText = string.Empty;
+    private string mediaTitle = string.Empty;
+    private int? eventYear;
+    private int? eventMonth;
+    private int? eventDay;
+    private bool missing;
+    private bool canEdit;
+    private bool editing;
+    private bool mine;
+
+    private Dictionary<string, string?> PhotoFields => new()
+    {
+        ["title"] = string.IsNullOrWhiteSpace(mediaTitle) ? "Photo" : mediaTitle,
+    };
+
+    private Dictionary<string, string?> VideoFields => new()
+    {
+        ["title"] = string.IsNullOrWhiteSpace(mediaTitle) ? "Video" : mediaTitle,
+    };
+
+    private Dictionary<string, string?> DocumentFields => new()
+    {
+        ["title"] = string.IsNullOrWhiteSpace(mediaTitle) ? "Document" : mediaTitle,
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        editing = Nav.Uri.Contains("/edit", StringComparison.OrdinalIgnoreCase);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var loaded = await People.GetByIdAsync(PersonId);
+        if (!loaded.IsSuccess)
+        {
+            missing = true;
+            return;
+        }
+
+        person = loaded.Value;
+        missing = false;
+        string? userId = Users.GetCurrentUserId();
+        mine = userId is not null && person.UserId == userId;
+        bool editor = Users.IsEditor() || Users.IsAdmin();
+        canEdit = Users.IsAdmin() || mine || (editor && person.UserId is null);
+        form = new PersonEditRequest
+        {
+            FamilyName = person.FamilyName,
+            GivenNames = person.GivenNames,
+            IsMale = person.IsMale,
+            Bio = person.Bio,
+            Latitude = person.Latitude,
+            Longitude = person.Longitude,
+            FatherId = person.FatherId,
+            MotherId = person.MotherId,
+            Occupation = person.Occupation,
+            Education = person.Education,
+            Religion = person.Religion,
+            Note = person.Note,
+            IsDeceased = person.IsDeceased,
+        };
+
+        posts = (await Posts.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
+        events = (await Events.GetByPersonAsync(PersonId)).Value?.OrderBy(e => e.Year).ToList() ?? [];
+        photos = (await Photos.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
+        videos = (await Videos.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
+        documents = (await Documents.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
+    }
+
+    private async Task SaveAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await People.UpdateAsync(PersonId, form, userId, Users.IsAdmin(), Users.IsAdmin() || Users.IsEditor());
+        message = result.IsSuccess ? "Saved." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            Nav.NavigateTo($"/people/{PersonId}");
+        }
+    }
+
+    private void OnPlace(NominatimHit hit)
+    {
+        form.Latitude = hit.Latitude;
+        form.Longitude = hit.Longitude;
+    }
+
+    private void OnEventPlace(NominatimHit hit)
+    {
+        eventForm.Place = hit.Label;
+        eventForm.Latitude = hit.Latitude;
+        eventForm.Longitude = hit.Longitude;
+    }
+
+    private async Task AddPostAsync()
+    {
+        if (string.IsNullOrWhiteSpace(postText) || person is null)
+        {
+            return;
+        }
+
+        await Posts.CreateAsync(new PostCreateRequest { Content = postText.Trim() }, person.Id);
+        postText = string.Empty;
+        await ReloadAsync();
+    }
+
+    private async Task AddEventAsync()
+    {
+        eventForm.Year = eventYear is int year and >= 1 and <= 9999 ? (short)year : null;
+        eventForm.Month = eventMonth is int month and >= 1 and <= 12 ? (byte)month : null;
+        eventForm.Day = eventDay is int day and >= 1 and <= 31 ? (byte)day : null;
+        var result = await Events.CreateAsync(PersonId, eventForm);
+        message = result.IsSuccess ? "Event added." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            eventForm = new PersonEventRequest { EventType = PersonEventType.Birth };
+            eventYear = eventMonth = eventDay = null;
+            await ReloadAsync();
+        }
+    }
+
+    private static string MediaUrl(string path) =>
+        path.StartsWith('/') ? path : "/uploads/" + path.TrimStart('/');
+}

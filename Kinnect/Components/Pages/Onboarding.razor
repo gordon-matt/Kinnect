@@ -1,0 +1,134 @@
+@page "/onboarding"
+@attribute [Authorize]
+@using Kinnect.Data
+
+@inject ApplicationDbContextBase Database
+@inject IUserContextService Users
+@inject IGedcomService Gedcom
+@inject NavigationManager Nav
+
+<PageTitle>Welcome</PageTitle>
+<PageHeader Title="Welcome to Kinnect" />
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert alert-info">@message</div>
+}
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="kinnect-card d-flex flex-column gap-2">
+            <h2 class="h5">This is me</h2>
+            <input class="form-control" @bind="givenNames" placeholder="Given names" />
+            <input class="form-control" @bind="familyName" placeholder="Family name" />
+            <label class="form-check"><input type="checkbox" class="form-check-input" @bind="isMale" /> Male</label>
+            <button class="btn btn-primary" type="button" @onclick="CreateAsync">Create my profile</button>
+        </div>
+    </div>
+    @if (unlinked.Count > 0)
+    {
+        <div class="col-md-6">
+            <div class="kinnect-card">
+                <h2 class="h5">I am already in the tree</h2>
+                <ul class="list-group">
+                    @foreach (var person in unlinked)
+                    {
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>@person.GivenNames @person.FamilyName</span>
+                            <button class="btn btn-sm btn-outline-primary" type="button" @onclick="() => LinkAsync(person.Id)">This is me</button>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+    @if (canImport)
+    {
+        <div class="col-12">
+            <div class="kinnect-card">
+                <h2 class="h5">Import a GEDCOM</h2>
+                <InputFile OnChange="ImportAsync" accept=".ged,.gedcom" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string givenNames = string.Empty;
+    private string familyName = string.Empty;
+    private bool isMale = true;
+    private string? message;
+    private bool canImport;
+    private List<Person> unlinked = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        if (await Database.People.AnyAsync(p => p.UserId == userId))
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        bool any = await Database.People.AnyAsync();
+        canImport = Users.IsAdmin() && !any;
+        unlinked = any
+            ? await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync()
+            : [];
+    }
+
+    private async Task CreateAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null || string.IsNullOrWhiteSpace(givenNames))
+        {
+            message = "Enter your given names.";
+            return;
+        }
+
+        Database.People.Add(new Person
+        {
+            UserId = userId,
+            GivenNames = givenNames.Trim(),
+            FamilyName = familyName.Trim(),
+            IsMale = isMale,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
+        });
+        await Database.SaveChangesAsync();
+        Nav.NavigateTo("/tree");
+    }
+
+    private async Task LinkAsync(int personId)
+    {
+        string? userId = Users.GetCurrentUserId();
+        var person = await Database.People.FirstOrDefaultAsync(p => p.Id == personId && p.UserId == null);
+        if (userId is null || person is null)
+        {
+            message = "That person cannot be linked.";
+            return;
+        }
+
+        person.UserId = userId;
+        person.UpdatedAtUtc = DateTime.UtcNow;
+        await Database.SaveChangesAsync();
+        Nav.NavigateTo("/tree");
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        await using var stream = args.File.OpenReadStream(10 * 1024 * 1024);
+        var result = await Gedcom.ImportAsync(stream);
+        message = result.IsSuccess ? "Import complete. Choose your name." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            unlinked = await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync();
+            canImport = false;
+        }
+    }
+}

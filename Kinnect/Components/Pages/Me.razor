@@ -1,0 +1,23 @@
+@page "/me"
+@attribute [Authorize]
+
+@inject IUserContextService Users
+@inject IPersonService People
+@inject NavigationManager Nav
+
+<PageTitle>My profile</PageTitle>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            Nav.NavigateTo("/auth/login", forceLoad: true);
+            return;
+        }
+
+        var person = await People.GetByUserIdAsync(userId);
+        Nav.NavigateTo(person.IsSuccess ? $"/people/{person.Value.Id}" : "/onboarding");
+    }
+}

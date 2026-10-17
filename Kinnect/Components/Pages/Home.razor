@@ -1,0 +1,110 @@
+@page "/"
+@attribute [Authorize]
+
+@inject IFeedService Feed
+@inject IPostService Posts
+@inject IUserContextService Users
+@inject IPersonService People
+
+<PageTitle>Home</PageTitle>
+<PageHeader Title="Home" />
+
+@if (needsOnboarding)
+{
+    <p>Your account is not linked to a person yet.</p>
+    <a class="btn btn-primary" href="onboarding">Get started</a>
+}
+else if (items is null)
+{
+    <p>Loading the feed…</p>
+}
+else
+{
+    @if (myPersonId is not null)
+    {
+        <div class="kinnect-card mb-3">
+            <textarea class="form-control mb-2" rows="3" @bind="postText" placeholder="Share something with the family"></textarea>
+            <button class="btn btn-primary" type="button" @onclick="AddPostAsync" disabled="@posting">Post</button>
+        </div>
+    }
+    @if (items.Count == 0)
+    {
+        <EmptyState Title="Nothing here yet" Description="Posts, photos, and videos from the family will show up here." />
+    }
+    <div class="kinnect-feed">
+        @foreach (var item in items)
+        {
+            <article class="kinnect-card">
+                <div class="d-flex justify-content-between">
+                    <a href="@($"people/{item.AuthorPersonId}")">@item.AuthorName</a>
+                    <small class="text-secondary">@item.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy")</small>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(item.Title))
+                {
+                    <h2 class="h6 mt-2">@item.Title</h2>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.Content))
+                {
+                    <p class="mb-0">@item.Content</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.ThumbnailPath))
+                {
+                    <img class="mt-2 rounded" style="max-width: 100%; max-height: 360px" src="@Url(item.ThumbnailPath)" alt="" />
+                }
+                else if (!string.IsNullOrWhiteSpace(item.FilePath) && item.Type == "Video")
+                {
+                    <video class="mt-2 w-100" controls src="@Url(item.FilePath)"></video>
+                }
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private List<FeedItemDto>? items;
+    private bool needsOnboarding;
+    private int? myPersonId;
+    private string postText = string.Empty;
+    private bool posting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is not null)
+        {
+            var mine = await People.GetByUserIdAsync(userId);
+            needsOnboarding = !mine.IsSuccess;
+            if (needsOnboarding)
+            {
+                return;
+            }
+
+            myPersonId = mine.Value.Id;
+        }
+
+        await LoadFeedAsync();
+    }
+
+    private async Task AddPostAsync()
+    {
+        if (myPersonId is not int personId || string.IsNullOrWhiteSpace(postText))
+        {
+            return;
+        }
+
+        posting = true;
+        await Posts.CreateAsync(new PostCreateRequest { Content = postText.Trim() }, personId);
+        postText = string.Empty;
+        posting = false;
+        await LoadFeedAsync();
+    }
+
+    private async Task LoadFeedAsync()
+    {
+        var feed = await Feed.GetFeedAsync();
+        items = feed.IsSuccess ? feed.Value.ToList() : [];
+    }
+
+    private static string Url(string path) =>
+        path.StartsWith('/') ? path : "/uploads/" + path.TrimStart('/');
+}

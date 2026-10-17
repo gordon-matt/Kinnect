@@ -1,0 +1,118 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = Constants.Roles.Administrator)]
+@using Microsoft.AspNetCore.Identity
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IPersonService People
+@inject IUserContextService Users
+
+<PageTitle>Users</PageTitle>
+<PageHeader Title="Users" />
+
+@if (rows is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr><th>Name</th><th>Email</th><th>Role</th><th>Person</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td>@row.UserName</td>
+                    <td>@row.Email</td>
+                    <td>
+                        <select class="form-select form-select-sm" value="@row.Role" @onchange="e => ChangeRoleAsync(row, e.Value?.ToString())">
+                            <option>@Constants.Roles.Administrator</option>
+                            <option>@Constants.Roles.Editor</option>
+                            <option>@Constants.Roles.User</option>
+                        </select>
+                    </td>
+                    <td>@row.PersonName</td>
+                    <td>
+                        @if (row.Locked)
+                        {
+                            <button class="btn btn-sm btn-primary" type="button" @onclick="() => ApproveAsync(row)">Approve</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="() => LockAsync(row)">Lock</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<UserRow>? rows;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var people = await People.GetAllAsync();
+        var byUser = people.IsSuccess
+            ? people.Value.Where(p => p.UserId is not null).ToDictionary(p => p.UserId!)
+            : [];
+        var next = new List<UserRow>();
+        foreach (var user in UserManager.Users.OrderBy(u => u.Email))
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            byUser.TryGetValue(user.Id, out var person);
+            bool locked = user.LockoutEnabled && user.LockoutEnd > DateTimeOffset.UtcNow;
+            next.Add(new UserRow(user.Id, user.UserName ?? user.Email ?? user.Id, user.Email ?? "", roles.FirstOrDefault() ?? Constants.Roles.User, person?.FullName, locked));
+        }
+
+        rows = next;
+    }
+
+    private async Task ApproveAsync(UserRow row)
+    {
+        var user = await UserManager.FindByIdAsync(row.Id);
+        if (user is not null)
+        {
+            await UserManager.SetLockoutEndDateAsync(user, null);
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LockAsync(UserRow row)
+    {
+        var user = await UserManager.FindByIdAsync(row.Id);
+        if (user is not null)
+        {
+            await UserManager.SetLockoutEnabledAsync(user, true);
+            await UserManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task ChangeRoleAsync(UserRow row, string? role)
+    {
+        if (role is null || row.Id == Users.GetCurrentUserId() || role == row.Role)
+        {
+            return;
+        }
+
+        var user = await UserManager.FindByIdAsync(row.Id);
+        if (user is null)
+        {
+            return;
+        }
+
+        var current = await UserManager.GetRolesAsync(user);
+        await UserManager.RemoveFromRolesAsync(user, current);
+        await UserManager.AddToRoleAsync(user, role);
+        await LoadAsync();
+    }
+
+    private sealed record UserRow(string Id, string UserName, string Email, string Role, string? PersonName, bool Locked);
+}

@@ -6,7 +6,7 @@ using Kinnect.Models.Dto.Admin;
 namespace Kinnect.Services;
 
 public sealed class PersonBackupService(
-    ApplicationDbContext db,
+    ApplicationDbContextBase db,
     IFileStorageService fileStorageService,
     ILogger<PersonBackupService> logger) : IPersonBackupService
 {
