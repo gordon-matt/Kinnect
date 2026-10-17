@@ -61,6 +61,8 @@ builder.Services.AddNetForgeBootstrapComponents(ui => ui.ThemeStorageKey = "kinn
 builder.Services.Configure<ForgeShellOptions>(shell =>
 {
     shell.Brand = "Kinnect";
+    shell.LogoUrl = "img/Logo.png";
+    shell.LogoDarkUrl = "img/Logo.png";
     shell.SearchPlaceholder = "Search people";
     shell.NavigationPlacement = ForgeNavigationPlacement.Topbar;
     shell.TopbarEndComponent = typeof(Kinnect.Components.Layout.MessagesMenu);

@@ -1,6 +1,7 @@
 @page "/people/{PersonId:int}"
 @page "/people/{PersonId:int}/edit"
 @attribute [Authorize]
+@implements IDisposable
 
 @inject IPersonService People
 @inject IPersonEventService Events
@@ -25,7 +26,7 @@ else
 {
     <PageHeader Title="@person.FullName">
         <Actions>
-            @if (canEdit && !editing)
+            @if (canEdit && !Editing)
             {
                 <a class="btn btn-primary" href="@($"people/{PersonId}/edit")">Edit</a>
             }
@@ -52,7 +53,7 @@ else
     {
         <div class="row g-3">
             <div class="col-lg-8">
-                @if (editing)
+                @if (Editing)
                 {
                     <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card d-flex flex-column gap-2">
                         <div class="row g-2">
@@ -227,19 +228,14 @@ else
 
     @if (selectedPhoto is not null)
     {
-        <div class="kinnect-lightbox" @onclick="() => selectedPhoto = null">
-            <div class="kinnect-card" @onclick:stopPropagation="true">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h2 class="h5 mb-0">@selectedPhoto.Title</h2>
-                    <button type="button" class="btn-close" @onclick="() => selectedPhoto = null"></button>
-                </div>
-                <img src="@MediaUrl(selectedPhoto.FilePath)" alt="@selectedPhoto.Title" />
-                @if (!string.IsNullOrWhiteSpace(selectedPhoto.Description))
-                {
-                    <p class="mt-2 mb-0">@selectedPhoto.Description</p>
-                }
-            </div>
-        </div>
+        <PhotoLightbox ImageUrl="@MediaUrl(selectedPhoto.FilePath)"
+                       Title="@selectedPhoto.Title"
+                       Description="@selectedPhoto.Description"
+                       AnnotationsJson="@selectedPhoto.AnnotationsJson"
+                       PhotoId="@selectedPhoto.Id"
+                       CanEdit="@canEdit"
+                       AnnotationsSaved="OnAnnotationsSaved"
+                       Closed="() => selectedPhoto = null" />
     }
 
     @if (selectedVideo is not null)
@@ -279,8 +275,9 @@ else
     private int? eventDay;
     private bool missing;
     private bool canEdit;
-    private bool editing;
     private bool mine;
+
+    private bool Editing => Nav.Uri.Contains("/edit", StringComparison.OrdinalIgnoreCase);
 
     private Dictionary<string, string?> PhotoFields => new()
     {
@@ -297,10 +294,45 @@ else
         ["title"] = string.IsNullOrWhiteSpace(mediaTitle) ? "Document" : mediaTitle,
     };
 
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
-        editing = Nav.Uri.Contains("/edit", StringComparison.OrdinalIgnoreCase);
+        if (Editing)
+        {
+            tab = "About";
+        }
+
         await ReloadAsync();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (Editing)
+        {
+            tab = "About";
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+
+    private Task OnAnnotationsSaved(string json)
+    {
+        if (selectedPhoto is not null)
+        {
+            selectedPhoto.AnnotationsJson = json;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task ReloadAsync()

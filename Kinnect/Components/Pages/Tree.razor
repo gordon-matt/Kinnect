@@ -8,7 +8,15 @@
 @inject NavigationManager Nav
 
 <PageTitle>Family tree</PageTitle>
-<PageHeader Title="Family tree" />
+<PageHeader Title="Family tree">
+    <Actions>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => showPeople = true">People</button>
+        @if (meId is not null)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="FindMeAsync">Find me</button>
+        }
+    </Actions>
+</PageHeader>
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -21,7 +29,8 @@
 }
 else
 {
-    <FamilyTree Theme="bootstrap"
+    <FamilyTree @ref="tree"
+                Theme="bootstrap"
                 People="people"
                 FocusPersonId="@focusId"
                 HighlightedPersonId="@highlightId"
@@ -31,10 +40,37 @@ else
                 OnOpenPerson="OnOpen" />
 }
 
+@if (showPeople && people is not null)
+{
+    <div class="kinnect-lightbox" @onclick="() => showPeople = false">
+        <div class="kinnect-card" style="width: min(420px, 100%); max-height: 80vh; overflow: auto" @onclick:stopPropagation="true">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h5 mb-0">People</h2>
+                <button type="button" class="btn-close" @onclick="() => showPeople = false"></button>
+            </div>
+            <div class="list-group">
+                @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
+                {
+                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => CenterAsync(person.Id)">
+                        @person.DisplayName
+                        @if (person.Lifespan.Length > 0)
+                        {
+                            <small class="text-secondary">@person.Lifespan</small>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 @code {
+    private FamilyTree? tree;
     private IReadOnlyList<PersonData>? people;
     private string? focusId;
+    private string? meId;
     private string? highlightId;
+    private bool showPeople;
     private string? error;
     private bool editable;
 
@@ -48,9 +84,22 @@ else
     {
         var snapshot = await Graph.LoadAsync();
         people = snapshot.People;
-        focusId = snapshot.FocusPersonId;
+        meId = snapshot.FocusPersonId;
+        focusId ??= snapshot.FocusPersonId;
         highlightId = snapshot.FocusPersonId;
     }
+
+    private async Task CenterAsync(string personId)
+    {
+        showPeople = false;
+        focusId = personId;
+        if (tree is not null)
+        {
+            await tree.CenterOnAsync(personId);
+        }
+    }
+
+    private Task FindMeAsync() => meId is null ? Task.CompletedTask : CenterAsync(meId);
 
     private async Task OnChanged(FamilyTreeChange change)
     {

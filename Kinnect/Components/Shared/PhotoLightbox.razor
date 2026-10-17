@@ -1,0 +1,129 @@
+@inject IJSRuntime Js
+@inject IPhotoService Photos
+@inject IUserContextService Users
+@implements IAsyncDisposable
+
+<div class="kinnect-lightbox" @onclick="CloseAsync">
+    <div class="kinnect-card" @onclick:stopPropagation="true">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h5 mb-0">@Title</h2>
+            <button type="button" class="btn-close" @onclick="CloseAsync"></button>
+        </div>
+        <label class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" @bind="showAnnotations" @bind:after="SyncAsync" />
+            Show annotations
+        </label>
+        <img @ref="image" src="@ImageUrl" alt="@Title" />
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="mt-2 mb-0">@Description</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string ImageUrl { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public string? AnnotationsJson { get; set; }
+
+    [Parameter]
+    public int? PhotoId { get; set; }
+
+    [Parameter]
+    public bool CanEdit { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    [Parameter]
+    public EventCallback<string> AnnotationsSaved { get; set; }
+
+    private ElementReference image;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<PhotoLightbox>? self;
+    private bool showAnnotations = true;
+    private bool ready;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || ready)
+        {
+            return;
+        }
+
+        ready = true;
+        if (showAnnotations)
+        {
+            await SyncAsync();
+        }
+    }
+
+    private async Task SyncAsync()
+    {
+        module ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/annotations.js");
+        if (!showAnnotations)
+        {
+            await module.InvokeVoidAsync("clear");
+            return;
+        }
+
+        self ??= DotNetObjectReference.Create(this);
+        await module.InvokeVoidAsync("attach", image, AnnotationsJson, CanEdit, self);
+    }
+
+    [JSInvokable]
+    public async Task SaveAnnotations(string json)
+    {
+        if (!CanEdit || PhotoId is not int photoId)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Photos.SaveAnnotationsAsync(photoId, json, userId, Users.IsAdmin());
+        if (result.IsSuccess)
+        {
+            AnnotationsJson = json;
+            await AnnotationsSaved.InvokeAsync(json);
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("clear");
+        }
+
+        await Closed.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        self?.Dispose();
+        if (module is not null)
+        {
+            try
+            {
+                await module.InvokeVoidAsync("clear");
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

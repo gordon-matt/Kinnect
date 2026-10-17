@@ -76,6 +76,14 @@
         "LICENSE.txt",
         "dist/jquery.validate.unobtrusive.min.js"
       ]
+    },
+    {
+      "library": "@annotorious/annotorious@3.8.0",
+      "destination": "wwwroot/lib/annotorious/annotorious/",
+      "files": [
+        "dist/annotorious.min.css",
+        "dist/annotorious.min.js"
+      ]
     }
   ]
 }

@@ -17,14 +17,6 @@ else if (pins.Count == 0)
 else
 {
     <KinnectMap Pins="pins" />
-    <ul class="list-group mt-3">
-        @foreach (var pin in pins)
-        {
-            <li class="list-group-item">
-                <a href="@($"people/{pin.PersonId}")">@pin.FullName</a>
-            </li>
-        }
-    </ul>
 }
 
 @code {

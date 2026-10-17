@@ -115,6 +115,22 @@ html {
     border-radius: .35rem;
 }
 
+.kinnect-annotation-label {
+    position: fixed;
+    z-index: 3000;
+    pointer-events: none;
+    max-width: 260px;
+    padding: .25rem .5rem;
+    border-radius: .25rem;
+    background: #111;
+    color: #fff;
+    font-size: .85rem;
+}
+
+.kinnect-feed img {
+    cursor: pointer;
+}
+
 html[data-bs-theme="dark"] .mwt-root[data-theme="bootstrap"],
 html[data-bs-theme="dark"] .ec-root[data-theme="bootstrap"] {
     color-scheme: dark;

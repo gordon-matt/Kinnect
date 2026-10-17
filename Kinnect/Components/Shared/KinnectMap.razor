@@ -1,4 +1,7 @@
+@using System.Linq.Expressions
+@using System.Net
 @using LeafletForBlazor
+@using LeafletForBlazor.techs.core.Appearance
 @using static LeafletForBlazor.Map
 @using static LeafletForBlazor.techs.maps.Leaflet
 
@@ -7,10 +10,10 @@
 </div>
 
 @code {
-    private LoadParameters parameters = new()
+    private readonly LoadParameters parameters = new()
     {
         location = new Location { latitude = -34.9285, longitude = 138.6007 },
-        zoomLevel = 4,
+        zoomLevel = 2,
     };
 
     private LeafletForBlazor.Map? map;
@@ -28,27 +31,49 @@
         var points = Pins.Select(pin => new StreamPoint
         {
             guid = Guid.NewGuid(),
-            type = "person",
+            type = "person-" + pin.PersonId,
             timestamp = DateTime.UtcNow,
             coordinates = new Coordinates { xy = [pin.Latitude, pin.Longitude] },
             value = pin.FullName,
         }).ToList();
 
+        map.Geometric.Points.isFitExtentEnabled = true;
         await map.Geometric.Points.Add(points);
-    }
 
-    protected override void OnParametersSet()
-    {
-        var first = Pins.FirstOrDefault();
-        if (first is null)
+        foreach (var pin in Pins)
         {
-            return;
+            string markerType = "person-" + pin.PersonId;
+            await map.Geometric.Points
+                .Appearance(TypeIs(markerType))
+                .SetPopup(new Popup
+                {
+                    title = PopupTitle(pin),
+                    content = $"<a href=\"/people/{pin.PersonId}\">View Profile</a>",
+                });
         }
 
-        parameters = new LoadParameters
+        if (Pins.Count == 1)
         {
-            location = new Location { latitude = first.Latitude, longitude = first.Longitude },
-            zoomLevel = Pins.Count == 1 ? 12 : 4,
-        };
+            map.View.SetCenter(Pins[0].Latitude, Pins[0].Longitude);
+            map.View.SetZoomLevel(12);
+        }
+    }
+
+    private static Expression<Func<StreamPoint, bool>> TypeIs(string markerType)
+    {
+        var point = Expression.Parameter(typeof(StreamPoint), "point");
+        var body = Expression.Equal(
+            Expression.PropertyOrField(point, "type"),
+            Expression.Constant(markerType));
+        return Expression.Lambda<Func<StreamPoint, bool>>(body, point);
+    }
+
+    private static string PopupTitle(MapPinDto pin)
+    {
+        string name = WebUtility.HtmlEncode(pin.FullName);
+        string image = string.IsNullOrWhiteSpace(pin.ProfileImagePath)
+            ? string.Empty
+            : $"<img src=\"/uploads/{pin.ProfileImagePath.TrimStart('/')}\" alt=\"\" style=\"width:60px;height:60px;border-radius:50%;object-fit:cover\" /><br/>";
+        return $"{image}<strong>{name}</strong>";
     }
 }
