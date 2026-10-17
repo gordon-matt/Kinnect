@@ -5,11 +5,14 @@
 @using static LeafletForBlazor.Map
 @using static LeafletForBlazor.techs.maps.Leaflet
 
-<div class="kinnect-map">
+<div class="kinnect-map" @ref="root">
     <Map @ref="map" loadParameters="@parameters" height="100%" width="100%" OnAfterMapLoaded="ShowPinsAsync" />
 </div>
 
 @code {
+    [Inject]
+    public IJSRuntime Js { get; set; } = default!;
+
     private readonly LoadParameters parameters = new()
     {
         location = new Location { latitude = -34.9285, longitude = 138.6007 },
@@ -17,6 +20,7 @@
     };
 
     private LeafletForBlazor.Map? map;
+    private ElementReference root;
 
     [Parameter]
     public IReadOnlyList<MapPinDto> Pins { get; set; } = [];
@@ -47,10 +51,13 @@
                 .Appearance(TypeIs(markerType))
                 .SetPopup(new Popup
                 {
-                    title = PopupTitle(pin),
-                    content = $"<a href=\"/people/{pin.PersonId}\">View Profile</a>",
+                    title = $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong>",
+                    content = PopupContent(pin),
                 });
         }
+
+        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js");
+        await pinsModule.InvokeVoidAsync("usePins", root);
 
         if (Pins.Count == 1)
         {
@@ -68,12 +75,11 @@
         return Expression.Lambda<Func<StreamPoint, bool>>(body, point);
     }
 
-    private static string PopupTitle(MapPinDto pin)
+    private static string PopupContent(MapPinDto pin)
     {
-        string name = WebUtility.HtmlEncode(pin.FullName);
         string image = string.IsNullOrWhiteSpace(pin.ProfileImagePath)
             ? string.Empty
             : $"<img src=\"/uploads/{pin.ProfileImagePath.TrimStart('/')}\" alt=\"\" style=\"width:60px;height:60px;border-radius:50%;object-fit:cover\" /><br/>";
-        return $"{image}<strong>{name}</strong>";
+        return $"{image}<a href=\"/people/{pin.PersonId}\">View Profile</a>";
     }
 }

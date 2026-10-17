@@ -4,6 +4,7 @@
 @inject IPersonService People
 
 <PageTitle>Map</PageTitle>
+<div class="kinnect-map-page">
 <PageHeader Title="Map" />
 
 @if (pins is null)
@@ -18,6 +19,7 @@ else
 {
     <KinnectMap Pins="pins" />
 }
+</div>
 
 @code {
     private List<MapPinDto>? pins;
