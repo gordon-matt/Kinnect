@@ -454,6 +454,47 @@ html {
     margin: 0.15rem 0;
 }
 
+/* Kinnect asks MyWebTree and EasyChatz for data-theme="netforge". The components stay
+   agnostic and only expose their own variables; these rules map them onto the shell. */
+.mwt-root[data-theme="netforge"] {
+    --mwt-font: var(--nf-font);
+    --mwt-radius: var(--nf-radius);
+    --mwt-bg: var(--nf-bg);
+    --mwt-surface: var(--nf-surface-2);
+    --mwt-surface-raised: var(--nf-surface);
+    --mwt-hover: var(--nf-hover);
+    --mwt-border: var(--nf-border);
+    --mwt-text: var(--nf-text);
+    --mwt-muted: var(--nf-muted);
+    --mwt-accent: var(--nf-accent);
+    --mwt-accent-soft: var(--nf-accent-soft);
+    --mwt-danger: var(--nf-danger);
+    --mwt-success: var(--nf-success);
+    --mwt-shadow: var(--nf-shadow);
+    color-scheme: inherit;
+}
+
+.ec-root[data-theme="netforge"] {
+    --ec-font: var(--nf-font);
+    --ec-radius: var(--nf-radius);
+    --ec-bg: var(--nf-bg);
+    --ec-surface: var(--nf-surface-2);
+    --ec-surface-raised: var(--nf-surface);
+    --ec-hover: var(--nf-hover);
+    --ec-border: var(--nf-border);
+    --ec-text: var(--nf-text);
+    --ec-muted: var(--nf-muted);
+    --ec-accent: var(--nf-accent);
+    --ec-accent-soft: var(--nf-accent-soft);
+    --ec-mine: var(--nf-accent);
+    --ec-mine-text: var(--nf-accent-text);
+    --ec-danger: var(--nf-danger);
+    --ec-success: var(--nf-success);
+    --ec-shadow: var(--nf-shadow);
+    --ec-backdrop: var(--nf-scrim);
+    color-scheme: inherit;
+}
+
 .kinnect-fill {
     flex: 1;
     min-height: 0;
