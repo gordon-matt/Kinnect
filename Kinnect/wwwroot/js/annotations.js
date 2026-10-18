@@ -1,6 +1,6 @@
 let annotator = null;
 let label = null;
-let dotnet = null;
+let selectedId = null;
 
 function commentOf(annotation) {
     const raw = annotation?.bodies ?? annotation?.body;
@@ -11,10 +11,8 @@ function commentOf(annotation) {
 }
 
 function withComment(annotation, text) {
-    return {
-        ...annotation,
-        bodies: [{ type: "TextualBody", purpose: "commenting", value: text }],
-    };
+    const bodies = [{ type: "TextualBody", purpose: "commenting", value: text }];
+    return { ...annotation, bodies };
 }
 
 function hover() {
@@ -49,16 +47,7 @@ function hideLabel() {
     }
 }
 
-async function persist() {
-    if (!dotnet || !annotator?.getAnnotations) {
-        return;
-    }
-
-    const json = JSON.stringify(annotator.getAnnotations());
-    await dotnet.invokeMethodAsync("SaveAnnotations", json);
-}
-
-export async function attach(image, annotationsJson, editable, callback) {
+export async function attach(image, annotationsJson, editable) {
     clear();
     if (typeof Annotorious === "undefined" || !image) {
         return;
@@ -68,10 +57,14 @@ export async function attach(image, annotationsJson, editable, callback) {
         await new Promise(resolve => image.addEventListener("load", resolve, { once: true }));
     }
 
-    dotnet = callback;
     const anno = Annotorious.createImageAnnotator(image);
     annotator = anno;
-    anno.setDrawingEnabled?.(!!editable);
+    selectedId = null;
+    anno.setDrawingEnabled?.(false);
+    anno.on?.("selectionChanged", selection => {
+        const selected = Array.isArray(selection) ? selection[0] : selection;
+        selectedId = selected?.id || null;
+    });
     anno.on?.("mouseEnterAnnotation", annotation => {
         const text = commentOf(annotation);
         if (text) {
@@ -86,11 +79,7 @@ export async function attach(image, annotationsJson, editable, callback) {
             if (text && text.trim()) {
                 await anno.updateAnnotation?.(withComment(annotation, text.trim()));
             }
-
-            await persist();
         });
-        anno.on?.("updateAnnotation", persist);
-        anno.on?.("deleteAnnotation", persist);
     }
 
     if (annotationsJson) {
@@ -102,8 +91,61 @@ export async function attach(image, annotationsJson, editable, callback) {
     }
 }
 
+export function setTool(tool) {
+    if (!annotator) {
+        return;
+    }
+
+    annotator.setDrawingTool?.(tool);
+    annotator.setDrawingEnabled?.(true);
+}
+
+export async function editSelected() {
+    if (!annotator || !selectedId) {
+        return "none";
+    }
+
+    const all = await annotator.getAnnotations();
+    const selected = all.find(item => item.id === selectedId);
+    if (!selected) {
+        return "none";
+    }
+
+    const text = window.prompt("Annotation text:", commentOf(selected));
+    if (text == null) {
+        return "cancel";
+    }
+
+    await annotator.updateAnnotation?.(withComment(selected, text.trim()));
+    return "ok";
+}
+
+export async function deleteSelected() {
+    if (!annotator || !selectedId) {
+        return "none";
+    }
+
+    if (!window.confirm("Delete selected annotation?")) {
+        return "cancel";
+    }
+
+    annotator.removeAnnotation?.(selectedId);
+    selectedId = null;
+    return "ok";
+}
+
+export async function read() {
+    if (!annotator?.getAnnotations) {
+        return "[]";
+    }
+
+    const annotations = await annotator.getAnnotations();
+    return JSON.stringify(annotations);
+}
+
 export function clear() {
     hideLabel();
+    selectedId = null;
     if (annotator) {
         try {
             annotator.destroy();
@@ -113,6 +155,4 @@ export function clear() {
 
         annotator = null;
     }
-
-    dotnet = null;
 }

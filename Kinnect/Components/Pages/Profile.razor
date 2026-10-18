@@ -233,7 +233,10 @@ else
                        Description="@selectedPhoto.Description"
                        AnnotationsJson="@selectedPhoto.AnnotationsJson"
                        PhotoId="@selectedPhoto.Id"
-                       CanEdit="@canEdit"
+                       ShowPanel="true"
+                       CanEdit="@CanEditPhoto(selectedPhoto)"
+                       TaggedPeople="@selectedPhoto.TaggedPeople"
+                       PeopleChanged="OnPeopleChanged"
                        AnnotationsSaved="OnAnnotationsSaved"
                        Closed="() => selectedPhoto = null" />
     }
@@ -276,6 +279,7 @@ else
     private bool missing;
     private bool canEdit;
     private bool mine;
+    private int? myPersonId;
 
     private bool Editing => Nav.Uri.Contains("/edit", StringComparison.OrdinalIgnoreCase);
 
@@ -335,6 +339,19 @@ else
         return Task.CompletedTask;
     }
 
+    private Task OnPeopleChanged(IReadOnlyList<TaggedPersonInfo> people)
+    {
+        if (selectedPhoto is not null)
+        {
+            selectedPhoto.TaggedPeople = people.ToList();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private bool CanEditPhoto(PhotoDto photo) =>
+        Users.IsAdmin() || (myPersonId is int id && photo.UploadedByPersonId == id);
+
     private async Task ReloadAsync()
     {
         var loaded = await People.GetByIdAsync(PersonId);
@@ -348,6 +365,15 @@ else
         missing = false;
         string? userId = Users.GetCurrentUserId();
         mine = userId is not null && person.UserId == userId;
+        myPersonId = null;
+        if (userId is not null)
+        {
+            var me = await People.GetByUserIdAsync(userId);
+            if (me.IsSuccess)
+            {
+                myPersonId = me.Value.Id;
+            }
+        }
         bool editor = Users.IsEditor() || Users.IsAdmin();
         canEdit = Users.IsAdmin() || mine || (editor && person.UserId is null);
         form = new PersonEditRequest
