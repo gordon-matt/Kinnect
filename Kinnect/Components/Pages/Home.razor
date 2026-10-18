@@ -7,6 +7,7 @@
 @inject IPersonService People
 
 <PageTitle>Home</PageTitle>
+<div class="kinnect-container">
 <PageHeader Title="Home" />
 
 @if (needsOnboarding)
@@ -70,6 +71,7 @@ else
         }
     </div>
 }
+</div>
 
 @if (selectedPhoto is not null)
 {

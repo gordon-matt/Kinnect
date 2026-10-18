@@ -14,6 +14,32 @@ html {
     gap: 1rem;
 }
 
+/* Same widths as a Bootstrap container: centered, and narrower than the full page. */
+.kinnect-container {
+    width: 100%;
+    margin-inline: auto;
+}
+
+@media (min-width: 576px) {
+    .kinnect-container { max-width: 540px; }
+}
+
+@media (min-width: 768px) {
+    .kinnect-container { max-width: 720px; }
+}
+
+@media (min-width: 992px) {
+    .kinnect-container { max-width: 960px; }
+}
+
+@media (min-width: 1200px) {
+    .kinnect-container { max-width: 1140px; }
+}
+
+@media (min-width: 1400px) {
+    .kinnect-container { max-width: 1320px; }
+}
+
 .kinnect-card {
     border: 1px solid var(--nf-border);
     border-radius: var(--nf-radius);

@@ -69,11 +69,59 @@ else
     private bool showPeople;
     private string? error;
     private bool editable;
+    private int? routedPerson;
+    private bool routedSelectionApplied;
+
+    [SupplyParameterFromQuery(Name = "person")]
+    public int? PersonId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         editable = Users.IsAdmin() || Users.IsEditor();
+        NoteRoutedPerson();
         await ReloadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync() => await FollowRoutedPersonAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) => await FollowRoutedPersonAsync();
+
+    private void NoteRoutedPerson()
+    {
+        if (PersonId is int id)
+        {
+            focusId = id.ToString();
+        }
+    }
+
+    private async Task FollowRoutedPersonAsync()
+    {
+        if (PersonId is not int id)
+        {
+            return;
+        }
+
+        string key = id.ToString();
+        if (routedPerson != id)
+        {
+            routedPerson = id;
+            routedSelectionApplied = false;
+            focusId = key;
+        }
+
+        if (routedSelectionApplied || tree is null || people is null)
+        {
+            return;
+        }
+
+        if (people.All(person => person.Id != key))
+        {
+            routedSelectionApplied = true;
+            return;
+        }
+
+        routedSelectionApplied = true;
+        await tree.CenterOnAsync(key);
     }
 
     private async Task ReloadAsync()

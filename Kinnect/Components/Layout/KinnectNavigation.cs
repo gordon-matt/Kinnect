@@ -1,3 +1,4 @@
+using EasyChatz.Components;
 using Heroicsoft.NetForge.Abstractions.Navigation;
 using Heroicsoft.NetForge.Components.Shell;
 
@@ -19,7 +20,18 @@ public sealed class KinnectNavigation(IUserContextService userContext) : IShellN
                     new ForgeNavItem { Title = "Home", Href = "/", Icon = "bi-house", MatchAll = true },
                     new ForgeNavItem { Title = "Family tree", Href = "/tree", Icon = "bi-diagram-3" },
                     new ForgeNavItem { Title = "Map", Href = "/map", Icon = "bi-geo-alt" },
-                    new ForgeNavItem { Title = "Messages", Href = "/messages", Icon = "bi-chat" },
+                    new ForgeNavItem
+                    {
+                        Title = "Messages",
+                        Href = "/messages",
+                        Icon = "bi-chat",
+                        BadgeComponent = typeof(ChatUnreadBadge),
+                        BadgeParameters = new Dictionary<string, object>
+                        {
+                            ["Theme"] = "netforge",
+                            ["Class"] = "nf-nav-badge",
+                        },
+                    },
                     new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" },
                 ],
             },

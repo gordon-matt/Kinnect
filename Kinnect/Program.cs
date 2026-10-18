@@ -71,7 +71,6 @@ builder.Services.Configure<ForgeShellOptions>(shell =>
     shell.LogoDarkUrl = "img/Logo.png";
     shell.SearchPlaceholder = "Search people";
     shell.NavigationPlacement = ForgeNavigationPlacement.Topbar;
-    shell.TopbarEndComponent = typeof(Kinnect.Components.Layout.MessagesMenu);
     shell.UserMenuItems.Add(new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" });
 });
 builder.Services.AddScoped<IShellNavigation, Kinnect.Components.Layout.KinnectNavigation>();

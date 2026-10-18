@@ -27,6 +27,7 @@ else
 {
     <PageHeader Title="@person.FullName">
         <Actions>
+            <a class="nf-button" href="@($"tree?person={PersonId}")">View on tree</a>
             @if (canEdit && !Editing)
             {
                 <a class="nf-button nf-button-primary" href="@($"people/{PersonId}/edit")">Edit</a>
