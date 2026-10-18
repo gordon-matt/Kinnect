@@ -49,34 +49,70 @@ html {
     .kinnect-pair { grid-template-columns: 1fr; }
 }
 
-.kinnect-media {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: .75rem;
-}
-
-.kinnect-media img,
-.kinnect-media video {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    border-radius: .35rem;
-    background: var(--nf-surface-2);
-}
-
+.kinnect-media,
 .kinnect-videos {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .75rem;
 }
 
+.kinnect-media img,
+.kinnect-media video,
+.kinnect-videos img,
+.kinnect-video-poster {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: .35rem;
+    background: var(--nf-surface-2);
+}
+
+.kinnect-media .kinnect-card,
+.kinnect-videos .kinnect-card {
+    padding: .5rem;
+    height: 100%;
+}
+
+.kinnect-media-open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.kinnect-profile-stage {
+    position: relative;
+    min-height: 28rem;
+}
+
+.kinnect-add-drawer {
+    position: absolute;
+    z-index: 20;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 92%);
+    padding: 1rem;
+    overflow: auto;
+    background: var(--nf-surface);
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    box-shadow: var(--nf-shadow);
+}
+
 @media (min-width: 768px) {
+    .kinnect-media,
     .kinnect-videos {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (min-width: 1200px) {
+    .kinnect-media,
     .kinnect-videos {
         grid-template-columns: repeat(6, minmax(0, 1fr));
     }

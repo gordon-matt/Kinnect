@@ -127,103 +127,224 @@ else
     }
     else if (tab == "Timeline")
     {
-        @if (canEdit)
-        {
-            <div class="kinnect-card kinnect-stack">
-                <select class="nf-select" @bind="eventForm.EventType">
-                    @foreach (var option in PersonEventType.TimelineSelectableTypes)
-                    {
-                        <option value="@option.Type">@option.Label</option>
-                    }
-                </select>
-                <div class="kinnect-row">
-                    <input type="number" class="nf-input" @bind="eventYear" placeholder="Year" />
-                    <input type="number" class="nf-input" @bind="eventMonth" placeholder="Month" min="1" max="12" />
-                    <input type="number" class="nf-input" @bind="eventDay" placeholder="Day" min="1" max="31" />
-                </div>
-                <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
-                <PlaceSearch Label="Event place" Selected="OnEventPlace" />
-                <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
-                <button class="nf-button nf-button-primary" type="button" @onclick="AddEventAsync">Add event</button>
-            </div>
-        }
-        <ul class="kinnect-list">
-            @foreach (var item in events)
+        <div class="kinnect-columns">
+            <ul class="kinnect-list">
+                @foreach (var item in events)
+                {
+                    <li>
+                        <span class="kinnect-row">
+                            <Icon Name="@EventIcon(item.EventType)" />
+                            <span>
+                                <strong>@item.EventTypeLabel</strong>
+                                <span class="kinnect-muted"> @item.DateDisplay @item.Place</span>
+                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                {
+                                    <div>@item.Description</div>
+                                }
+                            </span>
+                        </span>
+                    </li>
+                }
+            </ul>
+            @if (canEdit)
             {
-                <li>
-                    <strong>@item.EventTypeLabel</strong>
-                    <span> @item.DateDisplay @item.Place</span>
-                    @if (!string.IsNullOrWhiteSpace(item.Description))
-                    {
-                        <div>@item.Description</div>
-                    }
-                </li>
+                <div class="kinnect-card kinnect-stack">
+                    <h2>Add event</h2>
+                    <select class="nf-select" @bind="eventForm.EventType">
+                        @foreach (var option in PersonEventType.TimelineSelectableTypes)
+                        {
+                            <option value="@option.Type">@option.Label</option>
+                        }
+                    </select>
+                    <div class="kinnect-row">
+                        <input type="number" class="nf-input" @bind="eventYear" placeholder="Year" />
+                        <input type="number" class="nf-input" @bind="eventMonth" placeholder="Month" min="1" max="12" />
+                        <input type="number" class="nf-input" @bind="eventDay" placeholder="Day" min="1" max="31" />
+                    </div>
+                    <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
+                    <PlaceSearch Label="Event place" Selected="OnEventPlace" />
+                    <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
+                    <button class="nf-button nf-button-primary" type="button" @onclick="AddEventAsync">Add event</button>
+                </div>
             }
-        </ul>
+        </div>
     }
     else if (tab == "Photos")
     {
-        @if (canEdit && mine)
-        {
-            <div class="kinnect-card kinnect-stack">
-                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
-                <FileUpload Url="/api/photos" Accept="image/*" Label="Upload photo" Fields="@PhotoFields" Uploaded="ReloadAsync" />
+        <div class="kinnect-profile-stage">
+            <div class="kinnect-split">
+                <span></span>
+                @if (canEdit && mine)
+                {
+                    <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddPhoto">Add photo</button>
+                }
             </div>
-        }
-        <div class="kinnect-media">
-            @foreach (var photo in photos)
+            <div class="kinnect-media">
+                @foreach (var photo in photos)
+                {
+                    <div class="kinnect-card">
+                        <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
+                            <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
+                            <div>@photo.Title</div>
+                        </button>
+                        @if (CanEditPhoto(photo))
+                        {
+                            <button type="button" class="nf-button" @onclick="() => BeginEditPhoto(photo)">Edit</button>
+                        }
+                    </div>
+                }
+            </div>
+            @if (drawer == DrawerKind.AddPhoto)
             {
-                <button type="button" class="kinnect-card" @onclick="() => selectedPhoto = photo">
-                    <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
-                    <div>@photo.Title</div>
-                </button>
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Add photo</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
+                    <FileUpload Url="/api/photos" Accept="image/*" Label="Upload photo" Fields="@PhotoFields" Uploaded="OnUploaded" />
+                </aside>
+            }
+            else if (drawer == DrawerKind.EditPhoto && editingPhoto is not null)
+            {
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Edit photo</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
+                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
+                    <div class="kinnect-row">
+                        <input class="nf-input" @bind="editYear" placeholder="Year" />
+                        <select class="nf-select" @bind="editMonth">
+                            <option value="">Month</option>
+                            @for (int month = 1; month <= 12; month++)
+                            {
+                                <option value="@month">@month</option>
+                            }
+                        </select>
+                        <select class="nf-select" @bind="editDay">
+                            <option value="">Day</option>
+                            @for (int day = 1; day <= 31; day++)
+                            {
+                                <option value="@day">@day</option>
+                            }
+                        </select>
+                    </div>
+                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                    @if (editingPhoto.LatLongAcquiredFromExif)
+                    {
+                        <p class="kinnect-muted">Location comes from the photo and stays as @editingPhoto.Latitude, @editingPhoto.Longitude.</p>
+                    }
+                    else
+                    {
+                        <p class="kinnect-muted">Location: @editLatitude, @editLongitude</p>
+                        <PlaceSearch Label="Photo place" Selected="OnPhotoPlace" />
+                    }
+                    <p class="kinnect-lightbox-heading">Linked events</p>
+                    @foreach (var item in events)
+                    {
+                        <label class="nf-check">
+                            <input type="checkbox" checked="@editEventIds.Contains(item.Id)" @onchange="args => TogglePhotoEvent(item.Id, args.Value is true)" />
+                            @item.EventTypeLabel @item.DateDisplay
+                        </label>
+                    }
+                    <button type="button" class="nf-button nf-button-primary" @onclick="SavePhotoAsync">Save</button>
+                </aside>
             }
         </div>
     }
     else if (tab == "Videos")
     {
-        @if (canEdit && mine)
-        {
-            <div class="kinnect-card kinnect-stack">
-                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
-                <FileUpload Url="/api/videos" Accept="video/*" Label="Upload video" Fields="@VideoFields" Uploaded="ReloadAsync" />
+        <div class="kinnect-profile-stage">
+            <div class="kinnect-split">
+                <span></span>
+                @if (canEdit && mine)
+                {
+                    <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddVideo">Add video</button>
+                }
             </div>
-        }
-        <div class="kinnect-videos">
-            @foreach (var video in videos)
+            <div class="kinnect-videos">
+                @foreach (var video in videos)
+                {
+                    <div class="kinnect-card">
+                        <button type="button" class="kinnect-media-open" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
+                            @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
+                            {
+                                <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
+                            }
+                            else
+                            {
+                                <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
+                            }
+                            <div>@(video.IsProcessing ? "Processing…" : video.Title)</div>
+                        </button>
+                        @if (CanEditVideo(video))
+                        {
+                            <button type="button" class="nf-button" @onclick="() => BeginEditVideo(video)">Edit</button>
+                        }
+                    </div>
+                }
+            </div>
+            @if (drawer == DrawerKind.AddVideo)
             {
-                <button type="button" class="kinnect-card" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
-                    @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
-                    {
-                        <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
-                    }
-                    else
-                    {
-                        <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
-                    }
-                    <div>@(video.IsProcessing ? "Processing…" : video.Title)</div>
-                </button>
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Add video</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
+                    <FileUpload Url="/api/videos" Accept="video/*" Label="Upload video" Fields="@VideoFields" Uploaded="OnUploaded" />
+                </aside>
+            }
+            else if (drawer == DrawerKind.EditVideo && editingVideo is not null)
+            {
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Edit video</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
+                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
+                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                    <button type="button" class="nf-button nf-button-primary" @onclick="SaveVideoAsync">Save</button>
+                </aside>
             }
         </div>
     }
     else if (tab == "Documents")
     {
-        @if (canEdit && mine)
-        {
-            <div class="kinnect-card kinnect-stack">
-                <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
-                <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="ReloadAsync" />
+        <div class="kinnect-profile-stage">
+            <div class="kinnect-split">
+                <span></span>
+                @if (canEdit && mine)
+                {
+                    <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddDocument">Add document</button>
+                }
             </div>
-        }
-        <ul class="kinnect-list">
-            @foreach (var document in documents)
+            <ul class="kinnect-list">
+                @foreach (var document in documents)
+                {
+                    <li>
+                        <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
+                        <small class="kinnect-muted">@document.ContentType</small>
+                    </li>
+                }
+            </ul>
+            @if (drawer == DrawerKind.AddDocument)
             {
-                <li>
-                    <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
-                    <small class="kinnect-muted">@document.ContentType</small>
-                </li>
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Add document</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
+                    <textarea class="nf-textarea" rows="2" @bind="mediaDescription" placeholder="Description"></textarea>
+                    <input class="nf-input" @bind="mediaTags" placeholder="Tags, comma-separated" />
+                    <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="OnUploaded" />
+                </aside>
             }
-        </ul>
+        </div>
     }
 
     @if (selectedPhoto is not null)
@@ -273,6 +394,20 @@ else
     private string? message;
     private string postText = string.Empty;
     private string mediaTitle = string.Empty;
+    private string mediaDescription = string.Empty;
+    private string mediaTags = string.Empty;
+    private DrawerKind drawer = DrawerKind.None;
+    private PhotoDto? editingPhoto;
+    private VideoDto? editingVideo;
+    private string editTitle = string.Empty;
+    private string editDescription = string.Empty;
+    private string editTags = string.Empty;
+    private string editYear = string.Empty;
+    private string editMonth = string.Empty;
+    private string editDay = string.Empty;
+    private double? editLatitude;
+    private double? editLongitude;
+    private HashSet<int> editEventIds = [];
     private int? eventYear;
     private int? eventMonth;
     private int? eventDay;
@@ -296,7 +431,19 @@ else
     private Dictionary<string, string?> DocumentFields => new()
     {
         ["title"] = string.IsNullOrWhiteSpace(mediaTitle) ? "Document" : mediaTitle,
+        ["description"] = mediaDescription,
+        ["tags"] = mediaTags,
     };
+
+    private enum DrawerKind
+    {
+        None,
+        AddPhoto,
+        AddVideo,
+        AddDocument,
+        EditPhoto,
+        EditVideo,
+    }
 
     protected override void OnInitialized()
     {
@@ -310,6 +457,7 @@ else
             tab = "About";
         }
 
+        drawer = DrawerKind.None;
         await ReloadAsync();
     }
 
@@ -351,6 +499,177 @@ else
 
     private bool CanEditPhoto(PhotoDto photo) =>
         Users.IsAdmin() || (myPersonId is int id && photo.UploadedByPersonId == id);
+
+    private bool CanEditVideo(VideoDto video) =>
+        Users.IsAdmin() || (myPersonId is int id && video.UploadedByPersonId == id);
+
+    private static string EventIcon(string eventType) => eventType.ToUpperInvariant() switch
+    {
+        PersonEventType.Birth => "star",
+        PersonEventType.Death => "flower",
+        PersonEventType.Burial => "tree",
+        PersonEventType.Cremation => "fire",
+        PersonEventType.Marriage => "heart",
+        PersonEventType.Divorce => "x-circle",
+        PersonEventType.Engagement => "heart",
+        PersonEventType.Baptism or PersonEventType.Christening => "droplet",
+        PersonEventType.Confirmation => "shield",
+        PersonEventType.Adoption or PersonEventType.Residence => "home",
+        PersonEventType.Emigration or PersonEventType.Immigration => "airplane",
+        PersonEventType.Naturalization => "flag",
+        PersonEventType.MarriageBanns => "megaphone",
+        PersonEventType.MarriageLicense => "logs",
+        PersonEventType.Occupation => "briefcase",
+        PersonEventType.Education => "mortarboard",
+        PersonEventType.Religion => "book",
+        _ => "calendar",
+    };
+
+    private void OpenAddPhoto() => OpenAdd(DrawerKind.AddPhoto);
+
+    private void OpenAddVideo() => OpenAdd(DrawerKind.AddVideo);
+
+    private void OpenAddDocument() => OpenAdd(DrawerKind.AddDocument);
+
+    private void OpenAdd(DrawerKind kind)
+    {
+        editingPhoto = null;
+        editingVideo = null;
+        mediaTitle = string.Empty;
+        mediaDescription = string.Empty;
+        mediaTags = string.Empty;
+        drawer = kind;
+    }
+
+    private void CloseDrawer() => drawer = DrawerKind.None;
+
+    private async Task OnUploaded()
+    {
+        drawer = DrawerKind.None;
+        mediaTitle = string.Empty;
+        mediaDescription = string.Empty;
+        mediaTags = string.Empty;
+        await ReloadAsync();
+    }
+
+    private void BeginEditPhoto(PhotoDto photo)
+    {
+        editingPhoto = photo;
+        editingVideo = null;
+        editTitle = photo.Title;
+        editDescription = photo.Description ?? string.Empty;
+        editTags = string.Join(", ", photo.Tags);
+        editYear = photo.YearTaken?.ToString() ?? string.Empty;
+        editMonth = photo.MonthTaken?.ToString() ?? string.Empty;
+        editDay = photo.DayTaken?.ToString() ?? string.Empty;
+        editLatitude = photo.Latitude;
+        editLongitude = photo.Longitude;
+        editEventIds = photo.EventIds.ToHashSet();
+        drawer = DrawerKind.EditPhoto;
+    }
+
+    private void BeginEditVideo(VideoDto video)
+    {
+        editingVideo = video;
+        editingPhoto = null;
+        editTitle = video.Title;
+        editDescription = video.Description ?? string.Empty;
+        editTags = string.Join(", ", video.Tags);
+        drawer = DrawerKind.EditVideo;
+    }
+
+    private void TogglePhotoEvent(int eventId, bool selected)
+    {
+        if (selected)
+        {
+            editEventIds.Add(eventId);
+        }
+        else
+        {
+            editEventIds.Remove(eventId);
+        }
+    }
+
+    private void OnPhotoPlace(NominatimHit hit)
+    {
+        editLatitude = hit.Latitude;
+        editLongitude = hit.Longitude;
+    }
+
+    private async Task SavePhotoAsync()
+    {
+        if (editingPhoto is null)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null || string.IsNullOrWhiteSpace(editTitle))
+        {
+            return;
+        }
+
+        var request = new PhotoUpdateRequest
+        {
+            Title = editTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(editDescription) ? null : editDescription.Trim(),
+            YearTaken = ParseYear(editYear),
+            MonthTaken = ParseByte(editMonth, 1, 12),
+            DayTaken = ParseByte(editDay, 1, 31),
+            Tags = SplitTags(editTags),
+            EventIds = editEventIds.ToList(),
+            FolderId = editingPhoto.FolderId,
+            Latitude = editingPhoto.LatLongAcquiredFromExif ? null : editLatitude,
+            Longitude = editingPhoto.LatLongAcquiredFromExif ? null : editLongitude,
+        };
+
+        var result = await Photos.UpdateAsync(editingPhoto.Id, request, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Photo saved." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            drawer = DrawerKind.None;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SaveVideoAsync()
+    {
+        if (editingVideo is null)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null || string.IsNullOrWhiteSpace(editTitle))
+        {
+            return;
+        }
+
+        var request = new VideoUpdateRequest
+        {
+            Title = editTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(editDescription) ? null : editDescription.Trim(),
+            Tags = SplitTags(editTags),
+            FolderId = editingVideo.FolderId,
+        };
+
+        var result = await Videos.UpdateAsync(editingVideo.Id, request, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Video saved." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            drawer = DrawerKind.None;
+            await ReloadAsync();
+        }
+    }
+
+    private static short? ParseYear(string text) =>
+        short.TryParse(text, out short year) && year is >= 1 and <= 9999 ? year : null;
+
+    private static byte? ParseByte(string text, int min, int max) =>
+        byte.TryParse(text, out byte value) && value >= min && value <= max ? value : null;
+
+    private static List<string> SplitTags(string text) =>
+        text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
     private async Task ReloadAsync()
     {

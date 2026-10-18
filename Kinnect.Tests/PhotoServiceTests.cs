@@ -24,7 +24,8 @@ public class PhotoServiceTests
             new EntityFrameworkRepository<Photo>(factory),
             new EntityFrameworkRepository<Tag>(factory),
             new EntityFrameworkRepository<PhotoTag>(factory),
-            new EntityFrameworkRepository<PersonPhoto>(factory));
+            new EntityFrameworkRepository<PersonPhoto>(factory),
+            new EntityFrameworkRepository<PhotoEvent>(factory));
 
         var result = await sut.CreateAsync(
             title: "Sunset",
@@ -71,7 +72,8 @@ public class PhotoServiceTests
             new EntityFrameworkRepository<Photo>(factory),
             new EntityFrameworkRepository<Tag>(factory),
             new EntityFrameworkRepository<PhotoTag>(factory),
-            new EntityFrameworkRepository<PersonPhoto>(factory));
+            new EntityFrameworkRepository<PersonPhoto>(factory),
+            new EntityFrameworkRepository<PhotoEvent>(factory));
 
         var result = await sut.DeleteAsync(photo.Id, "other", isAdmin: false);
 

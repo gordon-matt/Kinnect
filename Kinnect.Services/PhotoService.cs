@@ -4,7 +4,8 @@ public class PhotoService(
     IRepository<Photo> photoRepository,
     IRepository<Tag> tagRepository,
     IRepository<PhotoTag> photoTagRepository,
-    IRepository<PersonPhoto> personPhotoRepository) : IPhotoService
+    IRepository<PersonPhoto> personPhotoRepository,
+    IRepository<PhotoEvent> photoEventRepository) : IPhotoService
 {
     public async Task<Result<PhotoDto>> CreateAsync(
         string title,
@@ -79,7 +80,14 @@ public class PhotoService(
                 .Include(p => p.PersonPhotos).ThenInclude(pp => pp.Person)
         });
 
-        return photo is null ? (Result<PhotoDto>)Result.NotFound("Photo not found.") : Result.Success(photo.ToDto());
+        if (photo is null)
+        {
+            return Result.NotFound("Photo not found.");
+        }
+
+        var dto = photo.ToDto();
+        await AttachEventsAsync([dto]);
+        return Result.Success(dto);
     }
 
     public async Task<Result<IEnumerable<PhotoDto>>> GetByPersonAsync(int personId)
@@ -119,9 +127,11 @@ public class PhotoService(
             .GroupBy(x => x.Id)
             .Select(g => g.First())
             .OrderByDescending(p => p.CreatedAtUtc)
-            .Select(p => p.ToDto());
+            .Select(p => p.ToDto())
+            .ToList();
 
-        return Result.Success(combined);
+        await AttachEventsAsync(combined);
+        return Result.Success<IEnumerable<PhotoDto>>(combined);
     }
 
     public async Task<Result> SaveAnnotationsAsync(int photoId, string? annotationsJson, string currentUserId, bool isAdmin)
@@ -272,6 +282,19 @@ public class PhotoService(
             await SyncPersonTagsAsync(id, request.PersonIds);
         }
 
+        if (request.EventIds is not null)
+        {
+            await photoEventRepository.DeleteAsync(x => x.PhotoId == id);
+            var links = request.EventIds
+                .Distinct()
+                .Select(eventId => new PhotoEvent { PhotoId = id, PersonEventId = eventId })
+                .ToList();
+            if (links.Count > 0)
+            {
+                await photoEventRepository.InsertAsync(links);
+            }
+        }
+
         return await GetByIdAsync(id);
     }
 
@@ -285,6 +308,25 @@ public class PhotoService(
 
         await SyncTagsAsync(id, tags);
         return Result.Success();
+    }
+
+    private async Task AttachEventsAsync(IReadOnlyList<PhotoDto> photos)
+    {
+        if (photos.Count == 0)
+        {
+            return;
+        }
+
+        var ids = photos.Select(photo => photo.Id).ToList();
+        var links = await photoEventRepository.FindAsync(new SearchOptions<PhotoEvent>
+        {
+            Query = link => ids.Contains(link.PhotoId)
+        });
+
+        foreach (var photo in photos)
+        {
+            photo.EventIds = links.Where(link => link.PhotoId == photo.Id).Select(link => link.PersonEventId).ToList();
+        }
     }
 
     private static bool CanEditPhoto(Person uploadedBy, string currentUserId, bool isAdmin)

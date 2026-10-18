@@ -25,7 +25,8 @@
 	<ItemGroup>
 		<PackageReference Include="Ardalis.Result.AspNetCore" Version="10.1.0" />
 		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3-beta" />
-		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3.1-beta" />
+		<!-- Project reference while the event-type icons are only in the NetForge source. Switch back to the NuGet package after publishing. -->
+		<!-- <PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3.1-beta" /> -->
 		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.0.3-beta" />
 		<PackageReference Include="Autofac" Version="9.1.0" />
 		<PackageReference Include="Autofac.Extensions.DependencyInjection" Version="11.0.0" />
@@ -49,6 +50,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\..\Heroicsoft.NetForge\Heroicsoft.NetForge.Components\Heroicsoft.NetForge.Components.csproj" />
 		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
 		<ProjectReference Include="..\Kinnect.Data.Sqlite\Kinnect.Data.Sqlite.csproj" />
 		<ProjectReference Include="..\Kinnect.Data.Sql\Kinnect.Data.Sql.csproj" />
