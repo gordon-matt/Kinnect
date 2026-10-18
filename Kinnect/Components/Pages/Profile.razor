@@ -11,6 +11,7 @@
 @inject IDocumentService Documents
 @inject IUserContextService Users
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 
 <PageTitle>@(person?.FullName ?? "Profile")</PageTitle>
 
@@ -39,7 +40,7 @@ else
         @foreach (var name in new[] { "About", "Posts", "Timeline", "Photos", "Videos", "Documents" })
         {
             <li>
-                <button type="button" class="@(tab == name ? "is-active" : null)" @onclick="() => tab = name">@name</button>
+                <button type="button" class="@(tab == name ? "is-active" : null)" @onclick="() => SelectTab(name)">@name</button>
             </li>
         }
     </ul>
@@ -71,8 +72,6 @@ else
                         <label class="nf-check">
                             <InputCheckbox @bind-Value="form.IsDeceased" /> Deceased
                         </label>
-                        <div>Location: @form.Latitude, @form.Longitude</div>
-                        <PlaceSearch Selected="OnPlace" />
                         <div class="kinnect-row">
                             <button class="nf-button nf-button-primary" type="submit">Save</button>
                             <a class="nf-button" href="@($"people/{PersonId}")">Cancel</a>
@@ -104,10 +103,19 @@ else
                         <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="ReloadAsync" />
                     </div>
                 }
-                @if (person.Latitude is not null && person.Longitude is not null)
+                @if (Editing)
+                {
+                    <div class="kinnect-card kinnect-stack">
+                        <h2>Location</h2>
+                        <div>@form.Latitude, @form.Longitude</div>
+                        <PlaceSearch Selected="OnPlace" />
+                        <KinnectMap Mini="true" Pick="true" Pins="ProfilePins" Picked="OnProfileMapPick" />
+                    </div>
+                }
+                else if (ProfilePins.Count > 0)
                 {
                     <div class="kinnect-card">
-                        <KinnectMap Pins="@(new[] { new MapPinDto { PersonId = person.Id, FullName = person.FullName, Latitude = person.Latitude.Value, Longitude = person.Longitude.Value } })" />
+                        <KinnectMap Pins="ProfilePins" />
                     </div>
                 }
             </div>
@@ -183,16 +191,29 @@ else
     }
     else if (tab == "Photos")
     {
-        <div class="kinnect-profile-stage">
-            <div class="kinnect-split">
-                <span></span>
+        <div class="kinnect-profile-stage" @ref="mediaStage">
+            <div class="kinnect-media-tools">
+                <div class="kinnect-row">
+                    <input class="nf-input" @bind="mediaQuery" @bind:event="oninput" placeholder="Search title, description, or tag" />
+                    <select class="nf-select" @bind="photoPersonFilter">
+                        <option value="">Anyone</option>
+                        @foreach (var tagged in PhotoPeople)
+                        {
+                            <option value="@tagged.PersonId">@tagged.Name</option>
+                        }
+                    </select>
+                </div>
                 @if (canEdit && mine)
                 {
                     <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddPhoto">Add photo</button>
                 }
             </div>
+            @if (photos.Count > 0 && !VisiblePhotos.Any())
+            {
+                <p class="kinnect-muted">No matches.</p>
+            }
             <div class="kinnect-media">
-                @foreach (var photo in photos)
+                @foreach (var photo in VisiblePhotos)
                 {
                     <div class="kinnect-card">
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
@@ -256,13 +277,15 @@ else
                         <KinnectMap Mini="true" Pick="true" Pins="PhotoPins" Picked="OnPhotoMapPick" />
                     }
                     <p class="kinnect-lightbox-heading">Linked events</p>
-                    @foreach (var item in events)
-                    {
-                        <label class="nf-check">
-                            <input type="checkbox" checked="@editEventIds.Contains(item.Id)" @onchange="args => TogglePhotoEvent(item.Id, args.Value is true)" />
-                            @item.EventTypeLabel @item.DateDisplay
-                        </label>
-                    }
+                    <div class="kinnect-checks">
+                        @foreach (var item in events)
+                        {
+                            <label class="nf-check">
+                                <input type="checkbox" checked="@editEventIds.Contains(item.Id)" @onchange="args => ToggleLinkedEvent(item.Id, args.Value is true)" />
+                                @item.EventTypeLabel @item.DateDisplay
+                            </label>
+                        }
+                    </div>
                     <button type="button" class="nf-button nf-button-primary" @onclick="SavePhotoAsync">Save</button>
                 </aside>
             }
@@ -270,16 +293,22 @@ else
     }
     else if (tab == "Videos")
     {
-        <div class="kinnect-profile-stage">
-            <div class="kinnect-split">
-                <span></span>
+        <div class="kinnect-profile-stage" @ref="mediaStage">
+            <div class="kinnect-media-tools">
+                <div class="kinnect-row">
+                    <input class="nf-input" @bind="mediaQuery" @bind:event="oninput" placeholder="Search title, description, or tag" />
+                </div>
                 @if (canEdit && mine)
                 {
                     <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddVideo">Add video</button>
                 }
             </div>
+            @if (videos.Count > 0 && !VisibleVideos.Any())
+            {
+                <p class="kinnect-muted">No matches.</p>
+            }
             <div class="kinnect-videos">
-                @foreach (var video in videos)
+                @foreach (var video in VisibleVideos)
                 {
                     <div class="kinnect-card">
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
@@ -321,6 +350,16 @@ else
                     <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
                     <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
                     <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                    <p class="kinnect-lightbox-heading">Linked events</p>
+                    <div class="kinnect-checks">
+                        @foreach (var item in events)
+                        {
+                            <label class="nf-check">
+                                <input type="checkbox" checked="@editEventIds.Contains(item.Id)" @onchange="args => ToggleLinkedEvent(item.Id, args.Value is true)" />
+                                @item.EventTypeLabel @item.DateDisplay
+                            </label>
+                        }
+                    </div>
                     <button type="button" class="nf-button nf-button-primary" @onclick="SaveVideoAsync">Save</button>
                 </aside>
             }
@@ -328,16 +367,22 @@ else
     }
     else if (tab == "Documents")
     {
-        <div class="kinnect-profile-stage">
-            <div class="kinnect-split">
-                <span></span>
+        <div class="kinnect-profile-stage" @ref="mediaStage">
+            <div class="kinnect-media-tools">
+                <div class="kinnect-row">
+                    <input class="nf-input" @bind="mediaQuery" @bind:event="oninput" placeholder="Search title, description, or tag" />
+                </div>
                 @if (canEdit && mine)
                 {
                     <button type="button" class="nf-button nf-button-primary" @onclick="OpenAddDocument">Add document</button>
                 }
             </div>
+            @if (documents.Count > 0 && !VisibleDocuments.Any())
+            {
+                <p class="kinnect-muted">No matches.</p>
+            }
             <ul class="kinnect-list">
-                @foreach (var document in documents)
+                @foreach (var document in VisibleDocuments)
                 {
                     <li>
                         <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
@@ -422,6 +467,11 @@ else
     private double? editLatitude;
     private double? editLongitude;
     private HashSet<int> editEventIds = [];
+    private string mediaQuery = string.Empty;
+    private string photoPersonFilter = string.Empty;
+    private ElementReference mediaStage;
+    private IJSObjectReference? drawerModule;
+    private DrawerKind pinnedDrawer = DrawerKind.None;
     private List<PersonSpouseDetailDto> spouses = [];
     private List<SpouseForm> spouseForms = [];
     private int? eventYear;
@@ -433,6 +483,55 @@ else
     private int? myPersonId;
 
     private bool Editing => Nav.Uri.Contains("/edit", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<MapPinDto> ProfilePins
+    {
+        get
+        {
+            if (person is null)
+            {
+                return [];
+            }
+
+            double? latitude = Editing ? form.Latitude : person.Latitude;
+            double? longitude = Editing ? form.Longitude : person.Longitude;
+            if (latitude is null || longitude is null)
+            {
+                return [];
+            }
+
+            return
+            [
+                new MapPinDto
+                {
+                    PersonId = person.Id,
+                    FullName = person.FullName,
+                    Latitude = latitude.Value,
+                    Longitude = longitude.Value,
+                },
+            ];
+        }
+    }
+
+    private IEnumerable<TaggedPersonInfo> PhotoPeople =>
+        photos.SelectMany(photo => photo.TaggedPeople).DistinctBy(person => person.PersonId).OrderBy(person => person.Name);
+
+    private IEnumerable<PhotoDto> VisiblePhotos
+    {
+        get
+        {
+            int? personId = int.TryParse(photoPersonFilter, out int id) ? id : null;
+            return photos.Where(photo =>
+                MatchesMedia(photo.Title, photo.Description, photo.Tags, mediaQuery)
+                && (personId is null || photo.TaggedPeople.Any(tagged => tagged.PersonId == personId)));
+        }
+    }
+
+    private IEnumerable<VideoDto> VisibleVideos =>
+        videos.Where(video => MatchesMedia(video.Title, video.Description, video.Tags, mediaQuery));
+
+    private IEnumerable<DocumentDto> VisibleDocuments =>
+        documents.Where(document => MatchesMedia(document.Title, document.Description, document.Tags, mediaQuery));
 
     private Dictionary<string, string?> PhotoFields => new()
     {
@@ -523,7 +622,7 @@ else
         }
     }
 
-    private RenderFragment SpouseRelationships => @<div class="kinnect-card kinnect-stack">
+    private RenderFragment SpouseRelationships => @<div class="kinnect-card kinnect-stack kinnect-spouse">
         <h2>Spouse relationships</h2>
         @if (Editing)
         {
@@ -664,7 +763,62 @@ else
         });
     }
 
-    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        _ = drawerModule?.InvokeVoidAsync("release");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (drawer == pinnedDrawer)
+        {
+            return;
+        }
+
+        drawerModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/drawer-pin.js?v=1");
+        if (drawer == DrawerKind.None)
+        {
+            await drawerModule.InvokeVoidAsync("release");
+        }
+        else
+        {
+            await drawerModule.InvokeVoidAsync("pin", mediaStage);
+        }
+
+        pinnedDrawer = drawer;
+    }
+
+    private void SelectTab(string name)
+    {
+        if (tab == name)
+        {
+            return;
+        }
+
+        tab = name;
+        mediaQuery = string.Empty;
+        photoPersonFilter = string.Empty;
+        drawer = DrawerKind.None;
+    }
+
+    private void OnProfileMapPick(MapPick pick)
+    {
+        form.Latitude = pick.Latitude;
+        form.Longitude = pick.Longitude;
+    }
+
+    private static bool MatchesMedia(string? title, string? description, IEnumerable<string> tags, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return true;
+        }
+
+        return (title?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+            || tags.Any(tag => tag.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
 
     private Task OnAnnotationsSaved(string json)
     {
@@ -764,10 +918,11 @@ else
         editTitle = video.Title;
         editDescription = video.Description ?? string.Empty;
         editTags = string.Join(", ", video.Tags);
+        editEventIds = video.EventIds.ToHashSet();
         drawer = DrawerKind.EditVideo;
     }
 
-    private void TogglePhotoEvent(int eventId, bool selected)
+    private void ToggleLinkedEvent(int eventId, bool selected)
     {
         if (selected)
         {
@@ -840,6 +995,7 @@ else
             Description = string.IsNullOrWhiteSpace(editDescription) ? null : editDescription.Trim(),
             Tags = SplitTags(editTags),
             FolderId = editingVideo.FolderId,
+            EventIds = editEventIds.ToList(),
         };
 
         var result = await Videos.UpdateAsync(editingVideo.Id, request, userId, Users.IsAdmin());

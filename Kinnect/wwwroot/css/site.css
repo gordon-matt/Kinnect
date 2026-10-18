@@ -86,7 +86,39 @@ html {
 
 .kinnect-profile-stage {
     position: relative;
-    min-height: 28rem;
+    min-height: calc(100dvh - 13rem);
+}
+
+.kinnect-spouse {
+    margin-top: 1.25rem;
+}
+
+.kinnect-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.kinnect-checks .nf-check {
+    margin: 0;
+}
+
+.kinnect-media-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.kinnect-media-tools .kinnect-row {
+    flex: 1;
+}
+
+.kinnect-media-tools .nf-input,
+.kinnect-media-tools .nf-select {
+    width: min(280px, 100%);
 }
 
 .kinnect-add-drawer {

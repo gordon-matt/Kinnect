@@ -1,4 +1,8 @@
 function findMap(container) {
+    if (container._kinnectMap) {
+        return container._kinnectMap;
+    }
+
     const zoom = container.querySelector(".leaflet-control-zoom-in, .leaflet-control-zoom-out");
     if (!zoom) {
         return null;
@@ -26,7 +30,9 @@ function findMap(container) {
     }
 
     if (map) {
-        map.setZoom(map.getZoom() - 1);
+        map.stop();
+        map.setZoom(map.getZoom() - 1, { animate: false });
+        container._kinnectMap = map;
     }
 
     return map;
@@ -105,11 +111,21 @@ export function usePins(root, pins, route, pickRef) {
         map._kinnectRoute = L.polyline(route, { color, weight: 2, opacity: 0.7, kinnectPin: true }).addTo(map);
     }
 
-    if (latlngs.length === 1) {
-        map.setView(latlngs[0], 12);
-    } else if (latlngs.length > 1) {
-        map.fitBounds(latlngs, { padding: [48, 48] });
-    }
+    frame(map, latlngs);
+    setTimeout(() => {
+        map.invalidateSize();
+        frame(map, latlngs);
+    }, 250);
+}
 
-    setTimeout(() => map.invalidateSize(), 200);
+function frame(map, latlngs) {
+    map.stop();
+    const options = { animate: false };
+    if (latlngs.length === 1) {
+        map.setView(latlngs[0], 15, options);
+    } else if (latlngs.length > 1) {
+        map.fitBounds(latlngs, { padding: [48, 48], animate: false });
+    } else {
+        map.setView([20, 0], 2, options);
+    }
 }

@@ -81,7 +81,7 @@
         }).ToList();
         var route = Route;
 
-        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=4");
+        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=6");
         if (version != drawVersion)
         {
             return;

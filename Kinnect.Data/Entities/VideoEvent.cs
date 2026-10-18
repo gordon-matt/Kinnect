@@ -1,6 +1,6 @@
 namespace Kinnect.Data.Entities;
 
-public class VideoEvent
+public class VideoEvent : IEntity
 {
     public int VideoId { get; set; }
 
@@ -9,6 +9,9 @@ public class VideoEvent
     public virtual Video Video { get; set; } = null!;
 
     public virtual PersonEvent PersonEvent { get; set; } = null!;
+
+    [IgnoreDataMember]
+    public object[] KeyValues => [VideoId, PersonEventId];
 }
 
 public class VideoEventMap : IEntityTypeConfiguration<VideoEvent>

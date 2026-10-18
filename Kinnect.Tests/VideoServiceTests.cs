@@ -23,7 +23,8 @@ public class VideoServiceTests
         var sut = new VideoService(
             new EntityFrameworkRepository<Video>(factory),
             new EntityFrameworkRepository<Tag>(factory),
-            new EntityFrameworkRepository<VideoTag>(factory));
+            new EntityFrameworkRepository<VideoTag>(factory),
+            new EntityFrameworkRepository<VideoEvent>(factory));
 
         var result = await sut.CreateAsync(
             title: "Clip",
@@ -45,7 +46,8 @@ public class VideoServiceTests
         var sut = new VideoService(
             new EntityFrameworkRepository<Video>(factory),
             new EntityFrameworkRepository<Tag>(factory),
-            new EntityFrameworkRepository<VideoTag>(factory));
+            new EntityFrameworkRepository<VideoTag>(factory),
+            new EntityFrameworkRepository<VideoEvent>(factory));
 
         var result = await sut.GetByIdAsync(99999);
 
