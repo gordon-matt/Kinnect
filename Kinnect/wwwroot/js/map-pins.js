@@ -25,10 +25,14 @@ function findMap(container) {
         Function.prototype.call = original;
     }
 
+    if (map) {
+        map.setZoom(map.getZoom() - 1);
+    }
+
     return map;
 }
 
-export function usePins(root, pins, route) {
+export function usePins(root, pins, route, pickRef) {
     if (typeof L === "undefined" || !root) {
         return;
     }
@@ -37,6 +41,16 @@ export function usePins(root, pins, route) {
     const map = container && findMap(container);
     if (!map) {
         return;
+    }
+
+    map._kinnectPickRef = pickRef || null;
+    if (pickRef && !map._kinnectPickBound) {
+        map._kinnectPickBound = true;
+        map.on("click", (event) => {
+            if (map._kinnectPickRef) {
+                map._kinnectPickRef.invokeMethodAsync("OnMapPicked", event.latlng.lat, event.latlng.lng);
+            }
+        });
     }
 
     const icon = L.icon({
@@ -70,9 +84,16 @@ export function usePins(root, pins, route) {
 
     const latlngs = [];
     for (const pin of pins || []) {
-        const marker = L.marker([pin.lat, pin.lng], { icon, kinnectPin: true });
+        const marker = L.marker([pin.lat, pin.lng], { icon, kinnectPin: true, draggable: !!pickRef });
         if (pin.html) {
             marker.bindPopup(pin.html);
+        }
+
+        if (pickRef) {
+            marker.on("dragend", (event) => {
+                const point = event.target.getLatLng();
+                pickRef.invokeMethodAsync("OnMapPicked", point.lat, point.lng);
+            });
         }
 
         marker.addTo(map);
@@ -89,4 +110,6 @@ export function usePins(root, pins, route) {
     } else if (latlngs.length > 1) {
         map.fitBounds(latlngs, { padding: [48, 48] });
     }
+
+    setTimeout(() => map.invalidateSize(), 200);
 }

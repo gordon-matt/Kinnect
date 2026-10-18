@@ -61,12 +61,26 @@
         }
         catch (Exception ex)
         {
-            error = ex.Message;
+            error = FriendlyError(ex);
         }
         finally
         {
             busy = false;
         }
+    }
+
+    private static string FriendlyError(Exception exception)
+    {
+        string text = exception.Message.Split(['\r', '\n'], 2)[0].Trim();
+        const string prefix = "Error: ";
+        if (text.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            text = text[prefix.Length..].Trim();
+        }
+
+        return text.Length == 0 || text.Length > 180 || text.Contains('<') || text.Contains('{')
+            ? "Upload failed."
+            : text;
     }
 
     public async ValueTask DisposeAsync()

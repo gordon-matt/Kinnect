@@ -264,6 +264,16 @@ html {
     overflow: hidden;
 }
 
+.kinnect-map-mini {
+    height: 220px;
+    flex: 0 0 220px;
+}
+
+.kinnect-event { display: flex; flex-direction: column; gap: .2rem; flex: 1; min-width: 0; }
+.kinnect-event-title { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
+.kinnect-event-line { display: flex; align-items: flex-start; gap: .35rem; color: var(--nf-muted); font-size: 12.5px; }
+.kinnect-list > li:has(.kinnect-event) { align-items: flex-start; }
+
 .nf-content:has(.kinnect-map-page),
 .nf-content:has(.kinnect-fill) {
     display: flex;

@@ -7,6 +7,8 @@ public enum MapPinKind
     Photo,
 }
 
+public readonly record struct MapPick(double Latitude, double Longitude);
+
 public class MapPinDto
 {
     public int PersonId { get; set; }

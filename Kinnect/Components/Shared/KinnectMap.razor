@@ -1,15 +1,18 @@
 @using System.Net
 @using LeafletForBlazor
+@implements IDisposable
 @using static LeafletForBlazor.Map
 @using static LeafletForBlazor.techs.maps.Leaflet
 
-<div class="kinnect-map" @ref="root">
+<div class="kinnect-map @(Mini ? "kinnect-map-mini" : null)" @ref="root">
     <Map @ref="map" loadParameters="@parameters" height="100%" width="100%" OnAfterMapLoaded="ShowPinsAsync" />
 </div>
 
 @code {
     [Inject]
     public IJSRuntime Js { get; set; } = default!;
+
+    private DotNetObjectReference<KinnectMap>? self;
 
     private readonly LoadParameters parameters = new()
     {
@@ -28,6 +31,25 @@
     /// <summary>Latitude, longitude pairs, oldest first. Drawn as a line when there are at least two.</summary>
     [Parameter]
     public IReadOnlyList<double[]>? Route { get; set; }
+
+    /// <summary>Shorter map used beside a place search.</summary>
+    [Parameter]
+    public bool Mini { get; set; }
+
+    /// <summary>Clicking or dragging the pin reports the new coordinates.</summary>
+    [Parameter]
+    public bool Pick { get; set; }
+
+    [Parameter]
+    public EventCallback<MapPick> Picked { get; set; }
+
+    protected override void OnInitialized() => self = DotNetObjectReference.Create(this);
+
+    [JSInvokable]
+    public Task OnMapPicked(double latitude, double longitude) =>
+        Picked.HasDelegate ? Picked.InvokeAsync(new MapPick(latitude, longitude)) : Task.CompletedTask;
+
+    public void Dispose() => self?.Dispose();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -55,17 +77,17 @@
         {
             lat = pin.Latitude,
             lng = pin.Longitude,
-            html = $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong><br/>{PopupContent(pin)}",
+            html = Mini ? string.Empty : $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong><br/>{PopupContent(pin)}",
         }).ToList();
         var route = Route;
 
-        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=3");
+        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=4");
         if (version != drawVersion)
         {
             return;
         }
 
-        await pinsModule.InvokeVoidAsync("usePins", root, pins, route);
+        await pinsModule.InvokeVoidAsync("usePins", root, pins, route, Pick ? self : null);
     }
 
     private static string PopupContent(MapPinDto pin)

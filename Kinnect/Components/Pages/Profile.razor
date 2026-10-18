@@ -73,8 +73,12 @@ else
                         </label>
                         <div>Location: @form.Latitude, @form.Longitude</div>
                         <PlaceSearch Selected="OnPlace" />
-                        <button class="nf-button nf-button-primary" type="submit">Save</button>
+                        <div class="kinnect-row">
+                            <button class="nf-button nf-button-primary" type="submit">Save</button>
+                            <a class="nf-button" href="@($"people/{PersonId}")">Cancel</a>
+                        </div>
                     </EditForm>
+                    @SpouseRelationships
                 }
                 else
                 {
@@ -89,6 +93,7 @@ else
                         <p>@person.Religion</p>
                         <p>@person.Note</p>
                     </div>
+                    @SpouseRelationships
                 }
             </div>
             <div class="kinnect-stack">
@@ -129,20 +134,26 @@ else
     {
         <div class="kinnect-columns">
             <ul class="kinnect-list">
-                @foreach (var item in events)
+                @foreach (var item in TimelineRows)
                 {
                     <li>
-                        <span class="kinnect-row">
-                            <Icon Name="@EventIcon(item.EventType)" />
-                            <span>
-                                <strong>@item.EventTypeLabel</strong>
-                                <span class="kinnect-muted"> @item.DateDisplay @item.Place</span>
-                                @if (!string.IsNullOrWhiteSpace(item.Description))
-                                {
-                                    <div>@item.Description</div>
-                                }
-                            </span>
-                        </span>
+                        <div class="kinnect-event">
+                            <div class="kinnect-event-title">
+                                <span class="kinnect-row">
+                                    <Icon Name="@EventIcon(item.EventType)" />
+                                    <strong>@item.Label</strong>
+                                </span>
+                                <span class="kinnect-muted">@item.DateDisplay</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                            {
+                                <div class="kinnect-event-line"><Icon Name="logs" Size="14" /> <span>@item.Description</span></div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.Place))
+                            {
+                                <div class="kinnect-event-line"><Icon Name="pin" Size="14" /> <span>@item.Place</span></div>
+                            }
+                        </div>
                     </li>
                 }
             </ul>
@@ -161,9 +172,10 @@ else
                         <input type="number" class="nf-input" @bind="eventMonth" placeholder="Month" min="1" max="12" />
                         <input type="number" class="nf-input" @bind="eventDay" placeholder="Day" min="1" max="31" />
                     </div>
+                    <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
                     <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
                     <PlaceSearch Label="Event place" Selected="OnEventPlace" />
-                    <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
+                    <KinnectMap Mini="true" Pick="true" Pins="EventPins" Picked="OnEventMapPick" />
                     <button class="nf-button nf-button-primary" type="button" @onclick="AddEventAsync">Add event</button>
                 </div>
             }
@@ -235,11 +247,13 @@ else
                     @if (editingPhoto.LatLongAcquiredFromExif)
                     {
                         <p class="kinnect-muted">Location comes from the photo and stays as @editingPhoto.Latitude, @editingPhoto.Longitude.</p>
+                        <KinnectMap Mini="true" Pins="PhotoPins" />
                     }
                     else
                     {
                         <p class="kinnect-muted">Location: @editLatitude, @editLongitude</p>
                         <PlaceSearch Label="Photo place" Selected="OnPhotoPlace" />
+                        <KinnectMap Mini="true" Pick="true" Pins="PhotoPins" Picked="OnPhotoMapPick" />
                     }
                     <p class="kinnect-lightbox-heading">Linked events</p>
                     @foreach (var item in events)
@@ -408,6 +422,8 @@ else
     private double? editLatitude;
     private double? editLongitude;
     private HashSet<int> editEventIds = [];
+    private List<PersonSpouseDetailDto> spouses = [];
+    private List<SpouseForm> spouseForms = [];
     private int? eventYear;
     private int? eventMonth;
     private int? eventDay;
@@ -444,6 +460,179 @@ else
         EditPhoto,
         EditVideo,
     }
+
+    private IReadOnlyList<MapPinDto> EventPins =>
+        eventForm.Latitude is double lat && eventForm.Longitude is double lng
+            ? [new MapPinDto { Kind = MapPinKind.Event, Latitude = lat, Longitude = lng, FullName = eventForm.Place ?? "Event", Place = eventForm.Place }]
+            : [];
+
+    private IReadOnlyList<MapPinDto> PhotoPins =>
+        editLatitude is double lat && editLongitude is double lng
+            ? [new MapPinDto { Kind = MapPinKind.Photo, Latitude = lat, Longitude = lng, FullName = editTitle }]
+            : [];
+
+    private IEnumerable<TimelineRow> TimelineRows
+    {
+        get
+        {
+            var rows = events.Select(item => new TimelineRow(
+                item.EventType,
+                item.EventTypeLabel,
+                item.DateDisplay,
+                item.Place,
+                item.Description,
+                SortKey(item.Year, item.Month, item.Day))).ToList();
+
+            foreach (var spouse in spouses)
+            {
+                if (spouse.EngagementYear is short engagementYear)
+                {
+                    rows.Add(new TimelineRow(
+                        PersonEventType.Engagement,
+                        "Engagement",
+                        DateText(engagementYear, spouse.EngagementMonth, spouse.EngagementDay),
+                        null,
+                        $"To {spouse.FullName}",
+                        SortKey(engagementYear, spouse.EngagementMonth, spouse.EngagementDay)));
+                }
+
+                if (spouse.MarriageYear is short marriageYear)
+                {
+                    rows.Add(new TimelineRow(
+                        PersonEventType.Marriage,
+                        "Marriage",
+                        DateText(marriageYear, spouse.MarriageMonth, spouse.MarriageDay),
+                        null,
+                        $"To {spouse.FullName}",
+                        SortKey(marriageYear, spouse.MarriageMonth, spouse.MarriageDay)));
+                }
+
+                if (spouse.DivorceYear is short divorceYear)
+                {
+                    rows.Add(new TimelineRow(
+                        PersonEventType.Divorce,
+                        "Divorce",
+                        DateText(divorceYear, spouse.DivorceMonth, spouse.DivorceDay),
+                        null,
+                        $"From {spouse.FullName}",
+                        SortKey(divorceYear, spouse.DivorceMonth, spouse.DivorceDay)));
+                }
+            }
+
+            return rows.OrderBy(row => row.Sort);
+        }
+    }
+
+    private RenderFragment SpouseRelationships => @<div class="kinnect-card kinnect-stack">
+        <h2>Spouse relationships</h2>
+        @if (Editing)
+        {
+            <p class="kinnect-muted">Tick the boxes below to record engagement, marriage, or divorce details for each couple.</p>
+        }
+        @if (spouseForms.Count == 0)
+        {
+            <p class="kinnect-muted">No spouse links recorded.</p>
+        }
+        else if (Editing)
+        {
+            foreach (var row in spouseForms)
+            {
+                <div class="kinnect-stack">
+                    <a href="@($"people/{row.SpousePersonId}")"><strong>@row.FullName</strong></a>
+                    <div class="kinnect-row">
+                        <label class="nf-check"><input type="checkbox" @bind="row.HasEngagement" /> Add engagement</label>
+                        <label class="nf-check"><input type="checkbox" @bind="row.HasMarriage" /> Add marriage</label>
+                        <label class="nf-check"><input type="checkbox" @bind="row.HasDivorce" /> Add divorce</label>
+                    </div>
+                    @if (row.HasEngagement)
+                    {
+                        <div class="kinnect-muted">Engagement</div>
+                        <div class="kinnect-row">
+                            <input class="nf-input" placeholder="Year" @bind="row.EngagementYear" />
+                            <select class="nf-select" @bind="row.EngagementMonth">
+                                <option value="">Month</option>
+                                @for (int month = 1; month <= 12; month++)
+                                {
+                                    <option value="@month">@month</option>
+                                }
+                            </select>
+                            <select class="nf-select" @bind="row.EngagementDay">
+                                <option value="">Day</option>
+                                @for (int day = 1; day <= 31; day++)
+                                {
+                                    <option value="@day">@day</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    @if (row.HasMarriage)
+                    {
+                        <div class="kinnect-muted">Marriage</div>
+                        <div class="kinnect-row">
+                            <input class="nf-input" placeholder="Year" @bind="row.MarriageYear" />
+                            <select class="nf-select" @bind="row.MarriageMonth">
+                                <option value="">Month</option>
+                                @for (int month = 1; month <= 12; month++)
+                                {
+                                    <option value="@month">@month</option>
+                                }
+                            </select>
+                            <select class="nf-select" @bind="row.MarriageDay">
+                                <option value="">Day</option>
+                                @for (int day = 1; day <= 31; day++)
+                                {
+                                    <option value="@day">@day</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    @if (row.HasDivorce)
+                    {
+                        <div class="kinnect-muted">Divorce</div>
+                        <div class="kinnect-row">
+                            <input class="nf-input" placeholder="Year" @bind="row.DivorceYear" />
+                            <select class="nf-select" @bind="row.DivorceMonth">
+                                <option value="">Month</option>
+                                @for (int month = 1; month <= 12; month++)
+                                {
+                                    <option value="@month">@month</option>
+                                }
+                            </select>
+                            <select class="nf-select" @bind="row.DivorceDay">
+                                <option value="">Day</option>
+                                @for (int day = 1; day <= 31; day++)
+                                {
+                                    <option value="@day">@day</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    <button type="button" class="nf-button" @onclick="() => SaveSpouseAsync(row)">Save dates</button>
+                </div>
+            }
+        }
+        else
+        {
+            foreach (var spouse in spouses)
+            {
+                <div>
+                    <a href="@($"people/{spouse.SpousePersonId}")"><strong>@spouse.FullName</strong></a>
+                    @if (spouse.HasEngagement)
+                    {
+                        <div class="kinnect-event-line"><Icon Name="heart" Size="14" /> Engaged: @DateText(spouse.EngagementYear, spouse.EngagementMonth, spouse.EngagementDay)</div>
+                    }
+                    @if (spouse.HasMarriage)
+                    {
+                        <div class="kinnect-event-line"><Icon Name="heart" Size="14" /> Married: @DateText(spouse.MarriageYear, spouse.MarriageMonth, spouse.MarriageDay)</div>
+                    }
+                    @if (spouse.HasDivorce)
+                    {
+                        <div class="kinnect-event-line"><Icon Name="x-circle" Size="14" /> Divorced: @DateText(spouse.DivorceYear, spouse.DivorceMonth, spouse.DivorceDay)</div>
+                    }
+                </div>
+            }
+        }
+    </div>;
 
     protected override void OnInitialized()
     {
@@ -717,6 +906,113 @@ else
         photos = (await Photos.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
         videos = (await Videos.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
         documents = (await Documents.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
+        var spouseResult = await People.GetSpousesForPersonAsync(PersonId);
+        spouses = spouseResult.Value?.ToList() ?? [];
+        spouseForms = spouses.Select(SpouseForm.From).ToList();
+    }
+
+    private void OnEventMapPick(MapPick pick)
+    {
+        eventForm.Latitude = pick.Latitude;
+        eventForm.Longitude = pick.Longitude;
+    }
+
+    private void OnPhotoMapPick(MapPick pick)
+    {
+        editLatitude = pick.Latitude;
+        editLongitude = pick.Longitude;
+    }
+
+    private async Task SaveSpouseAsync(SpouseForm row)
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var request = new PersonSpouseUpdateRequest
+        {
+            HasEngagement = row.HasEngagement,
+            EngagementYear = row.HasEngagement ? ParseYear(row.EngagementYear) : null,
+            EngagementMonth = row.HasEngagement ? ParseByte(row.EngagementMonth, 1, 12) : null,
+            EngagementDay = row.HasEngagement ? ParseByte(row.EngagementDay, 1, 31) : null,
+            HasMarriage = row.HasMarriage,
+            MarriageYear = row.HasMarriage ? ParseYear(row.MarriageYear) : null,
+            MarriageMonth = row.HasMarriage ? ParseByte(row.MarriageMonth, 1, 12) : null,
+            MarriageDay = row.HasMarriage ? ParseByte(row.MarriageDay, 1, 31) : null,
+            HasDivorce = row.HasDivorce,
+            DivorceYear = row.HasDivorce ? ParseYear(row.DivorceYear) : null,
+            DivorceMonth = row.HasDivorce ? ParseByte(row.DivorceMonth, 1, 12) : null,
+            DivorceDay = row.HasDivorce ? ParseByte(row.DivorceDay, 1, 31) : null,
+        };
+
+        var result = await People.UpdateSpouseRelationshipAsync(
+            PersonId, row.SpousePersonId, request, userId, Users.IsAdmin(), Users.IsAdmin() || Users.IsEditor());
+        message = result.IsSuccess ? "Spouse dates saved." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            var spouseResult = await People.GetSpousesForPersonAsync(PersonId);
+            spouses = spouseResult.Value?.ToList() ?? [];
+            spouseForms = spouses.Select(SpouseForm.From).ToList();
+        }
+    }
+
+    private static string DateText(short? year, byte? month, byte? day) =>
+        year is null ? "Date unknown" : month is not null && day is not null ? $"{year:D4}-{month:D2}-{day:D2}" : $"{year:D4}";
+
+    private static int SortKey(short? year, byte? month, byte? day) =>
+        ((year ?? 9999) * 10000) + ((month ?? 0) * 100) + (day ?? 0);
+
+    private sealed record TimelineRow(string EventType, string Label, string? DateDisplay, string? Place, string? Description, int Sort);
+
+    private sealed class SpouseForm
+    {
+        public int SpousePersonId { get; init; }
+
+        public string FullName { get; init; } = "";
+
+        public bool HasEngagement { get; set; }
+
+        public string EngagementYear { get; set; } = "";
+
+        public string EngagementMonth { get; set; } = "";
+
+        public string EngagementDay { get; set; } = "";
+
+        public bool HasMarriage { get; set; }
+
+        public string MarriageYear { get; set; } = "";
+
+        public string MarriageMonth { get; set; } = "";
+
+        public string MarriageDay { get; set; } = "";
+
+        public bool HasDivorce { get; set; }
+
+        public string DivorceYear { get; set; } = "";
+
+        public string DivorceMonth { get; set; } = "";
+
+        public string DivorceDay { get; set; } = "";
+
+        public static SpouseForm From(PersonSpouseDetailDto spouse) => new()
+        {
+            SpousePersonId = spouse.SpousePersonId,
+            FullName = spouse.FullName,
+            HasEngagement = spouse.HasEngagement,
+            EngagementYear = spouse.EngagementYear?.ToString() ?? "",
+            EngagementMonth = spouse.EngagementMonth?.ToString() ?? "",
+            EngagementDay = spouse.EngagementDay?.ToString() ?? "",
+            HasMarriage = spouse.HasMarriage,
+            MarriageYear = spouse.MarriageYear?.ToString() ?? "",
+            MarriageMonth = spouse.MarriageMonth?.ToString() ?? "",
+            MarriageDay = spouse.MarriageDay?.ToString() ?? "",
+            HasDivorce = spouse.HasDivorce,
+            DivorceYear = spouse.DivorceYear?.ToString() ?? "",
+            DivorceMonth = spouse.DivorceMonth?.ToString() ?? "",
+            DivorceDay = spouse.DivorceDay?.ToString() ?? "",
+        };
     }
 
     private async Task SaveAsync()
