@@ -150,6 +150,12 @@ else
                                 <span class="kinnect-row">
                                     <Icon Name="@EventIcon(item.EventType)" />
                                     <strong>@item.Label</strong>
+                                    @if (canEdit && item.EventId is int eventId)
+                                    {
+                                        <button type="button" class="nf-icon-button kinnect-event-edit" title="Edit event" @onclick="() => BeginEditEvent(eventId)">
+                                            <Icon Name="edit" Size="14" />
+                                        </button>
+                                    }
                                 </span>
                                 <span class="kinnect-muted">@item.DateDisplay</span>
                             </div>
@@ -168,7 +174,7 @@ else
             @if (canEdit)
             {
                 <div class="kinnect-card kinnect-stack">
-                    <h2>Add event</h2>
+                    <h2>@(editingEventId is null ? "Add event" : "Edit event")</h2>
                     <select class="nf-select" @bind="eventForm.EventType">
                         @foreach (var option in PersonEventType.TimelineSelectableTypes)
                         {
@@ -184,7 +190,13 @@ else
                     <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
                     <PlaceSearch Label="Event place" Selected="OnEventPlace" />
                     <KinnectMap Mini="true" Pick="true" Pins="EventPins" Picked="OnEventMapPick" />
-                    <button class="nf-button nf-button-primary" type="button" @onclick="AddEventAsync">Add event</button>
+                    <div class="kinnect-row">
+                        <button class="nf-button nf-button-primary" type="button" @onclick="SaveEventAsync">@(editingEventId is null ? "Add event" : "Save")</button>
+                        @if (editingEventId is not null)
+                        {
+                            <button class="nf-button" type="button" @onclick="CancelEditEvent">Cancel</button>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -215,14 +227,27 @@ else
             <div class="kinnect-media">
                 @foreach (var photo in VisiblePhotos)
                 {
-                    <div class="kinnect-card">
+                    <div class="kinnect-card kinnect-media-card">
+                        <div class="kinnect-media-frame">
+                            <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
+                                <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
+                            </button>
+                            @if (CanEditPhoto(photo))
+                            {
+                                @CardMenu($"photo-{photo.Id}", () => BeginEditPhoto(photo), () => selectedPhoto = photo, () => DeletePhotoAsync(photo), includeAnnotate: true)
+                            }
+                        </div>
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
-                            <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
                             <div>@photo.Title</div>
                         </button>
-                        @if (CanEditPhoto(photo))
+                        @if (photo.Tags.Count > 0)
                         {
-                            <button type="button" class="nf-button" @onclick="() => BeginEditPhoto(photo)">Edit</button>
+                            <div class="kinnect-tags">
+                                @foreach (var tag in photo.Tags)
+                                {
+                                    <span class="kinnect-tag">@tag</span>
+                                }
+                            </div>
                         }
                     </div>
                 }
@@ -310,21 +335,34 @@ else
             <div class="kinnect-videos">
                 @foreach (var video in VisibleVideos)
                 {
-                    <div class="kinnect-card">
+                    <div class="kinnect-card kinnect-media-card">
+                        <div class="kinnect-media-frame">
+                            <button type="button" class="kinnect-media-open" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
+                                @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
+                                {
+                                    <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
+                                }
+                                else
+                                {
+                                    <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
+                                }
+                            </button>
+                            @if (CanEditVideo(video))
+                            {
+                                @CardMenu($"video-{video.Id}", () => BeginEditVideo(video), null, () => DeleteVideoAsync(video), false)
+                            }
+                        </div>
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
-                            @if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
-                            {
-                                <img src="@MediaUrl(video.ThumbnailPath)" alt="" />
-                            }
-                            else
-                            {
-                                <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
-                            }
                             <div>@(video.IsProcessing ? "Processing…" : video.Title)</div>
                         </button>
-                        @if (CanEditVideo(video))
+                        @if (video.Tags.Count > 0)
                         {
-                            <button type="button" class="nf-button" @onclick="() => BeginEditVideo(video)">Edit</button>
+                            <div class="kinnect-tags">
+                                @foreach (var tag in video.Tags)
+                                {
+                                    <span class="kinnect-tag">@tag</span>
+                                }
+                            </div>
                         }
                     </div>
                 }
@@ -442,6 +480,8 @@ else
     private PersonDto? person;
     private PersonEditRequest form = new();
     private PersonEventRequest eventForm = new() { EventType = PersonEventType.Birth };
+    private int? editingEventId;
+    private string? cardMenu;
     private List<PostDto> posts = [];
     private List<PersonEventDto> events = [];
     private List<PhotoDto> photos = [];
@@ -575,6 +615,7 @@ else
         get
         {
             var rows = events.Select(item => new TimelineRow(
+                item.Id,
                 item.EventType,
                 item.EventTypeLabel,
                 item.DateDisplay,
@@ -587,6 +628,7 @@ else
                 if (spouse.EngagementYear is short engagementYear)
                 {
                     rows.Add(new TimelineRow(
+                        null,
                         PersonEventType.Engagement,
                         "Engagement",
                         DateText(engagementYear, spouse.EngagementMonth, spouse.EngagementDay),
@@ -598,6 +640,7 @@ else
                 if (spouse.MarriageYear is short marriageYear)
                 {
                     rows.Add(new TimelineRow(
+                        null,
                         PersonEventType.Marriage,
                         "Marriage",
                         DateText(marriageYear, spouse.MarriageMonth, spouse.MarriageDay),
@@ -609,6 +652,7 @@ else
                 if (spouse.DivorceYear is short divorceYear)
                 {
                     rows.Add(new TimelineRow(
+                        null,
                         PersonEventType.Divorce,
                         "Divorce",
                         DateText(divorceYear, spouse.DivorceMonth, spouse.DivorceDay),
@@ -1120,7 +1164,25 @@ else
     private static int SortKey(short? year, byte? month, byte? day) =>
         ((year ?? 9999) * 10000) + ((month ?? 0) * 100) + (day ?? 0);
 
-    private sealed record TimelineRow(string EventType, string Label, string? DateDisplay, string? Place, string? Description, int Sort);
+    private sealed record TimelineRow(int? EventId, string EventType, string Label, string? DateDisplay, string? Place, string? Description, int Sort);
+
+    private RenderFragment CardMenu(string key, Action edit, Action? annotate, Func<Task> delete, bool includeAnnotate) => @<div class="kinnect-card-menu">
+        <button type="button" class="kinnect-card-menu-toggle" title="Actions" aria-label="Actions" @onclick="() => cardMenu = cardMenu == key ? null : key" @onclick:stopPropagation="true">
+            <Icon Name="dots" Size="16" />
+        </button>
+        @if (cardMenu == key)
+        {
+            <div class="nf-menu-scrim" @onclick="() => cardMenu = null"></div>
+            <div class="nf-menu-list" role="menu">
+                <button type="button" class="nf-menu-item" role="menuitem" @onclick="() => { cardMenu = null; edit(); }"><Icon Name="edit" Size="16" /> Edit</button>
+                @if (includeAnnotate && annotate is not null)
+                {
+                    <button type="button" class="nf-menu-item" role="menuitem" @onclick="() => { cardMenu = null; annotate(); }">Annotate</button>
+                }
+                <button type="button" class="nf-menu-item" role="menuitem" @onclick="async () => { cardMenu = null; await delete(); }"><Icon Name="trash" Size="16" /> Delete</button>
+            </div>
+        }
+    </div>;
 
     private sealed class SpouseForm
     {
@@ -1212,17 +1274,119 @@ else
         await ReloadAsync();
     }
 
-    private async Task AddEventAsync()
+    private void BeginEditEvent(int eventId)
+    {
+        var item = events.FirstOrDefault(evt => evt.Id == eventId);
+        if (item is null)
+        {
+            return;
+        }
+
+        editingEventId = eventId;
+        eventForm = new PersonEventRequest
+        {
+            EventType = item.EventType,
+            Year = item.Year,
+            Month = item.Month,
+            Day = item.Day,
+            Place = item.Place,
+            Latitude = item.Latitude,
+            Longitude = item.Longitude,
+            Description = item.Description,
+            Note = item.Note,
+        };
+        eventYear = item.Year;
+        eventMonth = item.Month;
+        eventDay = item.Day;
+    }
+
+    private void CancelEditEvent()
+    {
+        editingEventId = null;
+        eventForm = new PersonEventRequest { EventType = PersonEventType.Birth };
+        eventYear = eventMonth = eventDay = null;
+    }
+
+    private void ApplyEventDate()
     {
         eventForm.Year = eventYear is int year and >= 1 and <= 9999 ? (short)year : null;
         eventForm.Month = eventMonth is int month and >= 1 and <= 12 ? (byte)month : null;
         eventForm.Day = eventDay is int day and >= 1 and <= 31 ? (byte)day : null;
-        var result = await Events.CreateAsync(PersonId, eventForm);
-        message = result.IsSuccess ? "Event added." : string.Join(" ", result.Errors);
+    }
+
+    private async Task SaveEventAsync()
+    {
+        ApplyEventDate();
+        if (editingEventId is int eventId)
+        {
+            var result = await Events.UpdateAsync(eventId, eventForm);
+            message = result.IsSuccess ? "Event saved." : string.Join(" ", result.Errors);
+            if (result.IsSuccess)
+            {
+                CancelEditEvent();
+                await ReloadAsync();
+            }
+
+            return;
+        }
+
+        var created = await Events.CreateAsync(PersonId, eventForm);
+        message = created.IsSuccess ? "Event added." : string.Join(" ", created.Errors);
+        if (created.IsSuccess)
+        {
+            CancelEditEvent();
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeletePhotoAsync(PhotoDto photo)
+    {
+        if (!await Js.InvokeAsync<bool>("confirm", $"Delete {photo.Title}?"))
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Photos.DeleteAsync(photo.Id, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Photo deleted." : string.Join(" ", result.Errors);
         if (result.IsSuccess)
         {
-            eventForm = new PersonEventRequest { EventType = PersonEventType.Birth };
-            eventYear = eventMonth = eventDay = null;
+            if (selectedPhoto?.Id == photo.Id)
+            {
+                selectedPhoto = null;
+            }
+
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteVideoAsync(VideoDto video)
+    {
+        if (!await Js.InvokeAsync<bool>("confirm", $"Delete {video.Title}?"))
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Videos.DeleteAsync(video.Id, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Video deleted." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            if (selectedVideo?.Id == video.Id)
+            {
+                selectedVideo = null;
+            }
+
             await ReloadAsync();
         }
     }
