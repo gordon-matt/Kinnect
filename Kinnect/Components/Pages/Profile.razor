@@ -232,10 +232,6 @@ else
                             <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
                                 <img src="@MediaUrl(photo.ThumbnailPath ?? photo.FilePath)" alt="" />
                             </button>
-                            @if (CanEditPhoto(photo))
-                            {
-                                @CardMenu($"photo-{photo.Id}", () => BeginEditPhoto(photo), () => selectedPhoto = photo, () => DeletePhotoAsync(photo), includeAnnotate: true)
-                            }
                         </div>
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedPhoto = photo">
                             <div>@photo.Title</div>
@@ -248,6 +244,10 @@ else
                                     <span class="kinnect-tag">@tag</span>
                                 }
                             </div>
+                        }
+                        @if (CanEditPhoto(photo))
+                        {
+                            @CardMenu($"photo-{photo.Id}", () => BeginEditPhoto(photo), () => selectedPhoto = photo, () => DeletePhotoAsync(photo), includeAnnotate: true)
                         }
                     </div>
                 }
@@ -347,10 +347,6 @@ else
                                     <div class="kinnect-video-poster"><Icon Name="film" Size="32" /></div>
                                 }
                             </button>
-                            @if (CanEditVideo(video))
-                            {
-                                @CardMenu($"video-{video.Id}", () => BeginEditVideo(video), null, () => DeleteVideoAsync(video), false)
-                            }
                         </div>
                         <button type="button" class="kinnect-media-open" @onclick="() => selectedVideo = video" disabled="@video.IsProcessing">
                             <div>@(video.IsProcessing ? "Processing…" : video.Title)</div>
@@ -363,6 +359,10 @@ else
                                     <span class="kinnect-tag">@tag</span>
                                 }
                             </div>
+                        }
+                        @if (CanEditVideo(video))
+                        {
+                            @CardMenu($"video-{video.Id}", () => BeginEditVideo(video), null, () => DeleteVideoAsync(video), false)
                         }
                     </div>
                 }
@@ -422,9 +422,24 @@ else
             <ul class="kinnect-list">
                 @foreach (var document in VisibleDocuments)
                 {
-                    <li>
-                        <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
-                        <small class="kinnect-muted">@document.ContentType</small>
+                    <li class="kinnect-doc">
+                        <div>
+                            <a href="@MediaUrl(document.FilePath)" target="_blank">@document.Title</a>
+                            <div class="kinnect-muted">@document.ContentType</div>
+                            @if (document.Tags.Count > 0)
+                            {
+                                <div class="kinnect-tags">
+                                    @foreach (var tag in document.Tags)
+                                    {
+                                        <span class="kinnect-tag">@tag</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        @if (CanEditDocument(document))
+                        {
+                            @CardMenu($"document-{document.Id}", () => BeginEditDocument(document), null, () => DeleteDocumentAsync(document), false)
+                        }
                     </li>
                 }
             </ul>
@@ -439,6 +454,19 @@ else
                     <textarea class="nf-textarea" rows="2" @bind="mediaDescription" placeholder="Description"></textarea>
                     <input class="nf-input" @bind="mediaTags" placeholder="Tags, comma-separated" />
                     <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="OnUploaded" />
+                </aside>
+            }
+            else if (drawer == DrawerKind.EditDocument && editingDocument is not null)
+            {
+                <aside class="kinnect-add-drawer kinnect-stack">
+                    <div class="kinnect-split">
+                        <h2>Edit document</h2>
+                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
+                    </div>
+                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
+                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
+                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                    <button type="button" class="nf-button nf-button-primary" @onclick="SaveDocumentAsync">Save</button>
                 </aside>
             }
         </div>
@@ -498,6 +526,7 @@ else
     private DrawerKind drawer = DrawerKind.None;
     private PhotoDto? editingPhoto;
     private VideoDto? editingVideo;
+    private DocumentDto? editingDocument;
     private string editTitle = string.Empty;
     private string editDescription = string.Empty;
     private string editTags = string.Empty;
@@ -511,7 +540,9 @@ else
     private string photoPersonFilter = string.Empty;
     private ElementReference mediaStage;
     private IJSObjectReference? drawerModule;
+    private IJSObjectReference? menuModule;
     private DrawerKind pinnedDrawer = DrawerKind.None;
+    private string? placedMenu;
     private List<PersonSpouseDetailDto> spouses = [];
     private List<SpouseForm> spouseForms = [];
     private int? eventYear;
@@ -598,6 +629,7 @@ else
         AddDocument,
         EditPhoto,
         EditVideo,
+        EditDocument,
     }
 
     private IReadOnlyList<MapPinDto> EventPins =>
@@ -811,26 +843,42 @@ else
     {
         Nav.LocationChanged -= OnLocationChanged;
         _ = drawerModule?.InvokeVoidAsync("release");
+        _ = menuModule?.InvokeVoidAsync("release");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (drawer == pinnedDrawer)
+        if (drawer != pinnedDrawer)
+        {
+            drawerModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/drawer-pin.js?v=1");
+            if (drawer == DrawerKind.None)
+            {
+                await drawerModule.InvokeVoidAsync("release");
+            }
+            else
+            {
+                await drawerModule.InvokeVoidAsync("pin", mediaStage);
+            }
+
+            pinnedDrawer = drawer;
+        }
+
+        if (cardMenu == placedMenu)
         {
             return;
         }
 
-        drawerModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/drawer-pin.js?v=1");
-        if (drawer == DrawerKind.None)
+        menuModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/card-menu.js?v=1");
+        if (cardMenu is null)
         {
-            await drawerModule.InvokeVoidAsync("release");
+            await menuModule.InvokeVoidAsync("release");
         }
         else
         {
-            await drawerModule.InvokeVoidAsync("pin", mediaStage);
+            await menuModule.InvokeVoidAsync("place");
         }
 
-        pinnedDrawer = drawer;
+        placedMenu = cardMenu;
     }
 
     private void SelectTab(string name)
@@ -890,6 +938,9 @@ else
     private bool CanEditVideo(VideoDto video) =>
         Users.IsAdmin() || (myPersonId is int id && video.UploadedByPersonId == id);
 
+    private bool CanEditDocument(DocumentDto document) =>
+        Users.IsAdmin() || (myPersonId is int id && document.UploadedByPersonId == id);
+
     private static string EventIcon(string eventType) => eventType.ToUpperInvariant() switch
     {
         PersonEventType.Birth => "star",
@@ -922,6 +973,7 @@ else
     {
         editingPhoto = null;
         editingVideo = null;
+        editingDocument = null;
         mediaTitle = string.Empty;
         mediaDescription = string.Empty;
         mediaTags = string.Empty;
@@ -943,6 +995,7 @@ else
     {
         editingPhoto = photo;
         editingVideo = null;
+        editingDocument = null;
         editTitle = photo.Title;
         editDescription = photo.Description ?? string.Empty;
         editTags = string.Join(", ", photo.Tags);
@@ -959,11 +1012,23 @@ else
     {
         editingVideo = video;
         editingPhoto = null;
+        editingDocument = null;
         editTitle = video.Title;
         editDescription = video.Description ?? string.Empty;
         editTags = string.Join(", ", video.Tags);
         editEventIds = video.EventIds.ToHashSet();
         drawer = DrawerKind.EditVideo;
+    }
+
+    private void BeginEditDocument(DocumentDto document)
+    {
+        editingDocument = document;
+        editingPhoto = null;
+        editingVideo = null;
+        editTitle = document.Title;
+        editDescription = document.Description ?? string.Empty;
+        editTags = string.Join(", ", document.Tags);
+        drawer = DrawerKind.EditDocument;
     }
 
     private void ToggleLinkedEvent(int eventId, bool selected)
@@ -1044,6 +1109,35 @@ else
 
         var result = await Videos.UpdateAsync(editingVideo.Id, request, userId, Users.IsAdmin());
         message = result.IsSuccess ? "Video saved." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            drawer = DrawerKind.None;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SaveDocumentAsync()
+    {
+        if (editingDocument is null)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null || string.IsNullOrWhiteSpace(editTitle))
+        {
+            return;
+        }
+
+        var request = new DocumentUpdateRequest
+        {
+            Title = editTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(editDescription) ? null : editDescription.Trim(),
+            Tags = SplitTags(editTags),
+        };
+
+        var result = await Documents.UpdateAsync(editingDocument.Id, request, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Document saved." : string.Join(" ", result.Errors);
         if (result.IsSuccess)
         {
             drawer = DrawerKind.None;
@@ -1166,7 +1260,7 @@ else
 
     private sealed record TimelineRow(int? EventId, string EventType, string Label, string? DateDisplay, string? Place, string? Description, int Sort);
 
-    private RenderFragment CardMenu(string key, Action edit, Action? annotate, Func<Task> delete, bool includeAnnotate) => @<div class="kinnect-card-menu">
+    private RenderFragment CardMenu(string key, Action edit, Action? annotate, Func<Task> delete, bool includeAnnotate) => @<div class="kinnect-card-menu @(cardMenu == key ? "is-open" : null)">
         <button type="button" class="kinnect-card-menu-toggle" title="Actions" aria-label="Actions" @onclick="() => cardMenu = cardMenu == key ? null : key" @onclick:stopPropagation="true">
             <Icon Name="dots" Size="16" />
         </button>
@@ -1177,7 +1271,7 @@ else
                 <button type="button" class="nf-menu-item" role="menuitem" @onclick="() => { cardMenu = null; edit(); }"><Icon Name="edit" Size="16" /> Edit</button>
                 @if (includeAnnotate && annotate is not null)
                 {
-                    <button type="button" class="nf-menu-item" role="menuitem" @onclick="() => { cardMenu = null; annotate(); }">Annotate</button>
+                    <button type="button" class="nf-menu-item" role="menuitem" @onclick="() => { cardMenu = null; annotate(); }"><Icon Name="edit" Size="16" /> Annotate</button>
                 }
                 <button type="button" class="nf-menu-item" role="menuitem" @onclick="async () => { cardMenu = null; await delete(); }"><Icon Name="trash" Size="16" /> Delete</button>
             </div>
@@ -1387,6 +1481,27 @@ else
                 selectedVideo = null;
             }
 
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteDocumentAsync(DocumentDto document)
+    {
+        if (!await Js.InvokeAsync<bool>("confirm", $"Delete {document.Title}?"))
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Documents.DeleteAsync(document.Id, userId, Users.IsAdmin());
+        message = result.IsSuccess ? "Document deleted." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
             await ReloadAsync();
         }
     }

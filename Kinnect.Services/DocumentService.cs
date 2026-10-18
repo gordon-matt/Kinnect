@@ -44,16 +44,56 @@ public class DocumentService(
         });
     }
 
-    public async Task<Result> DeleteAsync(int id, string currentUserId)
+    public async Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin)
     {
-        var document = await documentRepository.FindOneAsync(id);
+        var document = await documentRepository.FindOneAsync(new SearchOptions<Document>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(d => d.UploadedBy)
+        });
+
         if (document is null)
         {
             return Result.NotFound("Document not found.");
         }
 
+        if (!CanEdit(document.UploadedBy, currentUserId, isAdmin))
+        {
+            return Result.Forbidden();
+        }
+
         await documentRepository.DeleteAsync(document);
         return Result.Success();
+    }
+
+    public async Task<Result<DocumentDto>> UpdateAsync(int id, DocumentUpdateRequest request, string currentUserId, bool isAdmin)
+    {
+        var document = await documentRepository.FindOneAsync(new SearchOptions<Document>
+        {
+            Query = x => x.Id == id,
+            Include = q => q.Include(d => d.UploadedBy)
+        });
+
+        if (document is null)
+        {
+            return Result.NotFound("Document not found.");
+        }
+
+        if (!CanEdit(document.UploadedBy, currentUserId, isAdmin))
+        {
+            return Result.Forbidden();
+        }
+
+        document.Title = request.Title;
+        document.Description = request.Description;
+        await documentRepository.UpdateAsync(document);
+
+        if (request.Tags is not null)
+        {
+            await SyncTagsAsync(id, request.Tags);
+        }
+
+        return await GetByIdAsync(id);
     }
 
     public async Task<Result<DocumentDto>> GetByIdAsync(int id)
@@ -94,6 +134,9 @@ public class DocumentService(
         await SyncTagsAsync(id, tags);
         return Result.Success();
     }
+
+    private static bool CanEdit(Person uploadedBy, string currentUserId, bool isAdmin) =>
+        isAdmin || uploadedBy.UserId is null || uploadedBy.UserId == currentUserId;
 
     private async Task SyncTagsAsync(int documentId, List<string> tagNames)
     {

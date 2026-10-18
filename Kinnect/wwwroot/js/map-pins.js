@@ -13,25 +13,20 @@ function findMap(container) {
     Function.prototype.call = function (context) {
         if (!map && context && context._map && typeof context._map.eachLayer === "function") {
             map = context._map;
-            throw new Error("kinnect-map");
+            return undefined;
         }
 
         return original.apply(this, arguments);
     };
 
     try {
-        zoom.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    } catch (error) {
-        if (!error || error.message !== "kinnect-map") {
-            throw error;
-        }
+        zoom.dispatchEvent(new MouseEvent("click", { bubbles: false, cancelable: true }));
     } finally {
         Function.prototype.call = original;
     }
 
     if (map) {
         map.stop();
-        map.setZoom(map.getZoom() - 1, { animate: false });
         container._kinnectMap = map;
     }
 

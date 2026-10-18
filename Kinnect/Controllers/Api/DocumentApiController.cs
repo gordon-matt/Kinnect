@@ -28,7 +28,7 @@ public class DocumentApiController(
     public async Task<Result> Delete(int id)
     {
         string? userId = userContextService.GetCurrentUserId();
-        return userId is null ? Result.Unauthorized() : await documentService.DeleteAsync(id, userId);
+        return userId is null ? Result.Unauthorized() : await documentService.DeleteAsync(id, userId, userContextService.IsAdmin());
     }
 
     [TranslateResultToActionResult]

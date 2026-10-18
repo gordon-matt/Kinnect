@@ -100,13 +100,16 @@ html {
 }
 
 .kinnect-media-card {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    padding-bottom: 2rem;
 }
 
-.kinnect-media-frame {
+.kinnect-doc {
     position: relative;
+    padding-right: 2.6rem;
 }
 
 .kinnect-card-menu {
@@ -132,8 +135,16 @@ html {
 }
 
 .kinnect-card-menu .nf-menu-list {
-    right: 0;
-    left: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: auto;
+    z-index: 46;
+    visibility: hidden;
+}
+
+.kinnect-card-menu .nf-menu-list.is-placed {
+    visibility: visible;
 }
 
 .kinnect-tags {
