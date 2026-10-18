@@ -173,11 +173,44 @@ html {
     padding: 1rem 1.25rem 0;
 }
 
-.kinnect-map-page .kinnect-map {
+.kinnect-map-page .kinnect-map,
+.kinnect-map-page .kinnect-map-stage {
     flex: 1;
     height: auto;
     min-height: 0;
     border-radius: 0;
+}
+
+.kinnect-map-stage {
+    position: relative;
+    display: flex;
+}
+
+.kinnect-map-stage .kinnect-map {
+    position: relative;
+    z-index: 0;
+    flex: 1;
+    height: auto;
+    min-height: 0;
+}
+
+.kinnect-event-filter {
+    position: absolute;
+    z-index: 1200;
+    top: 0.75rem;
+    left: 0.75rem;
+    max-height: calc(100% - 1.5rem);
+    overflow: auto;
+    min-width: 160px;
+    padding: 0.55rem 0.7rem;
+    background: color-mix(in srgb, var(--nf-surface) 94%, transparent);
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    box-shadow: var(--nf-shadow);
+}
+
+.kinnect-event-filter .nf-check {
+    margin: 0.15rem 0;
 }
 
 .kinnect-fill {

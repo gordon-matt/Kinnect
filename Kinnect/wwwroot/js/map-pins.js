@@ -28,7 +28,7 @@ function findMap(container) {
     return map;
 }
 
-export function usePins(root) {
+export function usePins(root, pins, route) {
     if (typeof L === "undefined" || !root) {
         return;
     }
@@ -50,21 +50,43 @@ export function usePins(root) {
         shadowAnchor: [12, 41],
     });
 
-    const circles = [];
+    const previous = [];
     map.eachLayer(layer => {
-        if (layer instanceof L.CircleMarker && !(layer instanceof L.Circle)) {
-            circles.push(layer);
+        if (layer.options && layer.options.kinnectPin) {
+            previous.push(layer);
+        } else if (layer instanceof L.CircleMarker && !(layer instanceof L.Circle)) {
+            previous.push(layer);
         }
     });
 
-    for (const circle of circles) {
-        const popup = circle.getPopup();
-        const marker = L.marker(circle.getLatLng(), { icon });
-        if (popup) {
-            marker.bindPopup(popup.getContent());
+    for (const layer of previous) {
+        map.removeLayer(layer);
+    }
+
+    if (map._kinnectRoute) {
+        map.removeLayer(map._kinnectRoute);
+        map._kinnectRoute = null;
+    }
+
+    const latlngs = [];
+    for (const pin of pins || []) {
+        const marker = L.marker([pin.lat, pin.lng], { icon, kinnectPin: true });
+        if (pin.html) {
+            marker.bindPopup(pin.html);
         }
 
         marker.addTo(map);
-        map.removeLayer(circle);
+        latlngs.push([pin.lat, pin.lng]);
+    }
+
+    if (Array.isArray(route) && route.length >= 2) {
+        const color = getComputedStyle(document.documentElement).getPropertyValue("--nf-accent").trim() || "#0f766e";
+        map._kinnectRoute = L.polyline(route, { color, weight: 2, opacity: 0.7, kinnectPin: true }).addTo(map);
+    }
+
+    if (latlngs.length === 1) {
+        map.setView(latlngs[0], 12);
+    } else if (latlngs.length > 1) {
+        map.fitBounds(latlngs, { padding: [48, 48] });
     }
 }

@@ -5,15 +5,14 @@
 @inject IPhotoService Photos
 
 <PageTitle>Photo map</PageTitle>
+<div class="kinnect-map-page">
+    <PageHeader Title="@title" Description="@note" />
 
-@if (pins is null)
-{
-    <p>Loading…</p>
-}
-else
-{
-    <PageHeader Title="@title" />
-    @if (pins.Count == 0)
+    @if (pins is null)
+    {
+        <p>Loading…</p>
+    }
+    else if (pins.Count == 0)
     {
         <EmptyState Title="No photo places" Description="Photos with coordinates will appear on this map." />
     }
@@ -21,13 +20,14 @@ else
     {
         <KinnectMap Pins="pins" />
     }
-}
+</div>
 
 @code {
     [Parameter]
     public int PersonId { get; set; }
 
     private string title = "Photo map";
+    private string? note;
     private List<MapPinDto>? pins;
 
     protected override async Task OnInitializedAsync()
@@ -39,16 +39,26 @@ else
         }
 
         var photos = await Photos.GetByPersonAsync(PersonId);
-        pins = photos.IsSuccess
-            ? photos.Value.Where(p => p.Latitude is not null && p.Longitude is not null)
-                .Select(p => new MapPinDto
-                {
-                    PersonId = PersonId,
-                    FullName = p.Title,
-                    Latitude = p.Latitude!.Value,
-                    Longitude = p.Longitude!.Value,
-                    ProfileImagePath = p.ThumbnailPath ?? p.FilePath,
-                }).ToList()
-            : [];
+        if (!photos.IsSuccess)
+        {
+            pins = [];
+            return;
+        }
+
+        int missing = photos.Value.Count(photo => photo.Latitude is null || photo.Longitude is null);
+        note = missing == 0 ? null : missing == 1 ? "1 photo has no location." : $"{missing} photos have no location.";
+        pins = photos.Value
+            .Where(photo => photo.Latitude is not null && photo.Longitude is not null)
+            .Select(photo => new MapPinDto
+            {
+                PersonId = PersonId,
+                Kind = MapPinKind.Photo,
+                FullName = photo.Title,
+                Detail = photo.DateTakenDisplay,
+                ProfileImagePath = photo.ThumbnailPath ?? photo.FilePath,
+                Latitude = photo.Latitude!.Value,
+                Longitude = photo.Longitude!.Value,
+            })
+            .ToList();
     }
 }

@@ -1,7 +1,5 @@
-@using System.Linq.Expressions
 @using System.Net
 @using LeafletForBlazor
-@using LeafletForBlazor.techs.core.Appearance
 @using static LeafletForBlazor.Map
 @using static LeafletForBlazor.techs.maps.Leaflet
 
@@ -21,65 +19,85 @@
 
     private LeafletForBlazor.Map? map;
     private ElementReference root;
+    private bool mapReady;
+    private int drawVersion;
 
     [Parameter]
     public IReadOnlyList<MapPinDto> Pins { get; set; } = [];
 
-    private async Task ShowPinsAsync(MapEventArgs args)
+    /// <summary>Latitude, longitude pairs, oldest first. Drawn as a line when there are at least two.</summary>
+    [Parameter]
+    public IReadOnlyList<double[]>? Route { get; set; }
+
+    protected override async Task OnParametersSetAsync()
     {
-        if (map is null || Pins.Count == 0)
+        if (mapReady)
+        {
+            await DrawAsync();
+        }
+    }
+
+    private Task ShowPinsAsync(MapEventArgs args)
+    {
+        mapReady = true;
+        return DrawAsync();
+    }
+
+    private async Task DrawAsync()
+    {
+        if (map is null)
         {
             return;
         }
 
-        var points = Pins.Select(pin => new StreamPoint
+        int version = ++drawVersion;
+        var pins = Pins.Select(pin => new
         {
-            guid = Guid.NewGuid(),
-            type = "person-" + pin.PersonId,
-            timestamp = DateTime.UtcNow,
-            coordinates = new Coordinates { xy = [pin.Latitude, pin.Longitude] },
-            value = pin.FullName,
+            lat = pin.Latitude,
+            lng = pin.Longitude,
+            html = $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong><br/>{PopupContent(pin)}",
         }).ToList();
+        var route = Route;
 
-        map.Geometric.Points.isFitExtentEnabled = true;
-        await map.Geometric.Points.Add(points);
-
-        foreach (var pin in Pins)
+        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=3");
+        if (version != drawVersion)
         {
-            string markerType = "person-" + pin.PersonId;
-            await map.Geometric.Points
-                .Appearance(TypeIs(markerType))
-                .SetPopup(new Popup
-                {
-                    title = $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong>",
-                    content = PopupContent(pin),
-                });
+            return;
         }
 
-        var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js");
-        await pinsModule.InvokeVoidAsync("usePins", root);
-
-        if (Pins.Count == 1)
-        {
-            map.View.SetCenter(Pins[0].Latitude, Pins[0].Longitude);
-            map.View.SetZoomLevel(12);
-        }
-    }
-
-    private static Expression<Func<StreamPoint, bool>> TypeIs(string markerType)
-    {
-        var point = Expression.Parameter(typeof(StreamPoint), "point");
-        var body = Expression.Equal(
-            Expression.PropertyOrField(point, "type"),
-            Expression.Constant(markerType));
-        return Expression.Lambda<Func<StreamPoint, bool>>(body, point);
+        await pinsModule.InvokeVoidAsync("usePins", root, pins, route);
     }
 
     private static string PopupContent(MapPinDto pin)
     {
-        string image = string.IsNullOrWhiteSpace(pin.ProfileImagePath)
+        if (pin.Kind == MapPinKind.Event)
+        {
+            var lines = new List<string> { WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(pin.Detail) ? "Date unknown" : pin.Detail) };
+            if (!string.IsNullOrWhiteSpace(pin.Place))
+            {
+                lines.Add(WebUtility.HtmlEncode(pin.Place));
+            }
+
+            if (!string.IsNullOrWhiteSpace(pin.Description))
+            {
+                lines.Add(WebUtility.HtmlEncode(pin.Description));
+            }
+
+            return string.Join("<br/>", lines);
+        }
+
+        if (pin.Kind == MapPinKind.Photo)
+        {
+            string image = string.IsNullOrWhiteSpace(pin.ProfileImagePath)
+                ? string.Empty
+                : $"<img src=\"/uploads/{pin.ProfileImagePath.TrimStart('/')}\" alt=\"\" style=\"display:block;max-width:160px;height:auto;border-radius:4px\" />";
+            string date = string.IsNullOrWhiteSpace(pin.Detail) ? string.Empty : $"<div>{WebUtility.HtmlEncode(pin.Detail)}</div>";
+            return image + date;
+        }
+
+        string portrait = string.IsNullOrWhiteSpace(pin.ProfileImagePath)
             ? string.Empty
             : $"<img src=\"/uploads/{pin.ProfileImagePath.TrimStart('/')}\" alt=\"\" style=\"width:60px;height:60px;border-radius:50%;object-fit:cover\" /><br/>";
-        return $"{image}<a href=\"/people/{pin.PersonId}\">View Profile</a>";
+        return $"{portrait}<a href=\"/people/{pin.PersonId}\">View Profile</a>";
     }
 }
