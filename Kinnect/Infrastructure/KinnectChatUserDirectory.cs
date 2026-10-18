@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using EasyChatz.Models;
 using EasyChatz.Services;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Kinnect.Infrastructure;
 
@@ -11,7 +14,8 @@ public sealed class KinnectChatUserDirectory(
     IUserInfoService users,
     IPersonService people,
     IHttpContextAccessor httpContext,
-    IServiceProvider services) : IChatUserDirectory
+    IServiceProvider services,
+    IServiceScopeFactory scopes) : IChatUserDirectory
 {
     public async Task<ChatUser?> FindAsync(string userId, CancellationToken cancellationToken = default)
     {
@@ -42,27 +46,59 @@ public sealed class KinnectChatUserDirectory(
             name = person.Value.FullName;
         }
 
-        bool admin = await IsInRoleAsync(info.UserId, Constants.Roles.Administrator);
-        bool editor = admin || await IsInRoleAsync(info.UserId, Constants.Roles.Editor);
+        (bool admin, bool editor) = await RolesAsync(info.UserId);
         return new ChatUser(info.UserId, name, admin, editor);
     }
 
-    private async Task<bool> IsInRoleAsync(string userId, string role)
+    private async Task<(bool Admin, bool Editor)> RolesAsync(string userId)
     {
-        var principal = httpContext.HttpContext?.User;
-        if (principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == userId
-            && principal.IsInRole(role))
+        var principal = await CurrentPrincipalAsync();
+        if (principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value == userId)
         {
-            return true;
+            bool admin = principal.IsInRole(Constants.Roles.Administrator);
+            return (admin, admin || principal.IsInRole(Constants.Roles.Editor));
         }
 
-        var userManager = services.GetService<UserManager<ApplicationUser>>();
+        // A fresh scope keeps this off the circuit's Identity context. The messages page and the
+        // unread badge both ask for roles, and those calls overlap on one Blazor circuit.
+        await using var scope = scopes.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetService<UserManager<ApplicationUser>>();
         if (userManager is null)
         {
-            return false;
+            return (false, false);
         }
 
         var user = await userManager.FindByIdAsync(userId);
-        return user is not null && await userManager.IsInRoleAsync(user, role);
+        if (user is null)
+        {
+            return (false, false);
+        }
+
+        bool isAdmin = await userManager.IsInRoleAsync(user, Constants.Roles.Administrator);
+        return (isAdmin, isAdmin || await userManager.IsInRoleAsync(user, Constants.Roles.Editor));
+    }
+
+    private async Task<ClaimsPrincipal?> CurrentPrincipalAsync()
+    {
+        var principal = httpContext.HttpContext?.User;
+        if (principal?.Identity?.IsAuthenticated == true)
+        {
+            return principal;
+        }
+
+        var authentication = services.GetService<AuthenticationStateProvider>();
+        if (authentication is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return (await authentication.GetAuthenticationStateAsync()).User;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 }
