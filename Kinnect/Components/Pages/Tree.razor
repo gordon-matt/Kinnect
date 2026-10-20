@@ -8,6 +8,7 @@
 @inject NavigationManager Nav
 
 <PageTitle>Family tree</PageTitle>
+<div class="kinnect-tree-page">
 <PageHeader Title="Family tree">
     <Actions>
         <button type="button" class="nf-button" aria-expanded="@showPeople" @onclick="() => showPeople = !showPeople">People</button>
@@ -38,7 +39,8 @@ else
                     Editable="@editable"
                     Height="calc(100vh - 12rem)"
                     Changed="OnChanged"
-                    OnOpenPerson="OnOpen" />
+                    OnOpenPerson="OnOpen"
+                    OpenPersonText="View Profile" />
         <aside class="kinnect-people-drawer @(showPeople ? "is-open" : null)" aria-hidden="@(!showPeople)">
             <div class="kinnect-split">
                 <h2>People</h2>
@@ -59,6 +61,7 @@ else
         </aside>
     </div>
 }
+</div>
 
 @code {
     private FamilyTree? tree;

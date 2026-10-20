@@ -1,3 +1,4 @@
+@using System.Text.Json
 @inject IJSRuntime Js
 @inject IPhotoService Photos
 @inject IPersonService People
@@ -12,7 +13,7 @@
         </div>
         <div class="@(ShowPanel ? "kinnect-lightbox-body" : null)">
             <div class="kinnect-lightbox-stage">
-                @if (!ShowPanel)
+                @if (!ShowPanel && HasAnnotations)
                 {
                     <label class="nf-check">
                         <input type="checkbox" @bind="showAnnotations" @bind:after="ToggleAnnotationsAsync" />
@@ -62,22 +63,25 @@
                         </div>
                     }
 
-                    <p class="kinnect-lightbox-heading">Annotations</p>
-                    @if (CanEdit)
+                    @if (CanEdit || HasAnnotations)
                     {
-                        <button type="button" class="nf-button" @onclick='() => UseToolAsync("rectangle")'>Rectangle</button>
-                        <button type="button" class="nf-button" @onclick='() => UseToolAsync("polygon")'>Polygon</button>
-                        <button type="button" class="nf-button" @onclick="EditTextAsync">Edit Text</button>
-                        <button type="button" class="nf-button nf-button-danger" @onclick="DeleteSelectedAsync">Delete Selected</button>
-                        <button type="button" class="nf-button nf-button-primary" @onclick="SaveAsync">Save annotations</button>
-                    }
-                    else
-                    {
-                        <label class="nf-check">
-                            <input type="checkbox" @bind="showAnnotations" @bind:after="ToggleAnnotationsAsync" />
-                            Show annotations
-                        </label>
-                        <p class="kinnect-muted">Read-only</p>
+                        <p class="kinnect-lightbox-heading">Annotations</p>
+                        @if (CanEdit)
+                        {
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("rectangle")'>Rectangle</button>
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("polygon")'>Polygon</button>
+                            <button type="button" class="nf-button" @onclick="EditTextAsync">Edit Text</button>
+                            <button type="button" class="nf-button nf-button-danger" @onclick="DeleteSelectedAsync">Delete Selected</button>
+                            <button type="button" class="nf-button nf-button-primary" @onclick="SaveAsync">Save annotations</button>
+                        }
+                        else
+                        {
+                            <label class="nf-check">
+                                <input type="checkbox" @bind="showAnnotations" @bind:after="ToggleAnnotationsAsync" />
+                                Show annotations
+                            </label>
+                            <p class="kinnect-muted">Read-only</p>
+                        }
                     }
                     @if (!string.IsNullOrWhiteSpace(note))
                     {
@@ -134,6 +138,28 @@
     private List<PersonDto> everyone = [];
     private List<PersonDto> tagResults = [];
 
+    private bool HasAnnotations
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(AnnotationsJson))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(AnnotationsJson);
+                return document.RootElement.ValueKind == JsonValueKind.Array
+                    && document.RootElement.GetArrayLength() > 0;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         tagged = TaggedPeople.ToList();
@@ -156,7 +182,7 @@
         }
 
         ready = true;
-        if (CanEdit || showAnnotations)
+        if (CanEdit || (showAnnotations && HasAnnotations))
         {
             await EnsureAsync();
         }

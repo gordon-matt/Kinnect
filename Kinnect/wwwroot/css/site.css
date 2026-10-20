@@ -543,6 +543,19 @@ html {
     .kinnect-fill .ec-thread { width: 100%; min-height: 0; }
 }
 
+.kinnect-tree-page .nf-page-header {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.kinnect-tree-page .nf-page-title {
+    margin-bottom: 0;
+}
+
+.kinnect-tree-page .nf-page-actions {
+    margin-left: 0;
+}
+
 .kinnect-tree-stage {
     position: relative;
 }
