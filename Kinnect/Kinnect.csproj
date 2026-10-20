@@ -24,6 +24,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Ardalis.Result.AspNetCore" Version="10.1.0" />
+		<PackageReference Include="EasyChatz.AspNetCore" Version="1.0.0" />
+		<PackageReference Include="EasyChatz.Components" Version="1.0.0" />
+		<PackageReference Include="EasyChatz.Data.MySql" Version="1.0.0" />
+		<PackageReference Include="EasyChatz.Data.Npgsql" Version="1.0.0" />
+		<PackageReference Include="EasyChatz.Data.Sql" Version="1.0.0" />
+		<PackageReference Include="EasyChatz.Data.Sqlite" Version="1.0.0" />
 		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3-beta" />
 		<!-- Project reference while the event-type icons are only in the NetForge source. Switch back to the NuGet package after publishing. -->
 		<!-- <PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3.1-beta" /> -->
@@ -59,12 +65,6 @@
 		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
 		<ProjectReference Include="..\Kinnect.Services\Kinnect.Services.csproj" />
 		<ProjectReference Include="..\..\..\Components\MyWebTree\MyWebTree.Components\MyWebTree.Components.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.AspNetCore\EasyChatz.AspNetCore.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Components\EasyChatz.Components.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Data.Sqlite\EasyChatz.Data.Sqlite.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Data.Sql\EasyChatz.Data.Sql.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Data.Npgsql\EasyChatz.Data.Npgsql.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Data.MySql\EasyChatz.Data.MySql.csproj" />
 	</ItemGroup>
 
 </Project>

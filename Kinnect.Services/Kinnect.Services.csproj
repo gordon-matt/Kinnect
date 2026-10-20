@@ -12,6 +12,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="EasyChatz.Core" Version="1.0.0" />
 		<PackageReference Include="Hangfire.Core" Version="1.8.23" />
 		<PackageReference Include="Ardalis.Result" Version="10.1.0" />
 		<PackageReference Include="GeneGenie.Gedcom" Version="1.0.3" />
@@ -26,7 +27,6 @@
 		<ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
 		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
 		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Core\EasyChatz.Core.csproj" />
 		<ProjectReference Include="..\..\..\Components\MyWebTree\MyWebTree.Core\MyWebTree.Core.csproj" />
 	</ItemGroup>
 
