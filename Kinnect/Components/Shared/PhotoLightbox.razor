@@ -68,11 +68,11 @@
                         <p class="kinnect-lightbox-heading">Annotations</p>
                         @if (CanEdit)
                         {
-                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("rectangle")'>Rectangle</button>
-                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("polygon")'>Polygon</button>
-                            <button type="button" class="nf-button" @onclick="EditTextAsync">Edit Text</button>
-                            <button type="button" class="nf-button nf-button-danger" @onclick="DeleteSelectedAsync">Delete Selected</button>
-                            <button type="button" class="nf-button nf-button-primary" @onclick="SaveAsync">Save annotations</button>
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("rectangle")'><Icon Name="rectangle" Size="16" /> Rectangle</button>
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("polygon")'><Icon Name="polygon" Size="16" /> Polygon</button>
+                            <button type="button" class="nf-button" @onclick="EditTextAsync"><Icon Name="edit" Size="16" /> Edit Text</button>
+                            <button type="button" class="nf-button nf-button-danger" @onclick="DeleteSelectedAsync"><Icon Name="trash" Size="16" /> Delete Selected</button>
+                            <button type="button" class="nf-button nf-button-primary" @onclick="SaveAsync"><Icon Name="save" Size="16" /> Save annotations</button>
                         }
                         else
                         {
@@ -134,6 +134,7 @@
     private bool attached;
     private string tagQuery = string.Empty;
     private string? note;
+    private string? savedAnnotations;
     private List<TaggedPersonInfo> tagged = [];
     private List<PersonDto> everyone = [];
     private List<PersonDto> tagResults = [];
@@ -210,6 +211,10 @@
 
         await module.InvokeVoidAsync("attach", image, AnnotationsJson, CanEdit);
         attached = true;
+        if (CanEdit)
+        {
+            savedAnnotations = await module.InvokeAsync<string>("read");
+        }
     }
 
     private async Task UseToolAsync(string tool)
@@ -258,6 +263,7 @@
         }
 
         AnnotationsJson = json;
+        savedAnnotations = json;
         note = "Annotations saved.";
         await AnnotationsSaved.InvokeAsync(json);
     }
@@ -333,12 +339,29 @@
 
     private async Task CloseAsync()
     {
+        if (await HasUnsavedAnnotationsAsync()
+            && !await Js.InvokeAsync<bool>("confirm", "Annotations have not been saved. Are you sure you want to close the editor?"))
+        {
+            return;
+        }
+
         if (module is not null)
         {
             await module.InvokeVoidAsync("clear");
         }
 
         await Closed.InvokeAsync();
+    }
+
+    private async Task<bool> HasUnsavedAnnotationsAsync()
+    {
+        if (!CanEdit || module is null || !attached || savedAnnotations is null)
+        {
+            return false;
+        }
+
+        string current = await module.InvokeAsync<string>("read");
+        return !string.Equals(current, savedAnnotations, StringComparison.Ordinal);
     }
 
     public async ValueTask DisposeAsync()
