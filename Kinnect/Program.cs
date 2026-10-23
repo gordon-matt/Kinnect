@@ -51,8 +51,10 @@ string authProviderName = builder.Configuration.GetValue<string>("Authentication
 bool useKeycloak = authProviderName.Equals("Keycloak", StringComparison.OrdinalIgnoreCase);
 Constants.SetUseKeyCloak(useKeycloak);
 
-builder.Services.AddRazorComponents()
+builder.Services
+    .AddRazorComponents()
     .AddInteractiveServerComponents();
+
 builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 builder.Services.AddCascadingAuthenticationState();
@@ -64,6 +66,12 @@ builder.Services.AddNetForgeComponents(ui =>
     ui.AccentColor = "#0f766e";
     ui.AccentColorDark = "#2dd4bf";
 });
+
+builder.Services.ConfigureNetForgeToastSounds(sounds =>
+{
+    sounds.EnableSounds = true;
+});
+
 builder.Services.Configure<ForgeShellOptions>(shell =>
 {
     shell.Brand = "Kinnect";
@@ -73,6 +81,7 @@ builder.Services.Configure<ForgeShellOptions>(shell =>
     shell.NavigationPlacement = ForgeNavigationPlacement.Topbar;
     shell.UserMenuItems.Add(new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" });
 });
+
 builder.Services.AddScoped<IShellNavigation, Kinnect.Components.Layout.KinnectNavigation>();
 
 builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
