@@ -7,7 +7,6 @@ global using Kinnect.Data.Entities;
 global using Kinnect.Models;
 global using Kinnect.Models.Dto;
 global using Kinnect.Models.Requests;
-global using Kinnect.Models.ViewModels;
 global using Kinnect.Services;
 global using Kinnect.Services.Abstractions;
 global using Microsoft.AspNetCore.Authorization;

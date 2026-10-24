@@ -1,8 +1,17 @@
 using System.Net;
+using EasyChatz;
+using EasyChatz.Data.MySql;
+using EasyChatz.Data.Npgsql;
+using EasyChatz.Data.Sql;
+using EasyChatz.Data.Sqlite;
+using EasyChatz.Services;
 using Hangfire;
-using Hangfire.PostgreSql;
+using Heroicsoft.NetForge.Abstractions.Data;
 using Heroicsoft.NetForge.Authentication;
-using Kinnect.Services;
+using Kinnect.Data.MySql;
+using Kinnect.Data.Npgsql;
+using Kinnect.Data.Sql;
+using Kinnect.Data.Sqlite;
 using Kinnect.Services.Jobs;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -12,9 +21,97 @@ internal static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)
     {
+        public IServiceCollection AddKinnectDatabase(IConfiguration configuration)
+        {
+            string provider = DatabaseProviders.Resolve(
+                configuration[DatabaseProviders.ConfigurationKey],
+                DatabaseProviders.Npgsql,
+                [.. DatabaseProviders.All]);
+
+            return provider switch
+            {
+                DatabaseProviders.Sqlite => services.AddKinnectSqlite(configuration),
+                DatabaseProviders.SqlServer => services.AddKinnectSqlServer(configuration),
+                DatabaseProviders.Npgsql => services.AddKinnectNpgsql(configuration),
+                DatabaseProviders.MySql => services.AddKinnectMySql(configuration),
+                _ => throw new InvalidOperationException($"Unknown {DatabaseProviders.ConfigurationKey} '{provider}'."),
+            };
+        }
+
+        /// <summary>
+        /// EasyChatz shares the application database on servers that honour schemas.
+        /// SQLite ignores schemas, so chat gets its own file and the table names do not collide.
+        /// </summary>
+        public IServiceCollection AddKinnectChat(IConfiguration configuration)
+        {
+            services.AddScoped<IChatUserDirectory, KinnectChatUserDirectory>();
+
+            string provider = DatabaseProviders.Resolve(
+                configuration[DatabaseProviders.ConfigurationKey],
+                DatabaseProviders.Npgsql,
+                [.. DatabaseProviders.All]);
+            string? connectionString = configuration.GetConnectionString("DefaultConnection");
+
+            switch (provider)
+            {
+                case DatabaseProviders.Sqlite:
+                    services.AddEasyChatzSqlite(configuration["EasyChatz:Sqlite"] ?? "Data Source=kinnect-chat.db");
+                    break;
+                case DatabaseProviders.SqlServer:
+                    services.AddEasyChatzSqlServer(Required(connectionString, provider));
+                    break;
+                case DatabaseProviders.Npgsql:
+                    services.AddEasyChatzNpgsql(Required(connectionString, provider));
+                    break;
+                case DatabaseProviders.MySql:
+                    services.AddEasyChatzMySql(Required(connectionString, provider));
+                    break;
+            }
+
+            services.AddEasyChatz();
+            services.AddHostedService<ChatHistoryImporter>();
+            return services;
+        }
+
+        public IServiceCollection AddKinnectHangfire(IConfiguration configuration)
+        {
+            string provider = DatabaseProviders.Resolve(
+                configuration[DatabaseProviders.ConfigurationKey],
+                DatabaseProviders.Npgsql,
+                [.. DatabaseProviders.All]);
+            string? hangfireExplicit = configuration.GetConnectionString("Hangfire");
+            string? connectionString = string.IsNullOrWhiteSpace(hangfireExplicit)
+                ? configuration.GetConnectionString("DefaultConnection")
+                : hangfireExplicit;
+
+            switch (provider)
+            {
+                case DatabaseProviders.Sqlite:
+                    services.AddKinnectSqliteHangfire(configuration["Hangfire:SqlitePath"]);
+                    break;
+                case DatabaseProviders.SqlServer:
+                    services.AddKinnectSqlServerHangfire(Required(connectionString, provider));
+                    break;
+                case DatabaseProviders.Npgsql:
+                    services.AddKinnectNpgsqlHangfire(Required(connectionString, provider));
+                    break;
+                case DatabaseProviders.MySql:
+                    services.AddKinnectMySqlHangfire(Required(connectionString, provider));
+                    break;
+            }
+
+            services.AddHangfireServer(options =>
+            {
+                options.ServerName = "main";
+                options.Queues = ["default"];
+            });
+
+            return services;
+        }
+
         public void KinnectAddAuthentication(IConfiguration configuration, bool useKeycloak)
         {
-            services.AddNetForgeAuthentication<ApplicationUser, ApplicationRole, Data.ApplicationDbContext>(
+            services.AddNetForgeAuthentication<ApplicationUser, ApplicationRole, Data.ApplicationDbContextBase>(
                 configuration,
                 options =>
                 {
@@ -26,8 +123,8 @@ internal static class ServiceCollectionExtensions
                     options.IncludeAuthController = false;
                     options.RegisterUserContext = false;
                     options.Identity.UseRelaxedPasswordPolicy = false;
-                    options.AccessDeniedPath = "/Home/AccessDenied";
-                    options.RemoteFailurePath = "/Home/Error";
+                    options.AccessDeniedPath = "/access-denied";
+                    options.RemoteFailurePath = "/error";
                     options.Keycloak.RequireHttpsMetadata = false;
                     options.Keycloak.CorrelationCookieSameSite = SameSiteMode.None;
                     options.Keycloak.CorrelationCookieSecurePolicy = CookieSecurePolicy.Always;
@@ -49,25 +146,6 @@ internal static class ServiceCollectionExtensions
             }
         }
 
-        public void KinnectAddHangfire(string connectionString)
-        {
-            services.AddHangfire(configuration => configuration
-                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString),
-                new PostgreSqlStorageOptions
-                {
-                    QueuePollInterval = TimeSpan.FromSeconds(15)
-                }));
-
-            services.AddHangfireServer(options =>
-            {
-                options.ServerName = "main";
-                options.Queues = ["default"];
-            });
-        }
-
         public void KinnectAddServices()
         {
             services.AddHttpContextAccessor();
@@ -81,15 +159,20 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<IFeedService, FeedService>();
             services.AddScoped<IGedcomService, GedcomService>();
-            services.AddScoped<IChatService, ChatService>();
-            services.AddScoped<INotificationService, NotificationService>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
             services.AddScoped<IPersonBackupService, PersonBackupService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<KinnectFamilyGraph>();
             services.AddScoped<PersonBackupJob>();
             services.AddScoped<VideoTranscodeJob>();
             services.AddScoped<UnreadMessageEmailJob>();
+            services.AddHttpClient("nominatim", client =>
+            {
+                client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Kinnect/1.0 (family archive)");
+                client.Timeout = TimeSpan.FromSeconds(8);
+            });
         }
 
         public void KinnectAddImageProcessing(IConfiguration configuration)
@@ -115,4 +198,9 @@ internal static class ServiceCollectionExtensions
             }
         }
     }
+
+    private static string Required(string? connectionString, string provider) =>
+        string.IsNullOrWhiteSpace(connectionString)
+            ? throw new InvalidOperationException($"Hangfire and chat require a connection string when using {provider}.")
+            : connectionString;
 }

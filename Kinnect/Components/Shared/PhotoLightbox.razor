@@ -1,0 +1,381 @@
+@using System.Text.Json
+@inject IJSRuntime Js
+@inject IPhotoService Photos
+@inject IPersonService People
+@inject IUserContextService Users
+@implements IAsyncDisposable
+
+<div class="kinnect-lightbox" @onclick="CloseAsync">
+    <div class="kinnect-card @(ShowPanel ? "kinnect-lightbox-wide" : null)" @onclick:stopPropagation="true">
+        <div class="kinnect-split">
+            <h2>@Title</h2>
+            <button type="button" class="nf-icon-button" title="Close" @onclick="CloseAsync"><Icon Name="x" /></button>
+        </div>
+        <div class="@(ShowPanel ? "kinnect-lightbox-body" : null)">
+            <div class="kinnect-lightbox-stage">
+                @if (!ShowPanel && HasAnnotations)
+                {
+                    <label class="nf-check">
+                        <input type="checkbox" @bind="showAnnotations" @bind:after="ToggleAnnotationsAsync" />
+                        Show annotations
+                    </label>
+                }
+                <img @ref="image" src="@ImageUrl" alt="@Title" />
+                @if (!string.IsNullOrWhiteSpace(Description))
+                {
+                    <p>@Description</p>
+                }
+            </div>
+            @if (ShowPanel)
+            {
+                <aside class="kinnect-lightbox-side">
+                    <p class="kinnect-lightbox-heading">People in this photo</p>
+                    @if (tagged.Count == 0)
+                    {
+                        <p class="kinnect-muted">Nobody tagged yet.</p>
+                    }
+                    else
+                    {
+                        @foreach (var person in tagged)
+                        {
+                            <div class="kinnect-split">
+                                <a href="@($"/people/{person.PersonId}")">@person.Name</a>
+                                @if (CanEdit)
+                                {
+                                    <button type="button" class="nf-icon-button" title="Remove tag" @onclick="() => UntagAsync(person.PersonId)"><Icon Name="x" /></button>
+                                }
+                            </div>
+                        }
+                    }
+                    @if (CanEdit)
+                    {
+                        <div class="kinnect-tag-search">
+                            <input class="nf-input" placeholder="#Type name to tag..." autocomplete="off" value="@tagQuery" @oninput="OnTagInput" />
+                            @if (tagResults.Count > 0)
+                            {
+                                <div class="kinnect-tag-results">
+                                    @foreach (var person in tagResults)
+                                    {
+                                        <button type="button" @onclick="() => TagAsync(person)">@person.FullName</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (CanEdit || HasAnnotations)
+                    {
+                        <p class="kinnect-lightbox-heading">Annotations</p>
+                        @if (CanEdit)
+                        {
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("rectangle")'><Icon Name="rectangle" Size="16" /> Rectangle</button>
+                            <button type="button" class="nf-button" @onclick='() => UseToolAsync("polygon")'><Icon Name="polygon" Size="16" /> Polygon</button>
+                            <button type="button" class="nf-button" @onclick="EditTextAsync"><Icon Name="edit" Size="16" /> Edit Text</button>
+                            <button type="button" class="nf-button nf-button-danger" @onclick="DeleteSelectedAsync"><Icon Name="trash" Size="16" /> Delete Selected</button>
+                            <button type="button" class="nf-button nf-button-primary" @onclick="SaveAsync"><Icon Name="save" Size="16" /> Save annotations</button>
+                        }
+                        else
+                        {
+                            <label class="nf-check">
+                                <input type="checkbox" @bind="showAnnotations" @bind:after="ToggleAnnotationsAsync" />
+                                Show annotations
+                            </label>
+                            <p class="kinnect-muted">Read-only</p>
+                        }
+                    }
+                    @if (!string.IsNullOrWhiteSpace(note))
+                    {
+                        <p class="kinnect-muted">@note</p>
+                    }
+                </aside>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string ImageUrl { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public string? AnnotationsJson { get; set; }
+
+    [Parameter]
+    public int? PhotoId { get; set; }
+
+    [Parameter]
+    public bool CanEdit { get; set; }
+
+    [Parameter]
+    public bool ShowPanel { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<TaggedPersonInfo> TaggedPeople { get; set; } = [];
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    [Parameter]
+    public EventCallback<string> AnnotationsSaved { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<TaggedPersonInfo>> PeopleChanged { get; set; }
+
+    private ElementReference image;
+    private IJSObjectReference? module;
+    private bool showAnnotations = true;
+    private bool ready;
+    private bool attached;
+    private string tagQuery = string.Empty;
+    private string? note;
+    private string? savedAnnotations;
+    private List<TaggedPersonInfo> tagged = [];
+    private List<PersonDto> everyone = [];
+    private List<PersonDto> tagResults = [];
+
+    private bool HasAnnotations
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(AnnotationsJson))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(AnnotationsJson);
+                return document.RootElement.ValueKind == JsonValueKind.Array
+                    && document.RootElement.GetArrayLength() > 0;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        tagged = TaggedPeople.ToList();
+        if (!ShowPanel || !CanEdit)
+        {
+            return;
+        }
+
+        var people = await People.GetAllAsync();
+        everyone = people.IsSuccess
+            ? people.Value.OrderBy(person => person.FullName).ToList()
+            : [];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || ready)
+        {
+            return;
+        }
+
+        ready = true;
+        if (CanEdit || (showAnnotations && HasAnnotations))
+        {
+            await EnsureAsync();
+        }
+    }
+
+    private async Task ToggleAnnotationsAsync()
+    {
+        attached = false;
+        if (!showAnnotations && module is not null)
+        {
+            await module.InvokeVoidAsync("clear");
+            return;
+        }
+
+        await EnsureAsync();
+    }
+
+    private async Task EnsureAsync()
+    {
+        module ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/annotations.js?v=2");
+        if (attached || (!CanEdit && !showAnnotations))
+        {
+            return;
+        }
+
+        await module.InvokeVoidAsync("attach", image, AnnotationsJson, CanEdit);
+        attached = true;
+        if (CanEdit)
+        {
+            savedAnnotations = await module.InvokeAsync<string>("read");
+        }
+    }
+
+    private async Task UseToolAsync(string tool)
+    {
+        note = null;
+        await EnsureAsync();
+        await module!.InvokeVoidAsync("setTool", tool);
+    }
+
+    private async Task EditTextAsync()
+    {
+        await EnsureAsync();
+        note = await module!.InvokeAsync<string>("editSelected") == "none"
+            ? "Select an annotation first."
+            : null;
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        await EnsureAsync();
+        note = await module!.InvokeAsync<string>("deleteSelected") == "none"
+            ? "Select an annotation first."
+            : null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanEdit || PhotoId is not int photoId)
+        {
+            return;
+        }
+
+        await EnsureAsync();
+        string json = await module!.InvokeAsync<string>("read");
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Photos.SaveAnnotationsAsync(photoId, json, userId, Users.IsAdmin());
+        if (!result.IsSuccess)
+        {
+            note = string.Join(" ", result.Errors);
+            return;
+        }
+
+        AnnotationsJson = json;
+        savedAnnotations = json;
+        note = "Annotations saved.";
+        await AnnotationsSaved.InvokeAsync(json);
+    }
+
+    private void OnTagInput(ChangeEventArgs args)
+    {
+        tagQuery = args.Value?.ToString() ?? string.Empty;
+        string query = tagQuery.Trim().TrimStart('#').Trim();
+        if (query.Length == 0)
+        {
+            tagResults = [];
+            return;
+        }
+
+        var taken = tagged.Select(person => person.PersonId).ToHashSet();
+        tagResults = everyone
+            .Where(person => !taken.Contains(person.Id) && person.FullName.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(6)
+            .ToList();
+    }
+
+    private async Task TagAsync(PersonDto person)
+    {
+        if (PhotoId is not int photoId)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Photos.TagPersonAsync(photoId, person.Id, userId, Users.IsAdmin());
+        if (!result.IsSuccess)
+        {
+            note = string.Join(" ", result.Errors);
+            return;
+        }
+
+        tagged.Add(new TaggedPersonInfo(person.Id, person.FullName));
+        tagQuery = string.Empty;
+        tagResults = [];
+        note = null;
+        await PeopleChanged.InvokeAsync(tagged.ToList());
+    }
+
+    private async Task UntagAsync(int personId)
+    {
+        if (PhotoId is not int photoId)
+        {
+            return;
+        }
+
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await Photos.UntagPersonAsync(photoId, personId, userId, Users.IsAdmin());
+        if (!result.IsSuccess)
+        {
+            note = string.Join(" ", result.Errors);
+            return;
+        }
+
+        tagged.RemoveAll(person => person.PersonId == personId);
+        note = null;
+        await PeopleChanged.InvokeAsync(tagged.ToList());
+    }
+
+    private async Task CloseAsync()
+    {
+        if (await HasUnsavedAnnotationsAsync()
+            && !await Js.InvokeAsync<bool>("confirm", "Annotations have not been saved. Are you sure you want to close the editor?"))
+        {
+            return;
+        }
+
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("clear");
+        }
+
+        await Closed.InvokeAsync();
+    }
+
+    private async Task<bool> HasUnsavedAnnotationsAsync()
+    {
+        if (!CanEdit || module is null || !attached || savedAnnotations is null)
+        {
+            return false;
+        }
+
+        string current = await module.InvokeAsync<string>("read");
+        return !string.Equals(current, savedAnnotations, StringComparison.Ordinal);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try
+            {
+                await module.InvokeVoidAsync("clear");
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

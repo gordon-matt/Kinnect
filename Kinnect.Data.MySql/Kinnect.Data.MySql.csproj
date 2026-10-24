@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Version>1.1.0</Version>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
+		<PackageReference Include="Hangfire.NetCore" Version="1.8.25" />
+		<PackageReference Include="Hangfire.Storage.MySql" Version="2.1.0-beta" />
+		<!--
+			Oracle's official EF Core provider. Pomelo.EntityFrameworkCore.MySql does not yet
+			ship an EF Core 10 build, so we use MySql.EntityFrameworkCore (10.0.x targets EF
+			Core 10 / .NET 10) instead.
+		-->
+		<PackageReference Include="LogVue.Data.MySql" Version="1.0.1" />
+		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
+	</ItemGroup>
+
+</Project>

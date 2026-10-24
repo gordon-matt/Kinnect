@@ -1,0 +1,89 @@
+@inject IJSRuntime Js
+@inject ToastService Toasts
+@implements IAsyncDisposable
+
+<div class="kinnect-stack">
+    <input @ref="input" type="file" accept="@Accept" class="nf-input" />
+    @if (progress is not null)
+    {
+        <div class="kinnect-progress" aria-valuenow="@progress" aria-valuemin="0" aria-valuemax="100">
+            <span style="width: @(progress)%"></span>
+        </div>
+    }
+    <button type="button" class="nf-button nf-button-primary" disabled="@busy" @onclick="SendAsync">@Label</button>
+</div>
+
+@code {
+    private ElementReference input;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<FileUpload>? self;
+    private int? progress;
+    private bool busy;
+
+    [Parameter]
+    public string Url { get; set; } = "";
+
+    [Parameter]
+    public string Accept { get; set; } = "";
+
+    [Parameter]
+    public string Label { get; set; } = "Upload";
+
+    [Parameter]
+    public Dictionary<string, string?> Fields { get; set; } = [];
+
+    [Parameter]
+    public EventCallback Uploaded { get; set; }
+
+    [JSInvokable]
+    public void OnUploadProgress(int percent)
+    {
+        progress = percent;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SendAsync()
+    {
+        busy = true;
+        progress = 0;
+        try
+        {
+            module ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/uploads.js");
+            self ??= DotNetObjectReference.Create(this);
+            await module.InvokeAsync<string>("uploadInput", Url, input, Fields, self);
+            progress = null;
+            await Uploaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(FriendlyError(ex));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string FriendlyError(Exception exception)
+    {
+        string text = exception.Message.Split(['\r', '\n'], 2)[0].Trim();
+        const string prefix = "Error: ";
+        if (text.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            text = text[prefix.Length..].Trim();
+        }
+
+        return text.Length == 0 || text.Length > 180 || text.Contains('<') || text.Contains('{')
+            ? "Upload failed."
+            : text;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        self?.Dispose();
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+}

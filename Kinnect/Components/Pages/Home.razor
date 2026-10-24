@@ -1,0 +1,147 @@
+@page "/"
+@attribute [Authorize]
+
+@inject IFeedService Feed
+@inject IPostService Posts
+@inject IUserContextService Users
+@inject IPersonService People
+
+<PageTitle>Home</PageTitle>
+<div class="kinnect-container">
+<PageHeader Title="Home" />
+
+@if (needsOnboarding)
+{
+    <p>Your account is not linked to a person yet.</p>
+    <a class="nf-button nf-button-primary" href="onboarding">Get started</a>
+}
+else if (items is null)
+{
+    <p>Loading the feed…</p>
+}
+else
+{
+    @if (myPersonId is not null)
+    {
+        <div class="kinnect-card kinnect-stack">
+            <textarea class="nf-textarea" rows="3" @bind="postText" placeholder="Share something with the family"></textarea>
+            <button class="nf-button nf-button-primary" type="button" @onclick="AddPostAsync" disabled="@posting">Post</button>
+        </div>
+    }
+    @if (items.Count == 0)
+    {
+        <EmptyState Title="Nothing here yet" Description="Posts, photos, and videos from the family will show up here." />
+    }
+    <div class="kinnect-feed">
+        @foreach (var item in items)
+        {
+            <article class="kinnect-card">
+                <div class="kinnect-split">
+                    <a href="@($"people/{item.AuthorPersonId}")">@item.AuthorName</a>
+                    <small class="kinnect-muted">@item.CreatedAtUtc.ToLocalTime().ToString("d MMM yyyy")</small>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(item.Title))
+                {
+                    <h2>@item.Title</h2>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.Content))
+                {
+                    <p>@item.Content</p>
+                }
+                @if (item.Type.Equals("photo", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.FilePath ?? item.ThumbnailPath))
+                {
+                    <button type="button" class="kinnect-media-button" @onclick="() => selectedPhoto = item">
+                        <img src="@Url(item.ThumbnailPath ?? item.FilePath!)" alt="@item.Title" />
+                    </button>
+                }
+                else if (item.Type.Equals("video", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.FilePath))
+                {
+                    <button type="button" class="kinnect-media-button" @onclick="() => selectedVideo = item">
+                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailPath))
+                        {
+                            <img src="@Url(item.ThumbnailPath)" alt="@item.Title" />
+                        }
+                        else
+                        {
+                            <span class="kinnect-video-poster"><Icon Name="film" Size="32" /></span>
+                        }
+                    </button>
+                }
+            </article>
+        }
+    </div>
+}
+</div>
+
+@if (selectedPhoto is not null)
+{
+    <PhotoLightbox ImageUrl="@Url(selectedPhoto.FilePath ?? selectedPhoto.ThumbnailPath!)"
+                   Title="@selectedPhoto.Title"
+                   AnnotationsJson="@selectedPhoto.AnnotationsJson"
+                   PhotoId="@selectedPhoto.Id"
+                   Closed="() => selectedPhoto = null" />
+}
+
+@if (selectedVideo is not null && !string.IsNullOrWhiteSpace(selectedVideo.FilePath))
+{
+    <div class="kinnect-lightbox" @onclick="() => selectedVideo = null">
+        <div class="kinnect-card" @onclick:stopPropagation="true">
+            <div class="kinnect-split">
+                <h2>@selectedVideo.Title</h2>
+                <button type="button" class="nf-icon-button" title="Close" @onclick="() => selectedVideo = null"><Icon Name="x" /></button>
+            </div>
+            <video controls autoplay src="@Url(selectedVideo.FilePath)"></video>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FeedItemDto>? items;
+    private bool needsOnboarding;
+    private int? myPersonId;
+    private string postText = string.Empty;
+    private bool posting;
+    private FeedItemDto? selectedPhoto;
+    private FeedItemDto? selectedVideo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is not null)
+        {
+            var mine = await People.GetByUserIdAsync(userId);
+            needsOnboarding = !mine.IsSuccess;
+            if (needsOnboarding)
+            {
+                return;
+            }
+
+            myPersonId = mine.Value.Id;
+        }
+
+        await LoadFeedAsync();
+    }
+
+    private async Task AddPostAsync()
+    {
+        if (myPersonId is not int personId || string.IsNullOrWhiteSpace(postText))
+        {
+            return;
+        }
+
+        posting = true;
+        await Posts.CreateAsync(new PostCreateRequest { Content = postText.Trim() }, personId);
+        postText = string.Empty;
+        posting = false;
+        await LoadFeedAsync();
+    }
+
+    private async Task LoadFeedAsync()
+    {
+        var feed = await Feed.GetFeedAsync();
+        items = feed.IsSuccess ? feed.Value.ToList() : [];
+    }
+
+    private static string Url(string path) =>
+        path.StartsWith('/') ? path : "/uploads/" + path.TrimStart('/');
+}

@@ -3,7 +3,8 @@ namespace Kinnect.Services;
 public class VideoService(
     IRepository<Video> videoRepository,
     IRepository<Tag> tagRepository,
-    IRepository<VideoTag> videoTagRepository) : IVideoService
+    IRepository<VideoTag> videoTagRepository,
+    IRepository<VideoEvent> videoEventRepository) : IVideoService
 {
     public async Task<Result<VideoDto>> CreateAsync(
         string title,
@@ -82,7 +83,14 @@ public class VideoService(
                 .Include(v => v.VideoTags).ThenInclude(vt => vt.Tag)
         });
 
-        return video is null ? (Result<VideoDto>)Result.NotFound("Video not found.") : Result.Success(video.ToDto());
+        if (video is null)
+        {
+            return Result.NotFound("Video not found.");
+        }
+
+        var dto = video.ToDto();
+        await AttachEventsAsync([dto]);
+        return Result.Success(dto);
     }
 
     public async Task<Result<IEnumerable<VideoDto>>> GetByPersonAsync(int personId)
@@ -96,7 +104,9 @@ public class VideoService(
             OrderBy = query => query.OrderByDescending(v => v.CreatedAtUtc)
         });
 
-        return Result.Success(videos.Select(v => v.ToDto()));
+        var list = videos.Select(v => v.ToDto()).ToList();
+        await AttachEventsAsync(list);
+        return Result.Success<IEnumerable<VideoDto>>(list);
     }
 
     public async Task<Result<VideoDto>> UpdateAsync(int id, VideoUpdateRequest request, string currentUserId, bool isAdmin)
@@ -129,6 +139,19 @@ public class VideoService(
             await SyncTagsAsync(id, request.Tags);
         }
 
+        if (request.EventIds is not null)
+        {
+            await videoEventRepository.DeleteAsync(x => x.VideoId == id);
+            var links = request.EventIds
+                .Distinct()
+                .Select(eventId => new VideoEvent { VideoId = id, PersonEventId = eventId })
+                .ToList();
+            if (links.Count > 0)
+            {
+                await videoEventRepository.InsertAsync(links);
+            }
+        }
+
         return await GetByIdAsync(id);
     }
 
@@ -142,6 +165,25 @@ public class VideoService(
 
         await SyncTagsAsync(id, tags);
         return Result.Success();
+    }
+
+    private async Task AttachEventsAsync(IReadOnlyList<VideoDto> videos)
+    {
+        if (videos.Count == 0)
+        {
+            return;
+        }
+
+        var ids = videos.Select(video => video.Id).ToList();
+        var links = await videoEventRepository.FindAsync(new SearchOptions<VideoEvent>
+        {
+            Query = link => ids.Contains(link.VideoId)
+        });
+
+        foreach (var video in videos)
+        {
+            video.EventIds = links.Where(link => link.VideoId == video.Id).Select(link => link.PersonEventId).ToList();
+        }
     }
 
     private static bool CanEditVideo(Person uploadedBy, string currentUserId, bool isAdmin) =>

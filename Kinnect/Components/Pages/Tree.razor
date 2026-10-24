@@ -1,0 +1,173 @@
+@page "/tree"
+@attribute [Authorize]
+@using MyWebTree.Components
+@using MyWebTree.Models
+
+@inject KinnectFamilyGraph Graph
+@inject IUserContextService Users
+@inject NavigationManager Nav
+@inject ToastService Toasts
+
+<PageTitle>Family tree</PageTitle>
+<div class="kinnect-tree-page">
+<PageHeader Title="Family tree">
+    <Actions>
+        <button type="button" class="nf-button" aria-expanded="@showPeople" @onclick="() => showPeople = !showPeople">People</button>
+        @if (meId is not null)
+        {
+            <button type="button" class="nf-button" @onclick="FindMeAsync">Find me</button>
+        }
+    </Actions>
+</PageHeader>
+
+@if (people is null)
+{
+    <p>Loading the family…</p>
+}
+else
+{
+    <div class="kinnect-tree-stage">
+        <FamilyTree @ref="tree"
+                    Theme="netforge"
+                    People="people"
+                    FocusPersonId="@focusId"
+                    HighlightedPersonId="@highlightId"
+                    Editable="@editable"
+                    Height="calc(100vh - 12rem)"
+                    Changed="OnChanged"
+                    OnOpenPerson="OnOpen"
+                    OpenPersonText="View Profile" />
+        <aside class="kinnect-people-drawer @(showPeople ? "is-open" : null)" aria-hidden="@(!showPeople)">
+            <div class="kinnect-split">
+                <h2>People</h2>
+                <button type="button" class="nf-icon-button" title="Close" @onclick="() => showPeople = false"><Heroicsoft.NetForge.Components.Icon Name="x" /></button>
+            </div>
+            <div class="kinnect-list">
+                @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
+                {
+                    <button type="button" @onclick="() => CenterAsync(person.Id)">
+                        <span>@person.DisplayName</span>
+                        @if (person.Lifespan.Length > 0)
+                        {
+                            <small class="kinnect-muted">@person.Lifespan</small>
+                        }
+                    </button>
+                }
+            </div>
+        </aside>
+    </div>
+}
+</div>
+
+@code {
+    private FamilyTree? tree;
+    private IReadOnlyList<PersonData>? people;
+    private string? focusId;
+    private string? meId;
+    private string? highlightId;
+    private bool showPeople;
+    private bool editable;
+    private int? routedPerson;
+    private bool routedSelectionApplied;
+
+    [SupplyParameterFromQuery(Name = "person")]
+    public int? PersonId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        editable = Users.IsAdmin() || Users.IsEditor();
+        NoteRoutedPerson();
+        await ReloadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync() => await FollowRoutedPersonAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) => await FollowRoutedPersonAsync();
+
+    private void NoteRoutedPerson()
+    {
+        if (PersonId is int id)
+        {
+            focusId = id.ToString();
+        }
+    }
+
+    private async Task FollowRoutedPersonAsync()
+    {
+        if (PersonId is not int id)
+        {
+            return;
+        }
+
+        string key = id.ToString();
+        if (routedPerson != id)
+        {
+            routedPerson = id;
+            routedSelectionApplied = false;
+            focusId = key;
+        }
+
+        if (routedSelectionApplied || tree is null || people is null)
+        {
+            return;
+        }
+
+        if (people.All(person => person.Id != key))
+        {
+            routedSelectionApplied = true;
+            return;
+        }
+
+        routedSelectionApplied = true;
+        await tree.CenterOnAsync(key);
+    }
+
+    private async Task ReloadAsync()
+    {
+        var snapshot = await Graph.LoadAsync();
+        people = snapshot.People;
+        meId = snapshot.FocusPersonId;
+        focusId ??= snapshot.FocusPersonId;
+        highlightId = snapshot.FocusPersonId;
+    }
+
+    private async Task CenterAsync(string personId)
+    {
+        showPeople = false;
+        focusId = personId;
+        if (tree is not null)
+        {
+            await tree.CenterOnAsync(personId);
+        }
+    }
+
+    private Task FindMeAsync() => meId is null ? Task.CompletedTask : CenterAsync(meId);
+
+    private async Task OnChanged(FamilyTreeChange change)
+    {
+        if (change.Kind != FamilyTreeChangeKind.FocusChanged)
+        {
+            var result = await Graph.ApplyAsync(change);
+            if (!result.IsSuccess)
+            {
+                Toasts.ShowFailure(result);
+            }
+
+            await ReloadAsync();
+        }
+        else
+        {
+            focusId = change.FocusPersonId;
+        }
+    }
+
+    private Task OnOpen(PersonData person)
+    {
+        if (int.TryParse(person.Id, out int id))
+        {
+            Nav.NavigateTo($"/people/{id}");
+        }
+
+        return Task.CompletedTask;
+    }
+}

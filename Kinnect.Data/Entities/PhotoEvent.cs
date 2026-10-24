@@ -1,6 +1,6 @@
 namespace Kinnect.Data.Entities;
 
-public class PhotoEvent
+public class PhotoEvent : IEntity
 {
     public int PhotoId { get; set; }
 
@@ -9,6 +9,9 @@ public class PhotoEvent
     public virtual Photo Photo { get; set; } = null!;
 
     public virtual PersonEvent PersonEvent { get; set; } = null!;
+
+    [IgnoreDataMember]
+    public object[] KeyValues => [PhotoId, PersonEventId];
 }
 
 public class PhotoEventMap : IEntityTypeConfiguration<PhotoEvent>

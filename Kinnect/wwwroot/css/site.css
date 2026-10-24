@@ -8,55 +8,615 @@ html {
     }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.kinnect-feed,
+.kinnect-profile {
+    display: grid;
+    gap: 1rem;
 }
 
-html {
-    position: relative;
-    min-height: 100%;
-}
-
-body {
-    margin-bottom: 60px;
-}
-
-    body.family-tree-page {
-        margin-bottom: 0;
-        overflow: hidden;
-    }
-
-.footer {
-    position: absolute;
-    bottom: 0;
+/* Same widths as a Bootstrap container: centered, and narrower than the full page. */
+.kinnect-container {
     width: 100%;
-    white-space: nowrap;
-    line-height: 60px;
+    margin-inline: auto;
 }
 
-.card-profile-link {
+@media (min-width: 576px) {
+    .kinnect-container { max-width: 540px; }
+}
+
+@media (min-width: 768px) {
+    .kinnect-container { max-width: 720px; }
+}
+
+@media (min-width: 992px) {
+    .kinnect-container { max-width: 960px; }
+}
+
+@media (min-width: 1200px) {
+    .kinnect-container { max-width: 1140px; }
+}
+
+@media (min-width: 1400px) {
+    .kinnect-container { max-width: 1320px; }
+}
+
+.kinnect-card {
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    padding: 1rem;
+    background: var(--nf-surface);
+}
+
+.kinnect-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+.kinnect-row { display: flex; align-items: center; gap: 0.75rem; }
+.kinnect-split { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.kinnect-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 1rem; }
+.kinnect-columns-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.kinnect-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.kinnect-muted { color: var(--nf-muted); font-size: 12.5px; }
+.kinnect-switch {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 0.15rem;
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    background: var(--nf-surface-2);
+}
+.kinnect-switch button {
+    height: 32px;
+    padding: 0 0.9rem;
+    border: 0;
+    border-radius: calc(var(--nf-radius) - 2px);
+    background: transparent;
+    color: var(--nf-muted);
+    cursor: pointer;
+}
+.kinnect-switch button.is-active {
+    background: var(--nf-surface);
+    color: var(--nf-text);
+    font-weight: 650;
+    box-shadow: var(--nf-shadow);
+}
+.kinnect-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 0.5rem; align-items: center; }
+.kinnect-profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+.kinnect-profile-head img,
+.kinnect-profile-picture { max-width: 180px; border-radius: var(--nf-radius); }
+.kinnect-profile-links { margin-left: auto; text-align: right; }
+.kinnect-profile-links h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+.kinnect-profile-links ul { margin: 0; padding: 0; list-style: none; }
+.kinnect-profile-links li + li { margin-top: 0.25rem; }
+.kinnect-media-button { display: block; margin-top: 0.6rem; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.kinnect-media-button img { max-width: 100%; max-height: 360px; border-radius: var(--nf-radius); }
+.kinnect-tabs { display: flex; flex-wrap: wrap; gap: 0.15rem; margin: 0 0 1rem; padding: 0; list-style: none; border-bottom: 1px solid var(--nf-border); }
+.kinnect-tabs button { height: 34px; padding: 0 0.75rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--nf-muted); cursor: pointer; }
+.kinnect-tabs button.is-active { color: var(--nf-accent); border-bottom-color: var(--nf-accent); font-weight: 650; }
+.kinnect-list { margin: 0; padding: 0; list-style: none; background: var(--nf-surface); border: 1px solid var(--nf-border); border-radius: var(--nf-radius); overflow: hidden; }
+.kinnect-list > li,
+.kinnect-list > button { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; width: 100%; padding: 0.7rem 0.85rem; border: 0; border-bottom: 1px solid var(--nf-border-soft); background: transparent; text-align: left; color: inherit; cursor: pointer; }
+.kinnect-list > :last-child { border-bottom: 0; }
+.kinnect-list > button:hover,
+.kinnect-list > li:hover { background: var(--nf-hover); }
+.kinnect-progress { height: 8px; border-radius: 999px; background: var(--nf-surface-2); overflow: hidden; }
+.kinnect-progress > span { display: block; height: 100%; background: var(--nf-accent); }
+
+@media (max-width: 860px) {
+    .kinnect-columns,
+    .kinnect-pair,
+    .kinnect-link-row { grid-template-columns: 1fr; }
+    .kinnect-profile-head { flex-direction: column; }
+    .kinnect-profile-links { margin-left: 0; text-align: left; }
+    .kinnect-row { flex-wrap: wrap; }
+    .kinnect-row > .nf-input,
+    .kinnect-row > .nf-select { flex: 1 1 5.5rem; min-width: 0; width: auto; }
+    .kinnect-tabs { flex-wrap: nowrap; overflow-x: auto; }
+    .kinnect-tabs button { flex: none; }
+    .kinnect-media-tools { flex-direction: column; align-items: stretch; }
+    .kinnect-media-tools .kinnect-row { flex-direction: column; align-items: stretch; width: 100%; }
+    .kinnect-media-tools .nf-input,
+    .kinnect-media-tools .nf-select { width: 100%; }
+    .kinnect-media-tools .nf-button { align-self: flex-start; }
+    .kinnect-map-page,
+    .kinnect-fill { margin: -1rem; }
+    .kinnect-lightbox { padding: 0.6rem; }
+    .kinnect-event-filter { max-width: min(220px, calc(100% - 4.5rem)); }
+    .nf-page-actions { margin-left: 0; }
+}
+
+.kinnect-media,
+.kinnect-videos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .75rem;
+}
+
+.kinnect-media img,
+.kinnect-media video,
+.kinnect-videos img,
+.kinnect-video-poster {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: .35rem;
+    background: var(--nf-surface-2);
+}
+
+.kinnect-media .kinnect-card,
+.kinnect-videos .kinnect-card {
+    padding: .5rem;
+    height: 100%;
+}
+
+.kinnect-media-open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.kinnect-media-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-bottom: 2rem;
+}
+
+.kinnect-doc {
+    position: relative;
+    padding-right: 2.6rem;
+}
+
+.kinnect-card-menu {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    color: #666;
-    font-size: 1rem;
-    text-decoration: none;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+    right: 0.35rem;
+    bottom: 0.35rem;
+    z-index: 2;
 }
 
-    .card-profile-link:hover {
-        opacity: 1;
-        color: #2c3e50;
-    }
-
-/* Toasty.js: container ships with z-index:1 and ends up behind content; raise so toasts are visible */
-.toast-container {
-    z-index: 9999 !important;
+.kinnect-card-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--nf-surface) 90%, transparent);
+    color: inherit;
+    cursor: pointer;
+    box-shadow: var(--nf-shadow);
 }
 
-    /* Bootstrap defines `.toast:not(.show) { display: none; }` which hides Toasty.js messages.
-   Scope the override to Toasty’s container to avoid affecting any Bootstrap toasts. */
-    .toast-container .toast:not(.show) {
-        display: block !important;
+.kinnect-card-menu .nf-menu-list {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: auto;
+    z-index: 46;
+    visibility: hidden;
+}
+
+.kinnect-card-menu .nf-menu-list.is-placed {
+    visibility: visible;
+}
+
+.kinnect-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.kinnect-tag {
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--nf-surface-2);
+    color: var(--nf-muted);
+    font-size: 11px;
+}
+
+.kinnect-event-edit {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+.kinnect-profile-stage {
+    position: relative;
+    min-height: calc(100dvh - 13rem);
+}
+
+.kinnect-spouse {
+    margin-top: 1.25rem;
+}
+
+.kinnect-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.kinnect-checks .nf-check {
+    margin: 0;
+}
+
+.kinnect-copy-list .nf-check { color: inherit; }
+.kinnect-copy-list .nf-badge { margin-left: auto; }
+
+.kinnect-media-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.kinnect-media-tools .kinnect-row {
+    flex: 1;
+}
+
+.kinnect-media-tools .nf-input,
+.kinnect-media-tools .nf-select {
+    width: min(280px, 100%);
+}
+
+.kinnect-add-drawer {
+    position: absolute;
+    z-index: 20;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 92%);
+    padding: 1rem;
+    overflow: auto;
+    background: var(--nf-surface);
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    box-shadow: var(--nf-shadow);
+}
+
+@media (min-width: 520px) {
+    .kinnect-media,
+    .kinnect-videos {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+}
+
+@media (min-width: 768px) {
+    .kinnect-media,
+    .kinnect-videos {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .kinnect-media,
+    .kinnect-videos {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.kinnect-videos .kinnect-card {
+    padding: .5rem;
+    cursor: pointer;
+    height: 100%;
+}
+
+.kinnect-videos img,
+.kinnect-video-poster {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: .35rem;
+    background: var(--nf-surface-2);
+}
+
+.kinnect-video-poster {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--nf-muted);
+}
+
+.kinnect-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    background: rgba(0, 0, 0, .72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.kinnect-lightbox .kinnect-card {
+    width: min(960px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.kinnect-lightbox-wide {
+    width: min(1100px, 100%);
+}
+
+.kinnect-lightbox-body {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.kinnect-lightbox-stage {
+    flex: 1;
+    min-width: 0;
+}
+
+.kinnect-lightbox-side {
+    width: 240px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+.kinnect-lightbox-heading {
+    margin: 0.35rem 0 0;
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--nf-muted);
+}
+
+.kinnect-lightbox-side .nf-button {
+    width: 100%;
+}
+
+.kinnect-tag-search {
+    position: relative;
+}
+
+.kinnect-tag-results {
+    position: absolute;
+    z-index: 2;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--nf-surface);
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    box-shadow: var(--nf-shadow);
+}
+
+.kinnect-tag-results button {
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    border-bottom: 1px solid var(--nf-border-soft);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.kinnect-tag-results button:hover {
+    background: var(--nf-hover);
+}
+
+@media (max-width: 800px) {
+    .kinnect-lightbox-body { flex-direction: column; }
+    .kinnect-lightbox-side { width: auto; max-height: none; }
+}
+
+.kinnect-lightbox video,
+.kinnect-lightbox img {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    background: #000;
+    border-radius: .35rem;
+}
+
+.kinnect-annotation-label {
+    position: fixed;
+    z-index: 3000;
+    pointer-events: none;
+    max-width: 260px;
+    padding: .25rem .5rem;
+    border-radius: .25rem;
+    background: #111;
+    color: #fff;
+    font-size: .85rem;
+}
+
+.kinnect-feed img {
+    cursor: pointer;
+}
+
+
+.kinnect-map {
+    height: 320px;
+    border-radius: .5rem;
+    overflow: hidden;
+}
+
+.kinnect-map-mini {
+    height: 220px;
+    flex: 0 0 220px;
+}
+
+.kinnect-event { display: flex; flex-direction: column; gap: .2rem; flex: 1; min-width: 0; }
+.kinnect-event-title { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
+.kinnect-event-line { display: flex; align-items: flex-start; gap: .35rem; color: var(--nf-muted); font-size: 12.5px; }
+.kinnect-list > li:has(.kinnect-event) { align-items: flex-start; }
+
+.nf-content:has(.kinnect-map-page),
+.nf-content:has(.kinnect-fill) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Leaflet panes use z-index up to 1000. Keeping the page in its own stacking context
+   stops the map painting over the top-bar Admin menu. */
+.kinnect-map-page {
+    position: relative;
+    z-index: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: -1.4rem -1.5rem -2.5rem;
+}
+
+.kinnect-map-page .nf-page-header {
+    padding: 1rem 1.25rem 0;
+}
+
+.kinnect-map-page .kinnect-map,
+.kinnect-map-page .kinnect-map-stage {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border-radius: 0;
+}
+
+.kinnect-map-stage {
+    position: relative;
+    display: flex;
+}
+
+.kinnect-map-stage .kinnect-map {
+    position: relative;
+    z-index: 0;
+    flex: 1;
+    height: auto;
+    min-height: 0;
+}
+
+.kinnect-event-filter {
+    position: absolute;
+    z-index: 1200;
+    top: 0.75rem;
+    left: 0.75rem;
+    max-height: calc(100% - 1.5rem);
+    overflow: auto;
+    min-width: 160px;
+    padding: 0.55rem 0.7rem;
+    background: color-mix(in srgb, var(--nf-surface) 94%, transparent);
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    box-shadow: var(--nf-shadow);
+}
+
+.kinnect-event-filter .nf-check {
+    margin: 0.15rem 0;
+}
+
+/* Kinnect asks MyWebTree and EasyChatz for data-theme="netforge". The components stay
+   agnostic and only expose their own variables; these rules map them onto the shell. */
+.mwt-root[data-theme="netforge"] {
+    --mwt-font: var(--nf-font);
+    --mwt-radius: var(--nf-radius);
+    --mwt-bg: var(--nf-bg);
+    --mwt-surface: var(--nf-surface-2);
+    --mwt-surface-raised: var(--nf-surface);
+    --mwt-hover: var(--nf-hover);
+    --mwt-border: var(--nf-border);
+    --mwt-text: var(--nf-text);
+    --mwt-muted: var(--nf-muted);
+    --mwt-accent: var(--nf-accent);
+    --mwt-accent-soft: var(--nf-accent-soft);
+    --mwt-danger: var(--nf-danger);
+    --mwt-success: var(--nf-success);
+    --mwt-shadow: var(--nf-shadow);
+    color-scheme: inherit;
+}
+
+.ec-root[data-theme="netforge"] {
+    --ec-font: var(--nf-font);
+    --ec-radius: var(--nf-radius);
+    --ec-bg: var(--nf-bg);
+    --ec-surface: var(--nf-surface-2);
+    --ec-surface-raised: var(--nf-surface);
+    --ec-hover: var(--nf-hover);
+    --ec-border: var(--nf-border);
+    --ec-text: var(--nf-text);
+    --ec-muted: var(--nf-muted);
+    --ec-accent: var(--nf-accent);
+    --ec-accent-soft: var(--nf-accent-soft);
+    --ec-mine: var(--nf-accent);
+    --ec-mine-text: var(--nf-accent-text);
+    --ec-danger: var(--nf-danger);
+    --ec-success: var(--nf-success);
+    --ec-shadow: var(--nf-shadow);
+    --ec-backdrop: var(--nf-scrim);
+    color-scheme: inherit;
+}
+
+.kinnect-fill {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    margin: -1.4rem -1.5rem -2.5rem;
+}
+
+.kinnect-fill .ec-root,
+.kinnect-fill .ec-shell {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+}
+
+@media (max-width: 860px) {
+    .kinnect-fill .ec-shell { flex-direction: column; }
+    .kinnect-fill .ec-sidebar,
+    .kinnect-fill .ec-people { width: 100%; max-height: 220px; }
+    .kinnect-fill .ec-thread { width: 100%; min-height: 0; }
+}
+
+.kinnect-tree-page .nf-page-header {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.kinnect-tree-page .nf-page-title {
+    margin-bottom: 0;
+}
+
+.kinnect-tree-page .nf-page-actions {
+    margin-left: 0;
+}
+
+.kinnect-tree-stage {
+    position: relative;
+}
+
+.kinnect-people-drawer {
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(360px, 92%);
+    padding: 1rem;
+    overflow: auto;
+    background: var(--nf-surface);
+    border-right: 1px solid var(--nf-border);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, .12);
+    transform: translateX(-105%);
+    transition: transform .18s ease;
+    pointer-events: none;
+}
+
+.kinnect-people-drawer.is-open {
+    transform: none;
+    pointer-events: auto;
+}

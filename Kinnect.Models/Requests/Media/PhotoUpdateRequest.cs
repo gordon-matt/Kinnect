@@ -14,6 +14,9 @@ public class PhotoUpdateRequest
 
     public List<string>? Tags { get; set; }
 
+    /// <summary>Person event ids linked to this photo. Null leaves the current links unchanged.</summary>
+    public List<int>? EventIds { get; set; }
+
     /// <summary>Person IDs to tag in this photo (syncs PersonPhotos).</summary>
     public List<int>? PersonIds { get; set; }
 

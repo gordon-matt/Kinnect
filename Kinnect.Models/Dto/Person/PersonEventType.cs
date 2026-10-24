@@ -67,6 +67,11 @@ public static class PersonEventType
         Birth, Death, Christening, Burial, Cremation,
     ];
 
+    private static readonly HashSet<string> CopyableToRelatives =
+    [
+        Residence, Emigration, Immigration, Naturalization, Custom,
+    ];
+
     /// <summary>Stored on <see cref="PersonSpouse"/> or profile fields, not as <see cref="PersonEventDto"/>.</summary>
     public static bool IsNonTimelineEventType(string eventType) =>
         NonTimelineEventTypes.Contains(eventType.ToUpperInvariant());
@@ -74,4 +79,12 @@ public static class PersonEventType
     /// <summary>Timeline event types that can only exist once per person.</summary>
     public static bool IsSingleInstanceTimelineEventType(string eventType) =>
         SingleInstanceTimelineEventTypes.Contains(eventType.ToUpperInvariant());
+
+    /// <summary>
+    /// Residence, emigration, immigration, naturalization, and custom events.
+    /// Marriage, divorce, and engagement stay on the spouse relationship.
+    /// Birth, death, christening, and the other rites belong to one person.
+    /// </summary>
+    public static bool CanCopyToRelatives(string eventType) =>
+        CopyableToRelatives.Contains(eventType.ToUpperInvariant());
 }

@@ -2,50 +2,36 @@
 @model RegisterModel
 @{
     ViewData["Title"] = "Register";
+    Layout = "/Areas/Identity/Pages/Account/_Layout.cshtml";
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h4 class="card-title mb-4">
-                    <i class="bi bi-person-plus"></i> Register
-                </h4>
-                <p class="text-muted small mb-3">
-                    After registering, your account will be reviewed by an administrator before you can log in.
-                </p>
-                <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+<h1>Register</h1>
+<p class="nf-hint">After registering, your account will be reviewed by an administrator before you can log in.</p>
 
-                    <div class="mb-3">
-                        <label asp-for="Input.Email" class="form-label"></label>
-                        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                        <span asp-validation-for="Input.Email" class="text-danger small"></span>
-                    </div>
+<form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+    <div asp-validation-summary="ModelOnly" class="nf-validation" role="alert"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="Input.Password" class="form-label"></label>
-                        <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Password" />
-                        <span asp-validation-for="Input.Password" class="text-danger small"></span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Input.ConfirmPassword" class="form-label"></label>
-                        <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Confirm password" />
-                        <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
-                    </div>
-
-                    <button id="registerSubmit" type="submit" class="btn btn-primary w-100">Register</button>
-                </form>
-
-                <div class="mt-3 text-center">
-                    <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Already have an account? Log in</a>
-                </div>
-            </div>
-        </div>
+    <div class="nf-field">
+        <label asp-for="Input.Email"></label>
+        <input asp-for="Input.Email" class="nf-input" autocomplete="username" autofocus placeholder="name@example.com" />
+        <span asp-validation-for="Input.Email" class="nf-validation"></span>
     </div>
-</div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+    <div class="nf-field">
+        <label asp-for="Input.Password"></label>
+        <input asp-for="Input.Password" class="nf-input" autocomplete="new-password" placeholder="Password" />
+        <span asp-validation-for="Input.Password" class="nf-validation"></span>
+    </div>
+
+    <div class="nf-field">
+        <label asp-for="Input.ConfirmPassword"></label>
+        <input asp-for="Input.ConfirmPassword" class="nf-input" autocomplete="new-password" placeholder="Confirm password" />
+        <span asp-validation-for="Input.ConfirmPassword" class="nf-validation"></span>
+    </div>
+
+    <button id="registerSubmit" type="submit" class="nf-button nf-button-primary nf-button-block">Register</button>
+</form>
+
+<div class="nf-hint" style="margin-top: 0.9rem;">
+    <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Already have an account? Log in</a>
+</div>

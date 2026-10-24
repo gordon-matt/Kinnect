@@ -1,0 +1,125 @@
+@page "/people/{PersonId:int}/events/map"
+@attribute [Authorize]
+
+@inject IPersonService People
+@inject IPersonEventService Events
+
+<PageTitle>Event map</PageTitle>
+<div class="kinnect-map-page">
+    <PageHeader Title="@title" Description="Dated events are connected from oldest to newest." />
+
+    @if (events is null)
+    {
+        <p>Loading…</p>
+    }
+    else if (!events.Any(HasPlace))
+    {
+        <EmptyState Title="No event places" Description="Events with a location will appear on this map." />
+    }
+    else
+    {
+        <div class="kinnect-map-stage">
+            <KinnectMap Pins="VisiblePins" Route="Route" />
+            <aside class="kinnect-event-filter">
+                <p class="kinnect-muted">Events</p>
+                @foreach (var type in EventTypes)
+                {
+                    <label class="nf-check">
+                        <input type="checkbox" checked="@IsShown(type)" @onchange="args => Toggle(type, args.Value is true)" />
+                        @PersonEventType.GetLabel(type)
+                    </label>
+                }
+                @if (MissingCount > 0)
+                {
+                    <p class="kinnect-muted">@MissingCount without a location</p>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int PersonId { get; set; }
+
+    private string title = "Event map";
+    private List<PersonEventDto>? events;
+    private readonly HashSet<string> hidden = new(StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<string> EventTypes => events!
+        .Select(e => e.EventType)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(PersonEventType.GetLabel, StringComparer.OrdinalIgnoreCase);
+
+    private List<MapPinDto> VisiblePins => events!
+        .Where(e => IsShown(e.EventType) && HasPlace(e))
+        .Select(ToPin)
+        .ToList();
+
+    private double[][] Route => events!
+        .Where(e => IsShown(e.EventType) && HasPlace(e) && e.Year is not null)
+        .OrderBy(e => e.Year)
+        .ThenBy(e => e.Month ?? 0)
+        .ThenBy(e => e.Day ?? 0)
+        .ThenBy(e => e.Id)
+        .Select(e => new[] { e.Latitude!.Value, e.Longitude!.Value })
+        .ToArray();
+
+    private int MissingCount => events!.Count(e => IsShown(e.EventType) && !HasPlace(e));
+
+    private bool IsShown(string type) => !hidden.Contains(type);
+
+    private void Toggle(string type, bool shown)
+    {
+        if (shown)
+        {
+            hidden.Remove(type);
+        }
+        else
+        {
+            hidden.Add(type);
+        }
+    }
+
+    private static bool HasPlace(PersonEventDto item) => item.Latitude is not null && item.Longitude is not null;
+
+    private MapPinDto ToPin(PersonEventDto item)
+    {
+        string name = DisplayName(item);
+        string? place = string.IsNullOrWhiteSpace(item.Place) ? null : item.Place.Trim();
+        return new MapPinDto
+        {
+            PersonId = PersonId,
+            Kind = MapPinKind.Event,
+            FullName = name,
+            Detail = item.DateDisplay ?? "Date unknown",
+            Place = place,
+            Description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(),
+            Latitude = item.Latitude!.Value,
+            Longitude = item.Longitude!.Value,
+        };
+    }
+
+    private static string DisplayName(PersonEventDto item)
+    {
+        if (string.Equals(item.EventType, PersonEventType.Residence, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(item.Place))
+        {
+            return item.Place.Trim();
+        }
+
+        return item.EventTypeLabel;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var person = await People.GetByIdAsync(PersonId);
+        if (person.IsSuccess)
+        {
+            title = person.Value.FullName + " — events";
+        }
+
+        var result = await Events.GetByPersonAsync(PersonId);
+        events = result.IsSuccess ? result.Value.ToList() : [];
+    }
+}

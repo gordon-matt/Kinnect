@@ -1,12 +1,13 @@
 services:
   app:
     build:
-      context: .
-      dockerfile: Kinnect/Dockerfile
+      context: ../..
+      dockerfile: SelfHosted/Kinnect/Kinnect/Dockerfile
     ports:
       - "8080:8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
+      Database__Provider: Npgsql
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=kinnect;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}"
       FileStorage__BasePath: /app/data
       ImageProcessing__AutoShrinkImages: "true"

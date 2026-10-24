@@ -9,4 +9,6 @@ public class VideoUpdateRequest
     public List<string>? Tags { get; set; }
 
     public int? FolderId { get; set; }
+
+    public List<int>? EventIds { get; set; }
 }

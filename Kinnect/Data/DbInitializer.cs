@@ -8,7 +8,7 @@ public static class DbInitializer
     public const string SeedAdminPasswordKey = "SeedAdmin:Password";
 
     public static async Task InitializeAsync(
-        ApplicationDbContext context,
+        ApplicationDbContextBase context,
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         IConfiguration configuration)
@@ -39,7 +39,7 @@ public static class DbInitializer
     }
 
     private static async Task SeedAdminUserAsync(
-        ApplicationDbContext context,
+        ApplicationDbContextBase context,
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration)
     {
@@ -79,7 +79,7 @@ public static class DbInitializer
         }
     }
 
-    public static async Task SeedAnnouncementsRoomAsync(ApplicationDbContext context, string adminUserId)
+    public static async Task SeedAnnouncementsRoomAsync(ApplicationDbContextBase context, string adminUserId)
     {
         bool announcementsExists = await context.ChatRooms
             .AnyAsync(r => r.Name == Constants.Chat.AnnouncementsRoomName);

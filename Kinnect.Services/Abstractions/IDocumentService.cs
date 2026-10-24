@@ -11,7 +11,9 @@ public interface IDocumentService
         int uploadedByPersonId,
         List<string>? tags);
 
-    Task<Result> DeleteAsync(int id, string currentUserId);
+    Task<Result> DeleteAsync(int id, string currentUserId, bool isAdmin);
+
+    Task<Result<DocumentDto>> UpdateAsync(int id, DocumentUpdateRequest request, string currentUserId, bool isAdmin);
 
     Task<Result<DocumentDto>> GetByIdAsync(int id);
 

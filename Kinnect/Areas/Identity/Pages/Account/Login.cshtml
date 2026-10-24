@@ -1,0 +1,38 @@
+@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "/Areas/Identity/Pages/Account/_Layout.cshtml";
+}
+
+<h1>@ViewData["Title"]</h1>
+<p class="nf-hint">Use your Kinnect account to continue.</p>
+
+<form id="account" method="post">
+    <div asp-validation-summary="ModelOnly" class="nf-validation" role="alert"></div>
+
+    <div class="nf-field">
+        <label asp-for="Input.Email"></label>
+        <input asp-for="Input.Email" class="nf-input" autocomplete="username" autofocus />
+        <span asp-validation-for="Input.Email" class="nf-validation"></span>
+    </div>
+
+    <div class="nf-field">
+        <label asp-for="Input.Password"></label>
+        <input asp-for="Input.Password" class="nf-input" autocomplete="current-password" />
+        <span asp-validation-for="Input.Password" class="nf-validation"></span>
+    </div>
+
+    <label class="nf-check">
+        <input asp-for="Input.RememberMe" />
+        <span>Remember me</span>
+    </label>
+
+    <button id="login-submit" type="submit" class="nf-button nf-button-primary nf-button-block">Sign in</button>
+</form>
+
+<div class="nf-hint" style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.9rem;">
+    <a asp-page="./ForgotPassword">Forgot your password?</a>
+    <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register as a new user</a>
+    <a asp-page="./ResendEmailConfirmation">Resend email confirmation</a>
+</div>

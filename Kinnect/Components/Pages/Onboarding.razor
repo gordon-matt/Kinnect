@@ -1,0 +1,133 @@
+@page "/onboarding"
+@attribute [Authorize]
+@using Kinnect.Data
+
+@inject ApplicationDbContextBase Database
+@inject IUserContextService Users
+@inject NavigationManager Nav
+@inject ToastService Toasts
+
+<PageTitle>Welcome</PageTitle>
+<PageHeader Title="Welcome to Kinnect" />
+
+<div class="kinnect-columns-2">
+    <div>
+        <div class="kinnect-card kinnect-stack">
+            <h2>This is me</h2>
+            <input class="nf-input" @bind="givenNames" placeholder="Given names" />
+            <input class="nf-input" @bind="familyName" placeholder="Family name" />
+            <div class="kinnect-switch" role="group" aria-label="Sex">
+                <button type="button" class="@(isMale ? "is-active" : null)" aria-pressed="@isMale" @onclick="() => isMale = true">Male</button>
+                <button type="button" class="@(!isMale ? "is-active" : null)" aria-pressed="@(!isMale)" @onclick="() => isMale = false">Female</button>
+            </div>
+            <button class="nf-button nf-button-primary" type="button" @onclick="CreateAsync">Create my profile</button>
+        </div>
+    </div>
+    @if (unlinked.Count > 0)
+    {
+        <div>
+            <div class="kinnect-card kinnect-stack">
+                <h2>I am already in the tree</h2>
+                <ul class="kinnect-list">
+                    @foreach (var person in unlinked)
+                    {
+                        <li>
+                            <span>@person.GivenNames @person.FamilyName</span>
+                            <button class="nf-button nf-button-sm" type="button" @onclick="() => LinkAsync(person.Id)">This is me</button>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+    @if (canImport)
+    {
+        <div>
+            <div class="kinnect-card kinnect-stack">
+                <h2>Import a GEDCOM</h2>
+                <p class="kinnect-muted">Import your existing tree, then choose your name. This can only be done once.</p>
+                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom" Label="Import GEDCOM" Uploaded="OnImported" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string givenNames = string.Empty;
+    private string familyName = string.Empty;
+    private bool isMale = true;
+    private bool canImport;
+    private List<Person> unlinked = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null)
+        {
+            return;
+        }
+
+        if (await Database.People.AnyAsync(p => p.UserId == userId))
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        bool any = await Database.People.AnyAsync();
+        canImport = Users.IsAdmin() && !any;
+        unlinked = any
+            ? await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync()
+            : [];
+    }
+
+    private async Task CreateAsync()
+    {
+        string? userId = Users.GetCurrentUserId();
+        if (userId is null || string.IsNullOrWhiteSpace(givenNames))
+        {
+            Toasts.Error("Enter your given names.");
+            return;
+        }
+
+        Database.People.Add(new Person
+        {
+            UserId = userId,
+            GivenNames = givenNames.Trim(),
+            FamilyName = familyName.Trim(),
+            IsMale = isMale,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
+        });
+        await Database.SaveChangesAsync();
+        Nav.NavigateTo("/tree");
+    }
+
+    private async Task LinkAsync(int personId)
+    {
+        string? userId = Users.GetCurrentUserId();
+        var person = await Database.People.FirstOrDefaultAsync(p => p.Id == personId && p.UserId == null);
+        if (userId is null || person is null)
+        {
+            Toasts.Error("That person cannot be linked.");
+            return;
+        }
+
+        person.UserId = userId;
+        person.UpdatedAtUtc = DateTime.UtcNow;
+        await Database.SaveChangesAsync();
+        Nav.NavigateTo("/tree");
+    }
+
+    private async Task OnImported()
+    {
+        unlinked = await Database.People
+            .Where(person => person.UserId == null)
+            .OrderBy(person => person.GivenNames)
+            .ThenBy(person => person.FamilyName)
+            .ToListAsync();
+        canImport = Users.IsAdmin() && !await Database.People.AnyAsync();
+        Toasts.Success(unlinked.Count == 0
+            ? "Import complete."
+            : "Import complete. Choose your name.");
+    }
+}

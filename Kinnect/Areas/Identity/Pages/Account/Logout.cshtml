@@ -1,0 +1,13 @@
+@page
+@model LogoutModel
+@{
+    ViewData["Title"] = "Sign out";
+    Layout = "/Areas/Identity/Pages/Account/_Layout.cshtml";
+}
+
+<h1>Sign out</h1>
+<p class="nf-hint">Sign out of Kinnect and return to the login page.</p>
+
+<form method="post">
+    <button type="submit" class="nf-button nf-button-primary nf-button-block">Sign out</button>
+</form>

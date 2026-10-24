@@ -3,6 +3,10 @@
     <Build />
   </Project>
   <Project Path="Kinnect.Core/Kinnect.Core.csproj" />
+  <Project Path="Kinnect.Data.MySql/Kinnect.Data.MySql.csproj" />
+  <Project Path="Kinnect.Data.Npgsql/Kinnect.Data.Npgsql.csproj" />
+  <Project Path="Kinnect.Data.Sql/Kinnect.Data.Sql.csproj" />
+  <Project Path="Kinnect.Data.Sqlite/Kinnect.Data.Sqlite.csproj" />
   <Project Path="Kinnect.Data/Kinnect.Data.csproj" />
   <Project Path="Kinnect.Models/Kinnect.Models.csproj" />
   <Project Path="Kinnect.Services/Kinnect.Services.csproj" />

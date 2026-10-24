@@ -1,0 +1,47 @@
+@page "/people"
+@attribute [Authorize]
+
+@inject IPersonService PeopleService
+
+<PageTitle>People</PageTitle>
+<PageHeader Title="People" />
+
+@if (matches is null)
+{
+    <p>Searching…</p>
+}
+else if (matches.Count == 0)
+{
+    <EmptyState Title="No one matches" Description="Try a different name." />
+}
+else
+{
+    <ul class="kinnect-list">
+        @foreach (var person in matches)
+        {
+            <li>
+                <a href="@($"people/{person.Id}")">@person.FullName</a>
+                @if (person.IsDeceased)
+                {
+                    <span class="kinnect-muted"> · deceased</span>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private List<PersonDto>? matches;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var all = await PeopleService.GetAllAsync();
+        string q = Query?.Trim() ?? string.Empty;
+        matches = all.IsSuccess
+            ? all.Value.Where(p => q.Length == 0 || p.FullName.Contains(q, StringComparison.OrdinalIgnoreCase)).OrderBy(p => p.FullName).ToList()
+            : [];
+    }
+}

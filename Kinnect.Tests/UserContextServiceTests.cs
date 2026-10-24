@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Components.Authorization;
+
 namespace Kinnect.Tests;
 
 public class UserContextServiceTests
@@ -94,5 +96,24 @@ public class UserContextServiceTests
         var sut = new UserContextService(accessor);
 
         Assert.True(sut.IsAuthenticated());
+    }
+
+    [Fact]
+    public void GetCurrentUserId_UsesCircuitWhenHttpContextIsAnonymous()
+    {
+        var accessor = new HttpContextAccessor();
+        var identity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "circuit-user")],
+            authenticationType: "Test");
+
+        var sut = new UserContextService(accessor, new StubAuthenticationState(new ClaimsPrincipal(identity)));
+
+        Assert.Equal("circuit-user", sut.GetCurrentUserId());
+    }
+
+    private sealed class StubAuthenticationState(ClaimsPrincipal user) : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() =>
+            Task.FromResult(new AuthenticationState(user));
     }
 }
