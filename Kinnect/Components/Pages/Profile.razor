@@ -10,6 +10,7 @@
 @inject IVideoService Videos
 @inject IDocumentService Documents
 @inject IUserContextService Users
+@inject IUserInfoService Accounts
 @inject NavigationManager Nav
 @inject IJSRuntime Js
 @inject ToastService Toasts
@@ -28,11 +29,16 @@ else
 {
     <PageHeader Title="@person.FullName">
         <Actions>
-            <a class="nf-button" href="@($"tree?person={PersonId}")">View on tree</a>
-            @if (canEdit && !Editing)
+            @if (canEdit && Editing)
+            {
+                <button class="nf-button nf-button-primary" type="button" @onclick="SaveAsync">Save</button>
+                <a class="nf-button" href="@($"people/{PersonId}")">Cancel</a>
+            }
+            else if (canEdit)
             {
                 <a class="nf-button nf-button-primary" href="@($"people/{PersonId}/edit")">Edit</a>
             }
+            <a class="nf-button" href="@($"tree?person={PersonId}")">View on tree</a>
             <a class="nf-button" href="@($"people/{PersonId}/events/map")">Event map</a>
             <a class="nf-button" href="@($"people/{PersonId}/photos/map")">Photo map</a>
         </Actions>
@@ -73,10 +79,6 @@ else
                                 <InputCheckbox @bind-Value="form.IsDeceased" /> Deceased
                             </label>
                         }
-                        <div class="kinnect-row">
-                            <button class="nf-button nf-button-primary" type="submit">Save</button>
-                            <a class="nf-button" href="@($"people/{PersonId}")">Cancel</a>
-                        </div>
                     </EditForm>
                     @SpouseRelationships
                 }
@@ -114,7 +116,40 @@ else
                 }
             </div>
             <div class="kinnect-stack">
-                @if (canEdit)
+                @if (Users.IsAdmin())
+                {
+                    <div class="kinnect-card kinnect-stack">
+                        <h2>User account</h2>
+                        @if (person.UserId is null)
+                        {
+                            @if (openAccounts.Count == 0)
+                            {
+                                <p class="kinnect-muted">No unlinked accounts.</p>
+                            }
+                            else
+                            {
+                                <select class="nf-select" value="@selectedAccountId" @onchange="ChooseAccount">
+                                    <option value="">Select a user</option>
+                                    @foreach (var account in openAccounts)
+                                    {
+                                        <option value="@account.UserId">@account.Username (@account.Email)</option>
+                                    }
+                                </select>
+                                <button class="nf-button nf-button-sm" type="button" disabled="@string.IsNullOrEmpty(selectedAccountId)" @onclick="LinkAccountAsync">Link user</button>
+                            }
+                        }
+                        else if (mine)
+                        {
+                            <p>@linkedAccount</p>
+                        }
+                        else
+                        {
+                            <p>@linkedAccount</p>
+                            <button class="nf-button nf-button-sm" type="button" @onclick="UnlinkAccountAsync">Unlink user</button>
+                        }
+                    </div>
+                }
+                @if (canEdit && Editing)
                 {
                     <div class="kinnect-card kinnect-stack">
                         <h2>Profile picture</h2>
@@ -610,6 +645,9 @@ else
     private bool missing;
     private bool canEdit;
     private bool mine;
+    private List<UserInfo> openAccounts = [];
+    private string? linkedAccount;
+    private string? selectedAccountId;
     private int? myPersonId;
     private List<CloseRelativeDto> relatives = [];
     private int? copyingEventId;
@@ -1249,6 +1287,7 @@ else
         }
         bool editor = Users.IsEditor() || Users.IsAdmin();
         canEdit = Users.IsAdmin() || mine || (editor && person.UserId is null);
+        await LoadAccountsAsync();
         form = new PersonEditRequest
         {
             FamilyName = person.FamilyName,
@@ -1694,6 +1733,72 @@ else
 
         Toasts.Success(copied.Value == 1 ? "Copied to 1 relative." : $"Copied to {copied.Value} relatives.");
         return true;
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        openAccounts = [];
+        linkedAccount = null;
+        selectedAccountId = null;
+        if (!Users.IsAdmin() || person is null)
+        {
+            return;
+        }
+
+        var accounts = await Accounts.GetAllUsersAsync();
+        if (person.UserId is not null)
+        {
+            var linked = accounts.FirstOrDefault(account => account.UserId == person.UserId);
+            linkedAccount = linked is null ? person.UserId : $"{linked.Username} ({linked.Email})";
+            return;
+        }
+
+        var everyone = await People.GetAllAsync();
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+        if (everyone.IsSuccess)
+        {
+            foreach (var candidate in everyone.Value)
+            {
+                if (candidate.UserId is not null)
+                {
+                    taken.Add(candidate.UserId);
+                }
+            }
+        }
+
+        openAccounts = accounts
+            .Where(account => !taken.Contains(account.UserId))
+            .OrderBy(account => account.Username)
+            .ToList();
+    }
+
+    private void ChooseAccount(ChangeEventArgs change) =>
+        selectedAccountId = string.IsNullOrEmpty(change.Value?.ToString()) ? null : change.Value.ToString();
+
+    private async Task LinkAccountAsync()
+    {
+        if (string.IsNullOrEmpty(selectedAccountId))
+        {
+            Toasts.Error("Select a user to link.");
+            return;
+        }
+
+        var result = await People.LinkUserAccountAsync(PersonId, selectedAccountId);
+        Notify(result, "Account linked.");
+        if (result.IsSuccess)
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task UnlinkAccountAsync()
+    {
+        var result = await People.UnlinkUserAccountAsync(PersonId, Users.GetCurrentUserId());
+        Notify(result, "Account unlinked and locked.");
+        if (result.IsSuccess)
+        {
+            await ReloadAsync();
+        }
     }
 
     private void Notify(Ardalis.Result.IResult result, string success)

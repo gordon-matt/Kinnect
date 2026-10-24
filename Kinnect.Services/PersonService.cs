@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Kinnect.Models.FamilyTree;
+using Microsoft.AspNetCore.Identity;
 
 namespace Kinnect.Services;
 
@@ -8,7 +9,8 @@ public class PersonService(
     IRepository<PersonSpouse> spouseRepository,
     IRepository<PersonVersion> versionRepository,
     IRepository<PersonEvent> eventRepository,
-    IRepository<PersonLink> linkRepository) : IPersonService
+    IRepository<PersonLink> linkRepository,
+    UserManager<ApplicationUser>? accounts = null) : IPersonService
 {
     public async Task<Result> AddSpouseAsync(int personId, int spouseId)
     {
@@ -381,10 +383,29 @@ public class PersonService(
             }
         }
 
+        string? linkedUserId = person.UserId;
         person.UserId = null;
         person.UpdatedAtUtc = DateTime.UtcNow;
         await personRepository.UpdateAsync(person);
+        await LockAccountAsync(linkedUserId);
         return Result.Success();
+    }
+
+    private async Task LockAccountAsync(string? userId)
+    {
+        if (accounts is null || string.IsNullOrEmpty(userId))
+        {
+            return;
+        }
+
+        var account = await accounts.FindByIdAsync(userId);
+        if (account is null)
+        {
+            return;
+        }
+
+        await accounts.SetLockoutEnabledAsync(account, true);
+        await accounts.SetLockoutEndDateAsync(account, DateTimeOffset.MaxValue);
     }
 
     public async Task<Result<PersonDto>> UpdateAsync(int id, PersonEditRequest request, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false)

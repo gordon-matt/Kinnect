@@ -5,6 +5,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IPersonService People
 @inject IUserContextService Users
+@inject ToastService Toasts
 
 <PageTitle>Users</PageTitle>
 <PageHeader Title="Users" />
@@ -33,11 +34,39 @@ else
                             <option>@Constants.Roles.User</option>
                         </select>
                     </td>
-                    <td>@row.PersonName</td>
+                    <td>
+                        @if (row.PersonId is int personId)
+                        {
+                            <div class="kinnect-row">
+                                <a href="@($"people/{personId}")">@row.PersonName</a>
+                                @if (row.Id != currentUserId)
+                                {
+                                    <button class="nf-button nf-button-sm" type="button" @onclick="() => UnlinkAsync(row)">Unlink</button>
+                                }
+                            </div>
+                        }
+                        else if (unlinked.Count == 0)
+                        {
+                            <span class="kinnect-muted">No unlinked people</span>
+                        }
+                        else
+                        {
+                            <div class="kinnect-row">
+                                <select class="nf-select" value="@(row.SelectedPersonId?.ToString() ?? "")" @onchange="e => ChoosePerson(row, e)">
+                                    <option value="">Select a person</option>
+                                    @foreach (var candidate in unlinked)
+                                    {
+                                        <option value="@candidate.Id">@candidate.FullName</option>
+                                    }
+                                </select>
+                                <button class="nf-button nf-button-sm" type="button" disabled="@(row.SelectedPersonId is null)" @onclick="() => LinkAsync(row)">Link</button>
+                            </div>
+                        }
+                    </td>
                     <td>
                         @if (row.Locked)
                         {
-                            <button class="nf-button nf-button-sm nf-button-primary" type="button" @onclick="() => ApproveAsync(row)">Approve</button>
+                            <button class="nf-button nf-button-sm nf-button-primary" type="button" disabled="@(row.PersonId is null)" title="@(row.PersonId is null ? "Link a person before approving" : null)" @onclick="() => ApproveAsync(row)">Approve</button>
                         }
                         else
                         {
@@ -53,15 +82,18 @@ else
 
 @code {
     private List<UserRow>? rows;
+    private List<PersonDto> unlinked = [];
+    private string? currentUserId;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
+        currentUserId = Users.GetCurrentUserId();
         var people = await People.GetAllAsync();
-        var byUser = people.IsSuccess
-            ? people.Value.Where(p => p.UserId is not null).ToDictionary(p => p.UserId!)
-            : [];
+        var all = people.IsSuccess ? people.Value.ToList() : [];
+        var byUser = all.Where(p => p.UserId is not null).ToDictionary(p => p.UserId!);
+        unlinked = all.Where(p => p.UserId is null).OrderBy(p => p.GivenNames).ThenBy(p => p.FamilyName).ToList();
         var next = new List<UserRow>();
         var users = await UserManager.Users.OrderBy(u => u.Email).ToListAsync();
         foreach (var user in users)
@@ -69,14 +101,73 @@ else
             var roles = await UserManager.GetRolesAsync(user);
             byUser.TryGetValue(user.Id, out var person);
             bool locked = user.LockoutEnabled && user.LockoutEnd > DateTimeOffset.UtcNow;
-            next.Add(new UserRow(user.Id, user.UserName ?? user.Email ?? user.Id, user.Email ?? "", roles.FirstOrDefault() ?? Constants.Roles.User, person?.FullName, locked));
+            next.Add(new UserRow
+            {
+                Id = user.Id,
+                UserName = user.UserName ?? user.Email ?? user.Id,
+                Email = user.Email ?? "",
+                Role = roles.FirstOrDefault() ?? Constants.Roles.User,
+                PersonId = person?.Id,
+                PersonName = person?.FullName,
+                Locked = locked,
+            });
         }
 
         rows = next;
     }
 
+    private static void ChoosePerson(UserRow row, ChangeEventArgs change) =>
+        row.SelectedPersonId = int.TryParse(change.Value?.ToString(), out int personId) ? personId : null;
+
+    private async Task LinkAsync(UserRow row)
+    {
+        if (row.SelectedPersonId is not int personId)
+        {
+            Toasts.Error("Select a person to link.");
+            return;
+        }
+
+        var result = await People.LinkUserAccountAsync(personId, row.Id);
+        if (result.IsSuccess)
+        {
+            Toasts.Success("Account linked.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task UnlinkAsync(UserRow row)
+    {
+        if (row.PersonId is not int personId || row.Id == currentUserId)
+        {
+            return;
+        }
+
+        var result = await People.UnlinkUserAccountAsync(personId, currentUserId);
+        if (result.IsSuccess)
+        {
+            Toasts.Success("Account unlinked and locked.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+
+        await LoadAsync();
+    }
+
     private async Task ApproveAsync(UserRow row)
     {
+        if (row.PersonId is null)
+        {
+            Toasts.Error("Link this account to a person before approving it.");
+            return;
+        }
+
         var user = await UserManager.FindByIdAsync(row.Id);
         if (user is not null)
         {
@@ -117,5 +208,22 @@ else
         await LoadAsync();
     }
 
-    private sealed record UserRow(string Id, string UserName, string Email, string Role, string? PersonName, bool Locked);
+    private sealed class UserRow
+    {
+        public required string Id { get; init; }
+
+        public required string UserName { get; init; }
+
+        public required string Email { get; init; }
+
+        public required string Role { get; init; }
+
+        public int? PersonId { get; init; }
+
+        public string? PersonName { get; init; }
+
+        public bool Locked { get; init; }
+
+        public int? SelectedPersonId { get; set; }
+    }
 }

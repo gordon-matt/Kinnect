@@ -34,7 +34,7 @@
 		<PackageReference Include="Autofac.Extensions.DependencyInjection" Version="11.0.2" />
 		<PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
 		<PackageReference Include="Heroicsoft.NetForge.Abstractions" Version="1.0.3" />
-		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3" />
+		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3.1" />
 		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3" />
 		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.0.3" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />

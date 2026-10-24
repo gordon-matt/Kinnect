@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EasyChatz.Models;
 using EasyChatz.Services;
+using Kinnect.Data;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,6 @@ namespace Kinnect.Infrastructure;
 /// </summary>
 public sealed class KinnectChatUserDirectory(
     IUserInfoService users,
-    IPersonService people,
     IHttpContextAccessor httpContext,
     IServiceProvider services,
     IServiceScopeFactory scopes) : IChatUserDirectory
@@ -20,7 +20,13 @@ public sealed class KinnectChatUserDirectory(
     public async Task<ChatUser?> FindAsync(string userId, CancellationToken cancellationToken = default)
     {
         var found = await users.GetUserInfoAsync([userId], cancellationToken);
-        return found.TryGetValue(userId, out var info) ? await ToChatUserAsync(info) : null;
+        if (!found.TryGetValue(userId, out var info))
+        {
+            return null;
+        }
+
+        var names = await PersonNamesAsync([info.UserId], cancellationToken);
+        return await ToChatUserAsync(info, names);
     }
 
     public async Task<IReadOnlyDictionary<string, ChatUser>> FindManyAsync(
@@ -28,27 +34,63 @@ public sealed class KinnectChatUserDirectory(
         CancellationToken cancellationToken = default)
     {
         var found = await users.GetUserInfoAsync(userIds, cancellationToken);
+        var names = await PersonNamesAsync(found.Keys, cancellationToken);
         var result = new Dictionary<string, ChatUser>(StringComparer.Ordinal);
         foreach (var info in found.Values)
         {
-            result[info.UserId] = await ToChatUserAsync(info);
+            result[info.UserId] = await ToChatUserAsync(info, names);
         }
 
         return result;
     }
 
-    private async Task<ChatUser> ToChatUserAsync(UserInfo info)
+    private async Task<ChatUser> ToChatUserAsync(UserInfo info, IReadOnlyDictionary<string, string> names)
     {
-        string name = info.Username;
-        var person = await people.GetByUserIdAsync(info.UserId);
-        if (person.IsSuccess && !string.IsNullOrWhiteSpace(person.Value.FullName))
-        {
-            name = person.Value.FullName;
-        }
+        string name = names.TryGetValue(info.UserId, out string? personName) && !string.IsNullOrWhiteSpace(personName)
+            ? personName
+            : info.Username;
 
         (bool admin, bool editor) = await RolesAsync(info.UserId);
         return new ChatUser(info.UserId, name, admin, editor);
     }
+
+    /// <summary>
+    /// Given and family name of the person linked to each account. A fresh scope keeps this off
+    /// the circuit context the messages page and the unread badge already share.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> PersonNamesAsync(
+        IEnumerable<string> userIds,
+        CancellationToken cancellationToken)
+    {
+        string[] ids = userIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        await using var scope = scopes.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory>();
+        using var context = (ApplicationDbContextBase)factory.GetContext();
+        var rows = await context.People.AsNoTracking()
+            .Where(person => person.UserId != null && ids.Contains(person.UserId))
+            .Select(person => new { person.UserId, person.GivenNames, person.FamilyName })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Where(row => !string.IsNullOrWhiteSpace(row.UserId))
+            .GroupBy(row => row.UserId!, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => PersonName(group.First().GivenNames, group.First().FamilyName),
+                StringComparer.Ordinal);
+    }
+
+    private static string PersonName(string? givenNames, string? familyName) =>
+        string.Join(' ', new[] { givenNames, familyName }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private async Task<(bool Admin, bool Editor)> RolesAsync(string userId)
     {
