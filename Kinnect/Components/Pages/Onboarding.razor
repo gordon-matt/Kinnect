@@ -4,7 +4,6 @@
 
 @inject ApplicationDbContextBase Database
 @inject IUserContextService Users
-@inject IGedcomService Gedcom
 @inject NavigationManager Nav
 @inject ToastService Toasts
 
@@ -44,9 +43,10 @@
     @if (canImport)
     {
         <div>
-            <div class="kinnect-card">
+            <div class="kinnect-card kinnect-stack">
                 <h2>Import a GEDCOM</h2>
-                <InputFile OnChange="ImportAsync" accept=".ged,.gedcom" />
+                <p class="kinnect-muted">Import your existing tree, then choose your name. This can only be done once.</p>
+                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom" Label="Import GEDCOM" Uploaded="OnImported" />
             </div>
         </div>
     }
@@ -118,22 +118,16 @@
         Nav.NavigateTo("/tree");
     }
 
-    private async Task ImportAsync(InputFileChangeEventArgs args)
+    private async Task OnImported()
     {
-        await using var stream = args.File.OpenReadStream(10 * 1024 * 1024);
-        var result = await Gedcom.ImportAsync(stream);
-        if (result.IsSuccess)
-        {
-            Toasts.Success("Import complete. Choose your name.");
-        }
-        else
-        {
-            Toasts.ShowFailure(result);
-        }
-        if (result.IsSuccess)
-        {
-            unlinked = await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync();
-            canImport = false;
-        }
+        unlinked = await Database.People
+            .Where(person => person.UserId == null)
+            .OrderBy(person => person.GivenNames)
+            .ThenBy(person => person.FamilyName)
+            .ToListAsync();
+        canImport = Users.IsAdmin() && !await Database.People.AnyAsync();
+        Toasts.Success(unlinked.Count == 0
+            ? "Import complete."
+            : "Import complete. Choose your name.");
     }
 }

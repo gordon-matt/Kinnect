@@ -79,7 +79,8 @@ html {
 }
 .kinnect-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 0.5rem; align-items: center; }
 .kinnect-profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-.kinnect-profile-head img { max-width: 180px; border-radius: var(--nf-radius); }
+.kinnect-profile-head img,
+.kinnect-profile-picture { max-width: 180px; border-radius: var(--nf-radius); }
 .kinnect-profile-links { margin-left: auto; text-align: right; }
 .kinnect-profile-links h2 { margin: 0 0 0.35rem; font-size: 1rem; }
 .kinnect-profile-links ul { margin: 0; padding: 0; list-style: none; }

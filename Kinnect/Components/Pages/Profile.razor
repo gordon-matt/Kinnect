@@ -116,9 +116,13 @@ else
             <div class="kinnect-stack">
                 @if (canEdit)
                 {
-                    <div class="kinnect-card">
+                    <div class="kinnect-card kinnect-stack">
                         <h2>Profile picture</h2>
-                        <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="ReloadAsync" />
+                        @if (!string.IsNullOrWhiteSpace(person.ProfileImagePath))
+                        {
+                            <img class="kinnect-profile-picture" src="@MediaUrl(person.ProfileImagePath)" alt="" />
+                        }
+                        <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="OnPictureUploaded" />
                     </div>
                 }
                 @if (Editing)
@@ -1214,6 +1218,12 @@ else
 
     private static List<string> SplitTags(string text) =>
         text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    private async Task OnPictureUploaded()
+    {
+        await ReloadAsync();
+        Toasts.Success("Picture saved.");
+    }
 
     private async Task ReloadAsync()
     {

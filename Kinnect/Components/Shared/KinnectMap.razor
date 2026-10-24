@@ -23,6 +23,7 @@
     private LeafletForBlazor.Map? map;
     private ElementReference root;
     private bool mapReady;
+    private bool disposed;
     private int drawVersion;
 
     [Parameter]
@@ -49,11 +50,16 @@
     public Task OnMapPicked(double latitude, double longitude) =>
         Picked.HasDelegate ? Picked.InvokeAsync(new MapPick(latitude, longitude)) : Task.CompletedTask;
 
-    public void Dispose() => self?.Dispose();
+    public void Dispose()
+    {
+        disposed = true;
+        self?.Dispose();
+        self = null;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
-        if (mapReady)
+        if (mapReady && !disposed)
         {
             await DrawAsync();
         }
@@ -61,13 +67,18 @@
 
     private Task ShowPinsAsync(MapEventArgs args)
     {
+        if (disposed)
+        {
+            return Task.CompletedTask;
+        }
+
         mapReady = true;
         return DrawAsync();
     }
 
     private async Task DrawAsync()
     {
-        if (map is null)
+        if (map is null || disposed)
         {
             return;
         }
@@ -80,14 +91,15 @@
             html = Mini ? string.Empty : $"<strong>{WebUtility.HtmlEncode(pin.FullName)}</strong><br/>{PopupContent(pin)}",
         }).ToList();
         var route = Route;
+        var pick = Pick ? self : null;
 
         var pinsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./js/map-pins.js?v=7");
-        if (version != drawVersion)
+        if (version != drawVersion || disposed)
         {
             return;
         }
 
-        await pinsModule.InvokeVoidAsync("usePins", root, pins, route, Pick ? self : null);
+        await pinsModule.InvokeVoidAsync("usePins", root, pins, route, pick);
     }
 
     private static string PopupContent(MapPinDto pin)
