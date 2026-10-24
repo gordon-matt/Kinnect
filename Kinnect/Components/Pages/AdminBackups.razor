@@ -3,6 +3,7 @@
 @using Kinnect.Models.Dto.Admin
 
 @inject IPersonBackupService Backups
+@inject ToastService Toasts
 
 <PageTitle>Person backups</PageTitle>
 <PageHeader Title="Person backups">
@@ -10,11 +11,6 @@
         <button class="nf-button nf-button-primary" type="button" @onclick="ExportAsync">Back up now</button>
     </Actions>
 </PageHeader>
-
-@if (!string.IsNullOrWhiteSpace(message))
-{
-    <div class="kinnect-note">@message</div>
-}
 
 @if (files is null)
 {
@@ -39,7 +35,6 @@ else
 
 @code {
     private List<PersonBackupFileDto>? files;
-    private string? message;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -49,20 +44,27 @@ else
         files = result.IsSuccess ? result.Value.ToList() : [];
         if (!result.IsSuccess)
         {
-            message = string.Join(" ", result.Errors);
+            Toasts.ShowFailure(result);
         }
     }
 
     private async Task ExportAsync()
     {
         await Backups.ExportToNewFileAsync();
-        message = "Backup written.";
+        Toasts.Success("Backup written.");
         await LoadAsync();
     }
 
     private async Task RestoreAsync(string fileName)
     {
         var result = await Backups.RestoreFromFileAsync(fileName);
-        message = result.IsSuccess ? "Restored." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            Toasts.Success("Restored.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
     }
 }

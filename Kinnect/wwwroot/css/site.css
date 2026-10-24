@@ -54,8 +54,36 @@ html {
 .kinnect-columns-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
 .kinnect-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .kinnect-muted { color: var(--nf-muted); font-size: 12.5px; }
-.kinnect-note { padding: 0.7rem 0.85rem; border-radius: var(--nf-radius); background: var(--nf-info-soft); }
-.kinnect-note-danger { background: var(--nf-danger-soft); color: var(--nf-danger); }
+.kinnect-switch {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 0.15rem;
+    border: 1px solid var(--nf-border);
+    border-radius: var(--nf-radius);
+    background: var(--nf-surface-2);
+}
+.kinnect-switch button {
+    height: 32px;
+    padding: 0 0.9rem;
+    border: 0;
+    border-radius: calc(var(--nf-radius) - 2px);
+    background: transparent;
+    color: var(--nf-muted);
+    cursor: pointer;
+}
+.kinnect-switch button.is-active {
+    background: var(--nf-surface);
+    color: var(--nf-text);
+    font-weight: 650;
+    box-shadow: var(--nf-shadow);
+}
+.kinnect-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 0.5rem; align-items: center; }
+.kinnect-profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+.kinnect-profile-head img { max-width: 180px; border-radius: var(--nf-radius); }
+.kinnect-profile-links { margin-left: auto; text-align: right; }
+.kinnect-profile-links h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+.kinnect-profile-links ul { margin: 0; padding: 0; list-style: none; }
+.kinnect-profile-links li + li { margin-top: 0.25rem; }
 .kinnect-media-button { display: block; margin-top: 0.6rem; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .kinnect-media-button img { max-width: 100%; max-height: 360px; border-radius: var(--nf-radius); }
 .kinnect-tabs { display: flex; flex-wrap: wrap; gap: 0.15rem; margin: 0 0 1rem; padding: 0; list-style: none; border-bottom: 1px solid var(--nf-border); }
@@ -72,7 +100,10 @@ html {
 
 @media (max-width: 860px) {
     .kinnect-columns,
-    .kinnect-pair { grid-template-columns: 1fr; }
+    .kinnect-pair,
+    .kinnect-link-row { grid-template-columns: 1fr; }
+    .kinnect-profile-head { flex-direction: column; }
+    .kinnect-profile-links { margin-left: 0; text-align: left; }
     .kinnect-row { flex-wrap: wrap; }
     .kinnect-row > .nf-input,
     .kinnect-row > .nf-select { flex: 1 1 5.5rem; min-width: 0; width: auto; }
@@ -210,6 +241,9 @@ html {
 .kinnect-checks .nf-check {
     margin: 0;
 }
+
+.kinnect-copy-list .nf-check { color: inherit; }
+.kinnect-copy-list .nf-badge { margin-left: auto; }
 
 .kinnect-media-tools {
     display: flex;
@@ -428,7 +462,11 @@ html {
     overflow: hidden;
 }
 
+/* Leaflet panes use z-index up to 1000. Keeping the page in its own stacking context
+   stops the map painting over the top-bar Admin menu. */
 .kinnect-map-page {
+    position: relative;
+    z-index: 0;
     flex: 1;
     min-height: 0;
     display: flex;

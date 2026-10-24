@@ -56,6 +56,8 @@ public class Person : BaseEntity<int>
     public virtual ICollection<PersonPhoto> PersonPhotos { get; set; } = [];
 
     public virtual ICollection<PersonEvent> Events { get; set; } = [];
+
+    public virtual ICollection<PersonLink> Links { get; set; } = [];
 }
 
 public class PersonMap : IEntityTypeConfiguration<Person>

@@ -6,14 +6,10 @@
 @inject IUserContextService Users
 @inject IGedcomService Gedcom
 @inject NavigationManager Nav
+@inject ToastService Toasts
 
 <PageTitle>Welcome</PageTitle>
 <PageHeader Title="Welcome to Kinnect" />
-
-@if (!string.IsNullOrWhiteSpace(message))
-{
-    <div class="kinnect-note">@message</div>
-}
 
 <div class="kinnect-columns-2">
     <div>
@@ -21,7 +17,10 @@
             <h2>This is me</h2>
             <input class="nf-input" @bind="givenNames" placeholder="Given names" />
             <input class="nf-input" @bind="familyName" placeholder="Family name" />
-            <label class="nf-check"><input type="checkbox" @bind="isMale" /> Male</label>
+            <div class="kinnect-switch" role="group" aria-label="Sex">
+                <button type="button" class="@(isMale ? "is-active" : null)" aria-pressed="@isMale" @onclick="() => isMale = true">Male</button>
+                <button type="button" class="@(!isMale ? "is-active" : null)" aria-pressed="@(!isMale)" @onclick="() => isMale = false">Female</button>
+            </div>
             <button class="nf-button nf-button-primary" type="button" @onclick="CreateAsync">Create my profile</button>
         </div>
     </div>
@@ -57,7 +56,6 @@
     private string givenNames = string.Empty;
     private string familyName = string.Empty;
     private bool isMale = true;
-    private string? message;
     private bool canImport;
     private List<Person> unlinked = [];
 
@@ -87,7 +85,7 @@
         string? userId = Users.GetCurrentUserId();
         if (userId is null || string.IsNullOrWhiteSpace(givenNames))
         {
-            message = "Enter your given names.";
+            Toasts.Error("Enter your given names.");
             return;
         }
 
@@ -110,7 +108,7 @@
         var person = await Database.People.FirstOrDefaultAsync(p => p.Id == personId && p.UserId == null);
         if (userId is null || person is null)
         {
-            message = "That person cannot be linked.";
+            Toasts.Error("That person cannot be linked.");
             return;
         }
 
@@ -124,7 +122,14 @@
     {
         await using var stream = args.File.OpenReadStream(10 * 1024 * 1024);
         var result = await Gedcom.ImportAsync(stream);
-        message = result.IsSuccess ? "Import complete. Choose your name." : string.Join(" ", result.Errors);
+        if (result.IsSuccess)
+        {
+            Toasts.Success("Import complete. Choose your name.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
         if (result.IsSuccess)
         {
             unlinked = await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync();

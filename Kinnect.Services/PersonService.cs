@@ -7,7 +7,8 @@ public class PersonService(
     IRepository<Person> personRepository,
     IRepository<PersonSpouse> spouseRepository,
     IRepository<PersonVersion> versionRepository,
-    IRepository<PersonEvent> eventRepository) : IPersonService
+    IRepository<PersonEvent> eventRepository,
+    IRepository<PersonLink> linkRepository) : IPersonService
 {
     public async Task<Result> AddSpouseAsync(int personId, int spouseId)
     {
@@ -32,6 +33,12 @@ public class PersonService(
 
     public async Task<Result<PersonDto>> CreateAsync(PersonEditRequest request, string? userId = null)
     {
+        var links = NormalizeLinks(request.Links);
+        if (links.Errors.Count > 0)
+        {
+            return Result<PersonDto>.Invalid(links.Errors);
+        }
+
         var person = await personRepository.InsertAsync(new Person
         {
             FamilyName = request.FamilyName,
@@ -52,7 +59,12 @@ public class PersonService(
             UpdatedAtUtc = DateTime.UtcNow
         });
 
-        return Result.Success(person.ToDto());
+        if (links.Links is not null)
+        {
+            await ReplaceLinksAsync(person.Id, links.Links);
+        }
+
+        return Result.Success(await WithLinksAsync(person));
     }
 
     public async Task<Result> DeleteAsync(int id, string currentUserId)
@@ -76,7 +88,7 @@ public class PersonService(
     public async Task<Result<PersonDto>> GetByIdAsync(int id)
     {
         var person = await personRepository.FindOneAsync(id);
-        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(person.ToDto());
+        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(await WithLinksAsync(person));
     }
 
     public async Task<Result<PersonDto>> GetByUserIdAsync(string userId)
@@ -86,7 +98,7 @@ public class PersonService(
             Query = x => x.UserId == userId
         });
 
-        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(person.ToDto());
+        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(await WithLinksAsync(person));
     }
 
     public async Task<Result<IEnumerable<FamilyTreeDatum>>> GetFamilyTreeDataAsync()
@@ -392,6 +404,17 @@ public class PersonService(
             return Result.Forbidden();
         }
 
+        var links = NormalizeLinks(request.Links);
+        if (links.Errors.Count > 0)
+        {
+            return Result<PersonDto>.Invalid(links.Errors);
+        }
+
+        if (person.UserId == currentUserId)
+        {
+            request.IsDeceased = false;
+        }
+
         await SaveVersionAsync(person, currentUserId);
 
         person.FamilyName = request.FamilyName;
@@ -410,7 +433,12 @@ public class PersonService(
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
-        return Result.Success(person.ToDto());
+        if (links.Links is not null)
+        {
+            await ReplaceLinksAsync(person.Id, links.Links);
+        }
+
+        return Result.Success(await WithLinksAsync(person));
     }
 
     public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false)
@@ -555,5 +583,99 @@ public class PersonService(
             ChangedByUserId = currentUserId,
             CreatedAtUtc = DateTime.UtcNow
         });
+    }
+
+    private async Task<PersonDto> WithLinksAsync(Person person)
+    {
+        var dto = person.ToDto();
+        var stored = await linkRepository.FindAsync(new SearchOptions<PersonLink>
+        {
+            Query = link => link.PersonId == person.Id
+        });
+
+        dto.Links = stored
+            .OrderBy(link => link.SortOrder)
+            .ThenBy(link => link.Id)
+            .Select(link => new PersonLinkDto
+            {
+                Id = link.Id,
+                Name = link.Name,
+                Url = link.Url
+            })
+            .ToList();
+
+        return dto;
+    }
+
+    private async Task ReplaceLinksAsync(int personId, IReadOnlyList<PersonLink> links)
+    {
+        var existing = await linkRepository.FindAsync(new SearchOptions<PersonLink>
+        {
+            Query = link => link.PersonId == personId
+        });
+
+        foreach (var link in existing)
+        {
+            await linkRepository.DeleteAsync(link);
+        }
+
+        foreach (var link in links)
+        {
+            link.PersonId = personId;
+            await linkRepository.InsertAsync(link);
+        }
+    }
+
+    /// <summary>Null input means "leave the stored links alone".</summary>
+    private static (List<ValidationError> Errors, List<PersonLink>? Links) NormalizeLinks(IReadOnlyList<PersonLinkInput>? inputs)
+    {
+        if (inputs is null)
+        {
+            return ([], null);
+        }
+
+        var errors = new List<ValidationError>();
+        var links = new List<PersonLink>();
+        int order = 0;
+
+        foreach (var input in inputs)
+        {
+            string name = input.Name?.Trim() ?? string.Empty;
+            string url = input.Url?.Trim() ?? string.Empty;
+            if (name.Length == 0 && url.Length == 0)
+            {
+                continue;
+            }
+
+            if (name.Length == 0)
+            {
+                errors.Add(new ValidationError("Give the link a name."));
+            }
+            else if (name.Length > PersonLink.MaxNameLength)
+            {
+                errors.Add(new ValidationError($"Link names can be at most {PersonLink.MaxNameLength} characters."));
+            }
+
+            if (url.Length > PersonLink.MaxUrlLength
+                || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                errors.Add(new ValidationError("Links need an http or https address."));
+            }
+
+            links.Add(new PersonLink
+            {
+                Name = name,
+                Url = url,
+                SortOrder = order++
+            });
+        }
+
+        if (links.Count > 30)
+        {
+            errors.Add(new ValidationError("A profile can have at most 30 links."));
+        }
+
+        return (errors, links);
     }
 }

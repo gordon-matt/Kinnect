@@ -27,4 +27,10 @@ public class PersonEditRequest
     public string? Note { get; set; }
 
     public bool IsDeceased { get; set; }
+
+    /// <summary>
+    /// Named links for the profile. Null leaves the stored list alone, so an update that
+    /// does not mention links does not wipe them.
+    /// </summary>
+    public List<PersonLinkInput>? Links { get; set; }
 }

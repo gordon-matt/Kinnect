@@ -12,7 +12,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
-            new EntityFrameworkRepository<PersonEvent>(factory));
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
 
         var result = await sut.CreateAsync(new PersonEditRequest
         {
@@ -47,7 +48,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
-            new EntityFrameworkRepository<PersonEvent>(factory));
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
 
         var result = await sut.AddSpouseAsync(p.Id, p.Id);
 
@@ -93,7 +95,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
-            new EntityFrameworkRepository<PersonEvent>(factory));
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
 
         var result = await sut.GetSpousesForPersonAsync(a.Id);
 
@@ -132,7 +135,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
-            new EntityFrameworkRepository<PersonEvent>(factory));
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
 
         var result = await sut.LinkUserAccountAsync(p2.Id, "user-1");
 
@@ -180,12 +184,94 @@ public class PersonServiceTests
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
-            new EntityFrameworkRepository<PersonEvent>(factory));
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
 
         var result = await sut.GetMapPinsAsync();
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value);
         Assert.Equal(alive.Id, result.Value.First().PersonId);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OwnProfile_ClearsDeceasedAndSavesLinks()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            IsDeceased = true,
+            UserId = "user-1",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var sut = new PersonService(
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            new EntityFrameworkRepository<PersonVersion>(factory),
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
+
+        var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            IsDeceased = true,
+            Links =
+            [
+                new PersonLinkInput { Name = "Site", Url = "https://example.com" },
+                new PersonLinkInput { Name = "", Url = "" },
+            ]
+        }, "user-1");
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.IsDeceased);
+        var link = Assert.Single(result.Value.Links);
+        Assert.Equal("Site", link.Name);
+        Assert.Equal("https://example.com", link.Url);
+
+        await using var assertDb = InMemoryDb.CreateContext(options);
+        Assert.False((await assertDb.People.FindAsync(person.Id))!.IsDeceased);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RejectsLinkThatIsNotHttp()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var sut = new PersonService(
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            new EntityFrameworkRepository<PersonVersion>(factory),
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory));
+
+        var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            Links = [new PersonLinkInput { Name = "Bad", Url = "javascript:alert(1)" }]
+        }, "user-1", isAdmin: true);
+
+        Assert.Equal(ResultStatus.Invalid, result.Status);
     }
 }

@@ -29,7 +29,10 @@ public class PersonEventServiceTests
         });
         await db.SaveChangesAsync();
 
-        var sut = new PersonEventService(new EntityFrameworkRepository<PersonEvent>(factory));
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
         var request = new PersonEventRequest { EventType = PersonEventType.Birth, Year = 1991 };
 
         var result = await sut.CreateAsync(person.Id, request);
@@ -53,7 +56,10 @@ public class PersonEventServiceTests
         db.People.Add(person);
         await db.SaveChangesAsync();
 
-        var sut = new PersonEventService(new EntityFrameworkRepository<PersonEvent>(factory));
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
         var request = new PersonEventRequest { EventType = PersonEventType.Marriage };
 
         var result = await sut.CreateAsync(person.Id, request);
@@ -94,7 +100,10 @@ public class PersonEventServiceTests
             });
         await db.SaveChangesAsync();
 
-        var sut = new PersonEventService(new EntityFrameworkRepository<PersonEvent>(factory));
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
 
         var result = await sut.GetByPersonAsync(person.Id);
 
@@ -129,12 +138,145 @@ public class PersonEventServiceTests
         db.PersonEvents.Add(evt);
         await db.SaveChangesAsync();
 
-        var sut = new PersonEventService(new EntityFrameworkRepository<PersonEvent>(factory));
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
 
         var del = await sut.DeleteAsync(evt.Id);
 
         Assert.True(del.IsSuccess);
         await using var assertDb = InMemoryDb.CreateContext(options);
         Assert.Null(await assertDb.PersonEvents.FindAsync(evt.Id));
+    }
+
+    [Fact]
+    public async Task CopyToCloseRelativesAsync_CopiesResidenceToSpouseChildAndSibling()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var father = Person("Adam", "Ward", true);
+        var mother = Person("Eve", "Ward", false);
+        db.People.AddRange(father, mother);
+        await db.SaveChangesAsync();
+
+        var child = Person("Jane", "Ward", false);
+        var sibling = Person("John", "Ward", true);
+        child.FatherId = father.Id;
+        child.MotherId = mother.Id;
+        sibling.FatherId = father.Id;
+        sibling.MotherId = mother.Id;
+        var spouse = Person("Sam", "Ward", true);
+        var stranger = Person("Pat", "Other", false);
+        db.People.AddRange(child, sibling, spouse, stranger);
+        await db.SaveChangesAsync();
+
+        int low = Math.Min(child.Id, spouse.Id);
+        int high = Math.Max(child.Id, spouse.Id);
+        db.PersonSpouses.Add(new PersonSpouse { PersonId = low, SpouseId = high });
+        var residence = new PersonEvent
+        {
+            PersonId = child.Id,
+            EventType = PersonEventType.Residence,
+            Year = 1990,
+            Place = "Adelaide",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.PersonEvents.Add(residence);
+        await db.SaveChangesAsync();
+
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
+
+        var birth = await AddBirth(db, child.Id);
+        var birthCopy = await sut.CopyToCloseRelativesAsync(birth.Id, [spouse.Id], "editor", isAdmin: true);
+        Assert.Equal(ResultStatus.Invalid, birthCopy.Status);
+
+        var copied = await sut.CopyToCloseRelativesAsync(
+            residence.Id,
+            [spouse.Id, sibling.Id, father.Id, stranger.Id],
+            "editor",
+            isAdmin: true);
+
+        Assert.True(copied.IsSuccess);
+        Assert.Equal(3, copied.Value);
+
+        await using var assertDb = InMemoryDb.CreateContext(options);
+        var places = await assertDb.PersonEvents
+            .Where(evt => evt.EventType == PersonEventType.Residence)
+            .Select(evt => evt.PersonId)
+            .ToListAsync();
+        Assert.Contains(child.Id, places);
+        Assert.Contains(spouse.Id, places);
+        Assert.Contains(sibling.Id, places);
+        Assert.Contains(father.Id, places);
+        Assert.DoesNotContain(stranger.Id, places);
+        Assert.DoesNotContain(mother.Id, places);
+
+        var again = await sut.CopyToCloseRelativesAsync(residence.Id, [spouse.Id], "editor", isAdmin: true);
+        Assert.True(again.IsSuccess);
+        Assert.Equal(0, again.Value);
+    }
+
+    [Fact]
+    public async Task CopyToCloseRelativesAsync_RefusesRelativeOwnedBySomeoneElse()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var me = Person("Jane", "Ward", false);
+        me.UserId = "me";
+        var spouse = Person("Sam", "Ward", true);
+        spouse.UserId = "sam";
+        db.People.AddRange(me, spouse);
+        await db.SaveChangesAsync();
+        db.PersonSpouses.Add(new PersonSpouse
+        {
+            PersonId = Math.Min(me.Id, spouse.Id),
+            SpouseId = Math.Max(me.Id, spouse.Id)
+        });
+        var residence = new PersonEvent
+        {
+            PersonId = me.Id,
+            EventType = PersonEventType.Residence,
+            Year = 2001,
+            Place = "Hobart",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.PersonEvents.Add(residence);
+        await db.SaveChangesAsync();
+
+        var sut = new PersonEventService(
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory));
+
+        var result = await sut.CopyToCloseRelativesAsync(residence.Id, [spouse.Id], "me");
+
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+    }
+
+    private static Person Person(string given, string family, bool isMale) => new()
+    {
+        GivenNames = given,
+        FamilyName = family,
+        IsMale = isMale,
+        CreatedAtUtc = DateTime.UtcNow,
+        UpdatedAtUtc = DateTime.UtcNow
+    };
+
+    private static async Task<PersonEvent> AddBirth(ApplicationDbContext db, int personId)
+    {
+        var birth = new PersonEvent
+        {
+            PersonId = personId,
+            EventType = PersonEventType.Birth,
+            Year = 1970,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.PersonEvents.Add(birth);
+        await db.SaveChangesAsync();
+        return birth;
     }
 }

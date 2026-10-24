@@ -25,6 +25,8 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<PersonEvent> PersonEvents { get; set; }
 
+    public DbSet<PersonLink> PersonLinks { get; set; }
+
     public DbSet<PersonPhoto> PersonPhotos { get; set; }
 
     public DbSet<PersonSpouse> PersonSpouses { get; set; }

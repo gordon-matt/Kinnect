@@ -453,6 +453,38 @@ namespace Kinnect.Data.Sql.Migrations
                     b.ToTable("PersonEvents", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.PersonLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId", "SortOrder");
+
+                    b.ToTable("PersonLinks", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.PersonPhoto", b =>
                 {
                     b.Property<int>("PersonId")
@@ -982,6 +1014,17 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Navigation("Person");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.PersonLink", b =>
+                {
+                    b.HasOne("Kinnect.Data.Entities.Person", "Person")
+                        .WithMany("Links")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.PersonPhoto", b =>
                 {
                     b.HasOne("Kinnect.Data.Entities.Person", "Person")
@@ -1229,6 +1272,8 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Navigation("ChildrenAsMother");
 
                     b.Navigation("Events");
+
+                    b.Navigation("Links");
 
                     b.Navigation("PersonPhotos");
 

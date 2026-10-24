@@ -38,5 +38,7 @@ public class PersonDto
 
     public bool IsDeceased { get; set; }
 
+    public List<PersonLinkDto> Links { get; set; } = [];
+
     public bool HasAccount => UserId != null;
 }

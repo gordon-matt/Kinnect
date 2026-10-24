@@ -24,6 +24,7 @@ public sealed class PersonBackupService(
 
         var people = await db.People.AsNoTracking().OrderBy(p => p.Id).ToListAsync(cancellationToken);
         var spouses = await db.PersonSpouses.AsNoTracking().ToListAsync(cancellationToken);
+        var links = await db.PersonLinks.AsNoTracking().OrderBy(link => link.SortOrder).ThenBy(link => link.Id).ToListAsync(cancellationToken);
 
         var doc = new PersonTreeBackupDocument
         {
@@ -66,6 +67,13 @@ public sealed class PersonBackupService(
                 HasEngagement = s.HasEngagement,
                 HasMarriage = s.HasMarriage,
                 HasDivorce = s.HasDivorce
+            }).ToList(),
+            Links = links.Select(link => new PersonLinkBackupEntry
+            {
+                PersonId = link.PersonId,
+                Name = link.Name,
+                Url = link.Url,
+                SortOrder = link.SortOrder
             }).ToList()
         };
 
@@ -120,7 +128,7 @@ public sealed class PersonBackupService(
             return Result.Error("Could not read or parse the backup file.");
         }
 
-        if (doc is null || doc.SchemaVersion != 1)
+        if (doc is null || doc.SchemaVersion is not (1 or 2))
         {
             return Result.Invalid(new ValidationError("Unsupported or empty backup file."));
         }
@@ -195,6 +203,33 @@ public sealed class PersonBackupService(
             }
 
             await db.SaveChangesAsync(cancellationToken);
+
+            if (doc.SchemaVersion >= 2)
+            {
+                var backedUpIds = doc.People.Select(person => person.Id).Where(existingIds.Contains).ToList();
+                await db.PersonLinks
+                    .Where(link => backedUpIds.Contains(link.PersonId))
+                    .ExecuteDeleteAsync(cancellationToken);
+
+                foreach (var link in doc.Links)
+                {
+                    if (!existingIds.Contains(link.PersonId) || string.IsNullOrWhiteSpace(link.Name) || string.IsNullOrWhiteSpace(link.Url))
+                    {
+                        continue;
+                    }
+
+                    db.PersonLinks.Add(new PersonLink
+                    {
+                        PersonId = link.PersonId,
+                        Name = link.Name,
+                        Url = link.Url,
+                        SortOrder = link.SortOrder
+                    });
+                }
+
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
 
             int peopleTouched = doc.People.Count(e => existingIds.Contains(e.Id));

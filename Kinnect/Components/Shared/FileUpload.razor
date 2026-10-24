@@ -1,4 +1,5 @@
 @inject IJSRuntime Js
+@inject ToastService Toasts
 @implements IAsyncDisposable
 
 <div class="kinnect-stack">
@@ -9,10 +10,6 @@
             <span style="width: @(progress)%"></span>
         </div>
     }
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <div class="kinnect-note kinnect-note-danger">@error</div>
-    }
     <button type="button" class="nf-button nf-button-primary" disabled="@busy" @onclick="SendAsync">@Label</button>
 </div>
 
@@ -21,7 +18,6 @@
     private IJSObjectReference? module;
     private DotNetObjectReference<FileUpload>? self;
     private int? progress;
-    private string? error;
     private bool busy;
 
     [Parameter]
@@ -49,7 +45,6 @@
     private async Task SendAsync()
     {
         busy = true;
-        error = null;
         progress = 0;
         try
         {
@@ -61,7 +56,7 @@
         }
         catch (Exception ex)
         {
-            error = FriendlyError(ex);
+            Toasts.Error(FriendlyError(ex));
         }
         finally
         {

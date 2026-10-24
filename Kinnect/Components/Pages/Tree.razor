@@ -6,6 +6,7 @@
 @inject KinnectFamilyGraph Graph
 @inject IUserContextService Users
 @inject NavigationManager Nav
+@inject ToastService Toasts
 
 <PageTitle>Family tree</PageTitle>
 <div class="kinnect-tree-page">
@@ -18,11 +19,6 @@
         }
     </Actions>
 </PageHeader>
-
-@if (!string.IsNullOrWhiteSpace(error))
-{
-    <div class="kinnect-note kinnect-note-danger">@error</div>
-}
 
 @if (people is null)
 {
@@ -70,7 +66,6 @@ else
     private string? meId;
     private string? highlightId;
     private bool showPeople;
-    private string? error;
     private bool editable;
     private int? routedPerson;
     private bool routedSelectionApplied;
@@ -150,13 +145,12 @@ else
 
     private async Task OnChanged(FamilyTreeChange change)
     {
-        error = null;
         if (change.Kind != FamilyTreeChangeKind.FocusChanged)
         {
             var result = await Graph.ApplyAsync(change);
             if (!result.IsSuccess)
             {
-                error = string.Join(" ", result.Errors.Select(e => e));
+                Toasts.ShowFailure(result);
             }
 
             await ReloadAsync();
