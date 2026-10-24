@@ -52,6 +52,7 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
 		<PackageReference Include="LogVue" Version="1.0.1" />
+		<PackageReference Include="MyWebTree.Components" Version="1.0.0" />
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
 	</ItemGroup>
 
@@ -63,7 +64,6 @@
 		<ProjectReference Include="..\Kinnect.Data.MySql\Kinnect.Data.MySql.csproj" />
 		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
 		<ProjectReference Include="..\Kinnect.Services\Kinnect.Services.csproj" />
-		<ProjectReference Include="..\..\..\Components\MyWebTree\MyWebTree.Components\MyWebTree.Components.csproj" />
 	</ItemGroup>
 
 </Project>
