@@ -484,7 +484,7 @@ public partial class GedcomService
             {
                 Summary.Warnings.Add(
                     $"The GEDCOM refers to {MissingWithoutArchive} media file(s), but only the .ged was uploaded. " +
-                    "To import them, upload a .zip containing the .ged file and its media folders.");
+                    "To import them, upload a .zip or .gdz containing the GEDCOM file and its media folders.");
             }
 
             if (hiddenWarnings > 0)

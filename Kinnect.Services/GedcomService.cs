@@ -1,5 +1,3 @@
-using System.IO.Compression;
-using System.Text;
 using GedcomSharp.Model;
 using GedcomTags = GedcomSharp.GedcomTags;
 using Kinnect.Models.FamilyTree;
@@ -31,260 +29,16 @@ public partial class GedcomService(
         CancellationToken cancellationToken = default)
     {
         var staged = await StageMediaAsync(options, cancellationToken);
-        string gedcom = await BuildGedcomAsync(options, progress, staged, cancellationToken);
+        var dataset = await BuildDatasetAsync(options, progress, staged, cancellationToken);
         string directory = Directory.CreateTempSubdirectory("kinnect-gedcom-export-").FullName;
-        if (staged.Count == 0)
-        {
-            string path = Path.Combine(directory, "kinnect.ged");
-            await File.WriteAllTextAsync(path, gedcom, cancellationToken);
-            progress?.Report(new GedcomExportProgress(1, 1, "kinnect.ged"));
-            return new GedcomExportFile(path, "kinnect.ged", "application/x-gedcom");
-        }
-
-        string zipPath = Path.Combine(directory, "kinnect-gedcom.zip");
-        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = zip.CreateEntry("kinnect.ged");
-            await using (var writer = new StreamWriter(entry.Open()))
-            {
-                await writer.WriteAsync(gedcom.AsMemory(), cancellationToken);
-            }
-
-            var files = staged.DistinctBy(item => item.ZipPath).ToList();
-            int copied = 0;
-            foreach (var file in files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                zip.CreateEntryFromFile(file.SourcePath, file.ZipPath);
-                copied++;
-                progress?.Report(new GedcomExportProgress(copied, files.Count, file.Title ?? file.ZipPath));
-            }
-        }
-
-        return new GedcomExportFile(zipPath, "kinnect-gedcom.zip", "application/zip");
-    }
-
-    private async Task<string> BuildGedcomAsync(
-        GedcomExportOptions options,
-        IProgress<GedcomExportProgress>? progress,
-        IReadOnlyList<StagedMedia> staged,
-        CancellationToken cancellationToken)
-    {
-        var people = (await personRepository.FindAsync(new SearchOptions<Person>())).ToList();
-        var spouses = (await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>())).ToList();
-        var events = (await eventRepository.FindAsync(new SearchOptions<PersonEvent>())).ToList();
-        int completed = 0;
-        int total = Math.Max(1, people.Count);
-
-        var eventsByPerson = events.ToLookup(e => e.PersonId);
-        var contactsByPerson = (await contactRepository.FindAsync(new SearchOptions<Contact>())).ToLookup(c => c.PersonId);
-
-        string? original = await ReadStoredOriginalAsync(cancellationToken);
-        if (!string.IsNullOrEmpty(original))
-        {
-            try
-            {
-                string? patched = PatchOriginal(
-                    original, people, spouses, eventsByPerson, contactsByPerson, staged, options, progress, cancellationToken);
-                if (patched is not null)
-                {
-                    return patched;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning(ex, "The stored GEDCOM could not be patched. A new file was written instead.");
-            }
-        }
-
-        var sb = new StringBuilder();
-
-        // Header
-        sb.AppendLine("0 HEAD");
-        sb.AppendLine("1 SOUR Kinnect");
-        sb.AppendLine("1 GEDC");
-        sb.AppendLine("2 VERS 5.5.1");
-        sb.AppendLine("1 CHAR UTF-8");
-        sb.AppendLine($"1 DATE {DateTime.UtcNow:dd MMM yyyy}".ToUpperInvariant());
-
-        // Individuals
-        foreach (var person in people)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            string xref = FormatXref(person.GedcomId, person.Id);
-            sb.AppendLine($"0 {xref} INDI");
-            if (options.Names)
-            {
-                sb.AppendLine($"1 NAME {person.GivenNames} /{person.FamilyName}/");
-                WriteNamePart(sb, "NPFX", person.NamePrefix);
-                WriteNamePart(sb, "NICK", person.Nickname);
-                WriteNamePart(sb, "NSFX", person.NameSuffix);
-                sb.AppendLine($"1 SEX {person.IsMale switch { true => "M", false => "F", _ => "U" }}");
-            }
-
-            if (!options.Events)
-            {
-                WritePersonTail(sb, person, options, contactsByPerson, staged);
-                completed++;
-                progress?.Report(new GedcomExportProgress(completed, total, person.GivenNames));
-                continue;
-            }
-
-            var birthEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Birth);
-            if (birthEvt != null)
-            {
-                sb.AppendLine("1 BIRT");
-                if (birthEvt.Year.HasValue)
-                {
-                    sb.AppendLine($"2 DATE {FormatDate(birthEvt.Year, birthEvt.Month, birthEvt.Day)}");
-                }
-
-                WritePlace(sb, birthEvt.Place, birthEvt.Latitude, birthEvt.Longitude);
-            }
-
-            var deathEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Death);
-            if (deathEvt != null)
-            {
-                sb.AppendLine("1 DEAT");
-                if (deathEvt.Year.HasValue)
-                {
-                    sb.AppendLine($"2 DATE {FormatDate(deathEvt.Year, deathEvt.Month, deathEvt.Day)}");
-                }
-
-                WritePlace(sb, deathEvt.Place, deathEvt.Latitude, deathEvt.Longitude);
-            }
-
-            // These three are also stored as events. Write the profile field only when there is no event,
-            // so a person who was typed in by hand still exports, and an imported fact is not listed twice.
-            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Occupation)
-                && !string.IsNullOrWhiteSpace(person.Occupation))
-            {
-                sb.AppendLine($"1 OCCU {person.Occupation}");
-            }
-
-            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Education)
-                && !string.IsNullOrWhiteSpace(person.Education))
-            {
-                sb.AppendLine($"1 EDUC {person.Education}");
-            }
-
-            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Religion)
-                && !string.IsNullOrWhiteSpace(person.Religion))
-            {
-                sb.AppendLine($"1 RELI {person.Religion}");
-            }
-
-            if (options.Notes && !string.IsNullOrWhiteSpace(person.Note))
-            {
-                WriteNote(sb, 1, person.Note);
-            }
-
-            // Additional life events (skip birth/death and types stored elsewhere)
-            foreach (var evt in eventsByPerson[person.Id]
-                .Where(e => e.EventType != PersonEventType.Birth && e.EventType != PersonEventType.Death
-                    && !PersonEventType.IsNonTimelineEventType(e.EventType)))
-            {
-                PersonEventType.TryReadStoredTag(evt.EventType, evt.Description, out string tag, out string? detail);
-                sb.AppendLine($"1 {tag}");
-                if (evt.Year.HasValue)
-                {
-                    sb.AppendLine($"2 DATE {FormatDate(evt.Year, evt.Month, evt.Day)}");
-                }
-
-                WritePlace(sb, evt.Place, evt.Latitude, evt.Longitude);
-
-                if (!string.IsNullOrWhiteSpace(detail))
-                {
-                    sb.AppendLine($"2 TYPE {detail}");
-                }
-
-                if (!string.IsNullOrWhiteSpace(evt.Note))
-                {
-                    WriteNote(sb, 2, evt.Note);
-                }
-            }
-
-            if (options.Contacts)
-            {
-                foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
-                {
-                    if (string.IsNullOrWhiteSpace(contact.Value))
-                    {
-                        continue;
-                    }
-
-                    string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
-                    sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
-                }
-            }
-
-            WriteMedia(sb, staged.Where(item => item.PersonId == person.Id));
-            completed++;
-            progress?.Report(new GedcomExportProgress(completed, total, person.GivenNames));
-        }
-
-        if (!options.Families)
-        {
-            sb.AppendLine("0 TRLR");
-            return sb.ToString();
-        }
-
-        // Families
-        int familyIndex = 1;
-        foreach (var spouse in spouses)
-        {
-            var p1 = people.FirstOrDefault(p => p.Id == spouse.PersonId);
-            var p2 = people.FirstOrDefault(p => p.Id == spouse.SpouseId);
-
-            // Identify husband/wife by gender
-            var husband = (p1?.IsMale == true) ? p1 : (p2?.IsMale == true ? p2 : p1);
-            var wife = husband == p1 ? p2 : p1;
-
-            sb.AppendLine($"0 @F{familyIndex++}@ FAM");
-            if (husband != null)
-            {
-                sb.AppendLine($"1 HUSB {FormatXref(husband.GedcomId, husband.Id)}");
-            }
-
-            if (wife != null)
-            {
-                sb.AppendLine($"1 WIFE {FormatXref(wife.GedcomId, wife.Id)}");
-            }
-
-            if (spouse.MarriageYear.HasValue)
-            {
-                sb.AppendLine("1 MARR");
-                sb.AppendLine($"2 DATE {FormatDate(spouse.MarriageYear, spouse.MarriageMonth, spouse.MarriageDay)}");
-            }
-
-            if (spouse.DivorceYear.HasValue)
-            {
-                sb.AppendLine("1 DIV");
-                sb.AppendLine($"2 DATE {FormatDate(spouse.DivorceYear, spouse.DivorceMonth, spouse.DivorceDay)}");
-            }
-
-            if (spouse.HasEngagement)
-            {
-                sb.AppendLine("1 ENGA");
-                if (spouse.EngagementYear.HasValue)
-                {
-                    sb.AppendLine($"2 DATE {FormatDate(spouse.EngagementYear, spouse.EngagementMonth, spouse.EngagementDay)}");
-                }
-            }
-
-            // Children whose both parent IDs match either spouse
-            var children = people.Where(p =>
-                (p.FatherId == spouse.PersonId || p.FatherId == spouse.SpouseId) &&
-                (p.MotherId == spouse.PersonId || p.MotherId == spouse.SpouseId));
-
-            foreach (var child in children)
-            {
-                sb.AppendLine($"1 CHIL {FormatXref(child.GedcomId, child.Id)}");
-            }
-        }
-
-        sb.AppendLine("0 TRLR");
-        return sb.ToString();
+        await WriteExportAsync(dataset, options, staged, directory, cancellationToken);
+        bool package = staged.Count > 0;
+        string name = package ? "kinnect.gdz" : "kinnect.ged";
+        progress?.Report(new GedcomExportProgress(1, 1, name));
+        return new GedcomExportFile(
+            Path.Combine(directory, name),
+            name,
+            package ? "application/zip" : "application/x-gedcom");
     }
 
     private async Task<List<StagedMedia>> StageMediaAsync(GedcomExportOptions options, CancellationToken cancellationToken)
@@ -360,83 +114,6 @@ public partial class GedcomService(
         }
     }
 
-    private void WritePersonTail(
-        StringBuilder sb,
-        Person person,
-        GedcomExportOptions options,
-        ILookup<int, Contact> contactsByPerson,
-        IReadOnlyList<StagedMedia> staged)
-    {
-        if (options.Notes && !string.IsNullOrWhiteSpace(person.Note))
-        {
-            WriteNote(sb, 1, person.Note);
-        }
-
-        if (options.Contacts)
-        {
-            foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
-            {
-                if (string.IsNullOrWhiteSpace(contact.Value))
-                {
-                    continue;
-                }
-
-                string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
-                sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
-            }
-        }
-
-        WriteMedia(sb, staged.Where(item => item.PersonId == person.Id));
-    }
-
-    private static void WriteMedia(StringBuilder sb, IEnumerable<StagedMedia> items)
-    {
-        foreach (var item in items)
-        {
-            sb.AppendLine("1 OBJE");
-            sb.AppendLine($"2 FILE {item.ZipPath}");
-            if (!string.IsNullOrWhiteSpace(item.Form))
-            {
-                sb.AppendLine($"2 FORM {item.Form}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(item.Title))
-            {
-                sb.AppendLine($"2 TITL {SingleLine(item.Title)}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(item.Date))
-            {
-                sb.AppendLine($"2 _DATE {SingleLine(item.Date)}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(item.Text))
-            {
-                WriteContinued(sb, 2, "_TEXT", item.Text);
-            }
-        }
-    }
-
-    private static void WriteNamePart(StringBuilder sb, string tag, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            sb.AppendLine($"2 {tag} {SingleLine(value)}");
-        }
-    }
-
-    private static void WriteContinued(StringBuilder sb, int level, string tag, string text)
-    {
-        string[] lines = text.Replace("\r\n", "\n").Split('\n');
-        sb.AppendLine($"{level} {tag} {lines[0]}");
-        foreach (string line in lines.Skip(1))
-        {
-            sb.AppendLine($"{level + 1} CONT {line}");
-        }
-    }
-
-    private static string SingleLine(string value) =>
-        value.Replace("\r\n", " ").Replace('\n', ' ').Replace('\r', ' ').Trim();
 
     private static (string? Date, string? Text) ExportCaption(string? description, short? year, byte? month, byte? day)
     {
@@ -478,33 +155,52 @@ public partial class GedcomService(
                 await stream.CopyToAsync(fs);
             }
 
-            // A .ged only holds text. Photos arrive in a zip next to it, so accept either.
+            // A .ged only holds text. Photos arrive beside it in a .zip or .gdz, so accept either.
             string gedcomPath = Path.Combine(workDirectory.FullName, "import.ged");
             string originalName = fileName ?? "import.ged";
+            GedcomSharp.GedcomFile? dataset = null;
             if (GedcomMediaArchive.IsZip(uploadPath))
             {
                 archive = GedcomMediaArchive.Open(uploadPath);
-                if (archive.GedcomEntryName is null)
+                if (archive.GedcomEntryName is not null)
                 {
-                    return Result.Error("The zip file does not contain a .ged or .gedcom file.");
+                    archive.ExtractGedcom(gedcomPath);
+                    originalName = Path.GetFileName(archive.GedcomEntryName.Replace('\\', '/'));
                 }
-
-                archive.ExtractGedcom(gedcomPath);
-                originalName = Path.GetFileName(archive.GedcomEntryName.Replace('\\', '/'));
+                else if (await ReadGedcomXAsync(uploadPath) is { } packaged)
+                {
+                    dataset = packaged;
+                    gedcomPath = uploadPath;
+                    archive.Dispose();
+                    archive = null;
+                }
+                else
+                {
+                    return Result.Error("The archive does not contain a GEDCOM (.ged or .gedcom) or a GEDCOM X document.");
+                }
+            }
+            else if (await ReadGedcomXAsync(uploadPath) is { } document)
+            {
+                dataset = document;
+                gedcomPath = uploadPath;
             }
             else
             {
                 File.Move(uploadPath, gedcomPath);
             }
 
-            var read = await new GedcomSharp.GedcomReader().ReadAsync(gedcomPath);
-            if (!read.IsSuccess)
+            if (dataset is null)
             {
-                string detail = string.Join(" ", read.Errors.Concat(read.ValidationErrors.Select(error => error.ErrorMessage)));
-                return Result.Error(string.IsNullOrWhiteSpace(detail) ? "The file could not be read as GEDCOM." : detail);
+                var read = await new GedcomSharp.GedcomReader().ReadAsync(gedcomPath);
+                if (!read.IsSuccess)
+                {
+                    string detail = string.Join(" ", read.Errors.Concat(read.ValidationErrors.Select(error => error.ErrorMessage)));
+                    return Result.Error(string.IsNullOrWhiteSpace(detail) ? "The file could not be read as GEDCOM." : detail);
+                }
+
+                dataset = read.Value;
             }
 
-            var dataset = read.Value;
             await StoreOriginalAsync(gedcomPath, originalName);
 
             var context = new MediaImportContext(archive, summary);
@@ -542,6 +238,40 @@ public partial class GedcomService(
             {
                 logger.LogWarning(ex, "Could not remove temporary GEDCOM import folder {Folder}", workDirectory.FullName);
             }
+        }
+    }
+
+    /// <summary>GEDCOM X JSON, XML, or a .gedx package. Returns null when the file is ordinary GEDCOM.</summary>
+    private static async Task<GedcomSharp.GedcomFile?> ReadGedcomXAsync(string path)
+    {
+        try
+        {
+            var serializer = new GedcomSharp.GedcomX.GedcomXSerializer();
+            if (GedcomMediaArchive.IsZip(path))
+            {
+                await using var stream = File.OpenRead(path);
+                var packaged = await serializer.ReadFileAsync(stream);
+                return packaged.IsSuccess && packaged.Value.MainDocument is { } document
+                    ? GedcomSharp.GedcomX.GedcomXConverter.FromGedcomX(document)
+                    : null;
+            }
+
+            await using var textStream = File.OpenRead(path);
+            int first = textStream.ReadByte();
+            if (first is not ('{' or '<'))
+            {
+                return null;
+            }
+
+            textStream.Position = 0;
+            using var reader = new StreamReader(textStream);
+            string text = await reader.ReadToEndAsync();
+            var parsed = first == '{' ? serializer.FromJson(text) : serializer.FromXml(text);
+            return parsed.IsSuccess ? GedcomSharp.GedcomX.GedcomXConverter.FromGedcomX(parsed.Value) : null;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -680,17 +410,6 @@ public partial class GedcomService(
         return null;
     }
 
-    // ── Export ────────────────────────────────────────────────────────────────
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    private static void WriteNote(StringBuilder sb, int level, string text)
-    {
-        string[] lines = text.Replace("\r\n", "\n").Split('\n');
-        sb.AppendLine($"{level} NOTE {lines[0]}");
-        foreach (string? line in lines.Skip(1))
-        {
-            sb.AppendLine($"{level + 1} CONT {line}");
-        }
-    }
 
     private async Task ImportFamilyAsync(
         FamilyRecord family,
@@ -1129,19 +848,4 @@ public partial class GedcomService(
         return saved;
     }
 
-    private static void WritePlace(StringBuilder sb, string? place, double? latitude, double? longitude)
-    {
-        if (string.IsNullOrWhiteSpace(place) && (latitude is null || longitude is null))
-        {
-            return;
-        }
-
-        sb.AppendLine(string.IsNullOrWhiteSpace(place) ? "2 PLAC" : $"2 PLAC {place}");
-        if (latitude is double lat && longitude is double lng)
-        {
-            sb.AppendLine("3 MAP");
-            sb.AppendLine($"4 LATI {GedcomCoordinates.FormatLatitude(lat)}");
-            sb.AppendLine($"4 LONG {GedcomCoordinates.FormatLongitude(lng)}");
-        }
-    }
 }

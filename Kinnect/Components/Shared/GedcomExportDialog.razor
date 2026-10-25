@@ -11,15 +11,30 @@
         </div>
         @if (downloadUrl is null)
         {
-            <p class="kinnect-muted">Checked parts are brought up to date from Kinnect. Everything else in the imported file stays, including tags Kinnect does not use. Photos, videos and documents are packed into a zip with the GEDCOM.</p>
-            <label class="nf-check"><input type="checkbox" @bind="options.Names" disabled="@running" /> Names and sex</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Notes" disabled="@running" /> Notes</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Events" disabled="@running" /> Events</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Contacts" disabled="@running" /> Contacts</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Families" disabled="@running" /> Families</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Photos" disabled="@running" /> Photos</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Videos" disabled="@running" /> Videos</label>
-            <label class="nf-check"><input type="checkbox" @bind="options.Documents" disabled="@running" /> Documents</label>
+            <p class="kinnect-muted">Checked parts are brought up to date from Kinnect. Everything else in an imported file stays, including tags Kinnect does not use.</p>
+            <label>
+                Format
+                <select class="nf-select" @bind="options.Version" disabled="@running">
+                    <option value="5.5">GEDCOM 5.5</option>
+                    <option value="5.5.1">GEDCOM 5.5.1</option>
+                    <option value="5.5.5">GEDCOM 5.5.5</option>
+                    <option value="7.0">GEDCOM 7.0</option>
+                </select>
+            </label>
+            <div class="kinnect-checks">
+                <label class="nf-check"><input type="checkbox" @bind="options.Names" disabled="@running" /> Names and sex</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Notes" disabled="@running" /> Notes</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Events" disabled="@running" /> Events</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Contacts" disabled="@running" /> Contacts</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Families" disabled="@running" /> Families</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Photos" disabled="@running" /> Photos</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Videos" disabled="@running" /> Videos</label>
+                <label class="nf-check"><input type="checkbox" @bind="options.Documents" disabled="@running" /> Documents</label>
+            </div>
+            @if (options.IncludesMedia)
+            {
+                <p class="kinnect-muted">Photos, videos and documents are packed with the GEDCOM into a GEDZIP file (.gdz). That is a normal zip archive. To open it yourself, rename the extension to .zip and extract it with any zip tool.</p>
+            }
             @if (running)
             {
                 <div class="kinnect-progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" role="progressbar">
@@ -45,6 +60,11 @@
     public EventCallback Closed { get; set; }
 
     private readonly GedcomExportOptions options = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        options.Version = await Gedcom.ImportedVersionAsync() ?? options.Version;
+    }
     private bool running;
     private int percent;
     private string label = "Preparing the export…";

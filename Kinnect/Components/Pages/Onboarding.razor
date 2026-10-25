@@ -61,8 +61,8 @@
             <div class="kinnect-card kinnect-stack">
                 <h2>Import a GEDCOM</h2>
                 <p class="kinnect-muted">Import your existing tree, then choose your name. This can only be done once.</p>
-                <p class="kinnect-muted">To bring in photos too, upload a .zip containing the .ged file and its photo folders. A plain .ged imports the tree without photos.</p>
-                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom,.zip" Label="Import GEDCOM" UploadedWithResponse="OnImported" />
+                <p class="kinnect-muted">GEDCOM 5.5, 5.5.1, 5.5.5 and 7.0 can be a .ged or .gedcom file. A .zip or .gdz (GEDZIP) can include the photos next to it. GEDCOM X is accepted as JSON, XML or a .gedx file. A .gdz file is a zip archive; rename it to .zip if you want to extract it yourself.</p>
+                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom,.zip,.gdz,.gedx,.json,.xml" Label="Import GEDCOM" UploadedWithResponse="OnImported" />
             </div>
         </div>
     }

@@ -1,8 +1,12 @@
 # GEDCOM support
 
-Kinnect can import a GEDCOM once, while the tree is still empty, from **Settings → onboarding** as an administrator. Upload a `.ged` / `.gedcom`, or a `.zip` that contains the GEDCOM and the files it points at.
+Kinnect can import a GEDCOM once, while the tree is still empty, from **Settings → onboarding** as an administrator. These uploads are accepted:
 
-The uploaded `.ged` is stored byte for byte (under the file-storage `gedcom` folder, which is not served). Export starts from that file and writes Kinnect's changes into the parts it keeps. Tags Kinnect does not use stay in the download. A tree that was built in Kinnect, with no uploaded file, is written from scratch.
+- GEDCOM 5.5, 5.5.1, 5.5.5, or 7.0 as a `.ged` or `.gedcom`
+- A `.zip` or `.gdz` (GEDZIP) that contains the GEDCOM and the files it points at. A `.gdz` file is a normal zip archive. To open one yourself, rename the extension to `.zip` and extract it with any zip tool
+- GEDCOM X as JSON, XML, or a `.gedx` package. People, names, facts, couples, parent–child links, sources, and notes that convert into GEDCOM are imported. Multimedia resources inside a GEDCOM X file are not copied into the photo, video, or document libraries
+
+The uploaded GEDCOM text is stored byte for byte (under the file-storage `gedcom` folder, which is not served). A `.zip` or `.gdz` stores the `.ged` inside it, not the archive. Export loads that text, updates the parts Kinnect keeps, and writes the version chosen on the export dialog. Tags Kinnect does not use stay in the download. A tree that was built in Kinnect, with no uploaded file, is written from scratch. An imported GEDCOM X file is stored as uploaded, and a later export is written from the Kinnect tree, because that file was converted on the way in.
 
 This page is the checklist for adding more later.
 
@@ -72,7 +76,7 @@ Export writes those back as `EMAIL`, `PHON` (phone and mobile), `FAX`, `WWW`, an
 
 ## Media
 
-A `.zip` is required. A plain `.ged` imports the tree and reports the missing files. Paths are matched by exact path, by a file sitting next to the `.ged`, and by the longest matching tail, including case, unicode form, and `file:` URIs.
+A `.zip` or `.gdz` is required for the files. A plain `.ged` imports the tree and reports the missing files. Paths are matched by exact path, by a file sitting next to the `.ged`, and by the longest matching tail, including case, unicode form, and `file:` URIs.
 
 - Images (jpg, jpeg, png, gif, bmp, tif, tiff, webp) become photos. They are re-encoded for the gallery. EXIF latitude and longitude are kept when present
 - The profile picture is the photo marked `_PRIM` (`Y`, `YES`, or `1`). If none is marked, it is the first image
@@ -98,9 +102,9 @@ Not imported from a multimedia record:
 
 ## Export today
 
-**Family tree → Export GEDCOM** asks which parts to bring up to date. Everything starts checked. When a GEDCOM was imported, the download is that file with the checked parts replaced by what Kinnect holds now. Further names, aliases, `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites, source citations, and the rest of the "not imported" lists stay in the download. Clearing a box leaves that part out. Photos, videos and documents, when left checked, are packed into a zip beside the GEDCOM and linked with `OBJE`.
+**Family tree → Export GEDCOM** asks which format to write and which parts to bring up to date. The format is GEDCOM 5.5, 5.5.1, 5.5.5, or 7.0. It starts as the version of the imported file, or 5.5.1 when the tree was built in Kinnect. Choosing a different version converts the file. Everything in the checklist starts checked. When a GEDCOM was imported, the download is that file with the checked parts replaced by what Kinnect holds now. Further names, aliases, `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites, source citations, and the rest of the "not imported" lists stay in the download. Clearing a box leaves that part of an imported file as it was. Photos, videos and documents, when left checked and there are files to include, are packed with the GEDCOM into a GEDZIP file, `kinnect.gdz`, and linked with `OBJE`. That file is a zip archive. Rename the extension to `.zip` to extract it with any zip tool. With no media files, the download is `kinnect.ged`.
 
-A tree that was not imported is written as a new GEDCOM 5.5.1 file from the database. In that case there is no earlier file to keep.
+A tree that was not imported is written as a new file in the chosen version. In that case there is no earlier file to keep, and an unchecked part is omitted.
 
 - Name, prefix, nickname, suffix, and sex (`M`, `F`, or `U`)
 - Birth and death

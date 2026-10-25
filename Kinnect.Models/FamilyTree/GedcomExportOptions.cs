@@ -19,6 +19,11 @@ public sealed class GedcomExportOptions
 
     public bool Documents { get; set; } = true;
 
+    /// <summary>GEDCOM version to write: 5.5, 5.5.1, 5.5.5 or 7.0. A different version from the imported file is converted.</summary>
+    public string Version { get; set; } = "5.5.1";
+
+    public bool IncludesMedia => Photos || Videos || Documents;
+
     /// <summary>The text export used by tests: every fact, and no media files.</summary>
     public static GedcomExportOptions WithoutMedia() => new()
     {

@@ -241,11 +241,15 @@ html {
 .kinnect-checks {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.1rem;
 }
 
 .kinnect-checks .nf-check {
     margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: 0;
+    line-height: 1.35;
 }
 
 .kinnect-copy-list .nf-check { color: inherit; }
