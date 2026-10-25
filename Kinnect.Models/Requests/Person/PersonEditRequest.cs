@@ -6,6 +6,12 @@ public class PersonEditRequest
 
     public string GivenNames { get; set; } = null!;
 
+    public string? NamePrefix { get; set; }
+
+    public string? NameSuffix { get; set; }
+
+    public string? Nickname { get; set; }
+
     /// <summary>Null when the sex is unknown.</summary>
     public bool? IsMale { get; set; }
 

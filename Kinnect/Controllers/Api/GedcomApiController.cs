@@ -11,7 +11,8 @@ public class GedcomApiController(
     IGedcomService gedcomService,
     IUserContextService users,
     ApplicationDbContextBase database,
-    IBackgroundJobClient jobs) : ControllerBase
+    IBackgroundJobClient jobs,
+    GedcomExportStore exports) : ControllerBase
 {
     [HttpPost("import")]
     [RequestSizeLimit(Constants.MaxUploadBytes)]
@@ -47,6 +48,42 @@ public class GedcomApiController(
 
         jobs.Enqueue<EventGeocodeJob>(job => job.ExecuteAsync(CancellationToken.None));
         return Ok(result.Value);
+    }
+
+    [HttpGet("export/{token}")]
+    public IActionResult Download(string token)
+    {
+        if (!users.IsAdmin())
+        {
+            return Forbid();
+        }
+
+        if (!exports.TryTake(token, out var file) || file is null)
+        {
+            return NotFound();
+        }
+
+        var stream = System.IO.File.OpenRead(file.Path);
+        Response.OnCompleted(() =>
+        {
+            stream.Dispose();
+            try
+            {
+                System.IO.File.Delete(file.Path);
+                string? directory = Path.GetDirectoryName(file.Path);
+                if (directory is not null)
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+
+            return Task.CompletedTask;
+        });
+
+        return File(stream, file.ContentType, file.DownloadName);
     }
 
     private static ContentResult Fail(string message) => new()

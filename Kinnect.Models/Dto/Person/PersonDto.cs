@@ -10,6 +10,12 @@ public class PersonDto
 
     public string GivenNames { get; set; } = null!;
 
+    public string? NamePrefix { get; set; }
+
+    public string? NameSuffix { get; set; }
+
+    public string? Nickname { get; set; }
+
     public string FullName => $"{GivenNames} {FamilyName}";
 
     /// <summary>Null when the sex is unknown.</summary>

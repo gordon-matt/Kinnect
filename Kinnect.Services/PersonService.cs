@@ -53,6 +53,9 @@ public class PersonService(
         {
             FamilyName = request.FamilyName,
             GivenNames = request.GivenNames,
+            NamePrefix = CleanNamePart(request.NamePrefix),
+            Nickname = CleanNamePart(request.Nickname),
+            NameSuffix = CleanNamePart(request.NameSuffix),
             IsMale = request.IsMale,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
@@ -361,6 +364,9 @@ public class PersonService(
 
         person.FamilyName = snapshot.FamilyName;
         person.GivenNames = snapshot.GivenNames;
+        person.NamePrefix = CleanNamePart(snapshot.NamePrefix);
+        person.Nickname = CleanNamePart(snapshot.Nickname);
+        person.NameSuffix = CleanNamePart(snapshot.NameSuffix);
         person.IsMale = snapshot.IsMale;
         person.Latitude = snapshot.Latitude;
         person.Longitude = snapshot.Longitude;
@@ -456,6 +462,9 @@ public class PersonService(
 
         person.FamilyName = request.FamilyName;
         person.GivenNames = request.GivenNames;
+        person.NamePrefix = CleanNamePart(request.NamePrefix);
+        person.Nickname = CleanNamePart(request.Nickname);
+        person.NameSuffix = CleanNamePart(request.NameSuffix);
         person.IsMale = request.IsMale;
         person.Latitude = request.Latitude;
         person.Longitude = request.Longitude;
@@ -604,6 +613,9 @@ public class PersonService(
         {
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
+            NamePrefix = person.NamePrefix,
+            Nickname = person.Nickname,
+            NameSuffix = person.NameSuffix,
             IsMale = person.IsMale,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
@@ -801,5 +813,16 @@ public class PersonService(
         }
 
         return (errors, links);
+    }
+
+    private static string? CleanNamePart(string? value)
+    {
+        string trimmed = value?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
     }
 }

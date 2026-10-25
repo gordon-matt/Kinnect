@@ -545,6 +545,18 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Property<int?>("MotherId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NamePrefix")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NameSuffix")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Note")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");

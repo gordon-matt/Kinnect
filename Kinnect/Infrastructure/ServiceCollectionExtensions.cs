@@ -161,6 +161,7 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<IFeedService, FeedService>();
             services.AddScoped<IGedcomService, GedcomService>();
+            services.AddSingleton<GedcomExportStore>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
             services.AddScoped<IPersonBackupService, PersonBackupService>();

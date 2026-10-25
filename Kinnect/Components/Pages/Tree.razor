@@ -19,6 +19,10 @@
 <PageHeader Title="Family tree">
     <Actions>
         <button type="button" class="nf-button" aria-expanded="@showPeople" @onclick="() => showPeople = !showPeople">People</button>
+        @if (Users.IsAdmin())
+        {
+            <button type="button" class="nf-button" @onclick="() => showExport = true">Export GEDCOM</button>
+        }
         @if (meId is not null)
         {
             <button type="button" class="nf-button" @onclick="FindMeAsync">Find me</button>
@@ -72,8 +76,14 @@ else
 }
 </div>
 
+@if (showExport)
+{
+    <GedcomExportDialog Closed="() => showExport = false" />
+}
+
 @code {
     private FamilyTree? tree;
+    private bool showExport;
     private IReadOnlyList<PersonData>? people;
     private string? focusId;
     private string? meId;

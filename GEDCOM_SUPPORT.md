@@ -2,7 +2,7 @@
 
 Kinnect can import a GEDCOM once, while the tree is still empty, from **Settings → onboarding** as an administrator. Upload a `.ged` / `.gedcom`, or a `.zip` that contains the GEDCOM and the files it points at.
 
-The uploaded `.ged` is stored byte for byte (under the file-storage `gedcom` folder, which is not served). A later export is meant to patch Kinnect's edits into that file. Today's export does not do that yet; it writes a new file from what Kinnect stores. Anything in the lists below under "not imported" is safe only because the original file is kept.
+The uploaded `.ged` is stored byte for byte (under the file-storage `gedcom` folder, which is not served). Export downloads a new file built from what Kinnect stores. Anything under "not imported" remains in the stored original and is not copied into that download.
 
 This page is the checklist for adding more later.
 
@@ -11,6 +11,7 @@ This page is the checklist for adding more later.
 Imported from the first `NAME` and from `SEX`:
 
 - Given names and surname. A `GIVN` value such as `John, Fitzgerald` is two given names, so the comma is removed
+- Name prefix (`NPFX`), nickname (`NICK`) and suffix (`NSFX`)
 - Sex: `M` male, `F` female, anything else (including `U`, and a missing sex) stored as unknown
 - The individual's xref, kept as `GedcomId` so a later export can use the same id
 - `NOTE` text on the individual, joined into the person's Notes field (4,000 characters). Kinnect has one notes field
@@ -18,7 +19,7 @@ Imported from the first `NAME` and from `SEX`:
 
 Not imported:
 
-- Further names, nicknames, aliases, prefix, suffix, and name type
+- Further names, aliases, and name type
 - `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites
 - Submitter links
 
@@ -32,7 +33,7 @@ Each of these becomes a life event, with the date (year, month, day when the par
 
 `EVEN` is the **Custom Event** type in the profile dropdown. The description is what kind of event it was.
 
-A tag Kinnect does not have a name for is also stored as a Custom Event, with the original tag in the description (`_MILT`, and so on).
+A tag Kinnect does not have a name for is stored with that tag as the event type (`_MILT`, and so on) and is shown as a custom event. Export writes the same tag back. `EVEN` stays a custom event, and its `TYPE` stays the description.
 
 Family events:
 
@@ -79,6 +80,7 @@ A `.zip` is required. A plain `.ged` imports the tree and reports the missing fi
 - Videos (mp4, webm, mov, avi, mkv, m4v, mpeg, mpg, wmv, ogv) become videos. They are stored as uploaded and are not sent through ffmpeg
 - Anything else that is a real file (PDF, Word, and so on) becomes a document. Audio files land here too; there is no audio library
 - `TITL` on the multimedia record, and `TITL` nested under `FILE` (GEDCOM 5.5.1), becomes the title. A note on the multimedia record becomes the description
+- `_TEXT` becomes the description. `_DATE` on a photo is the taken-on date when it is a plain calendar date or year. A phrase such as `ABT 1920`, and any `_DATE` on a video or document, is written above the description as `Date: …`
 - Documents and videos are stored once. They are owned by the first person they were imported for; there is no tag list for them
 - One file may be up to 100 MB
 
@@ -92,17 +94,19 @@ Counted as skipped or missing, with a warning on the import summary:
 Not imported from a multimedia record:
 
 - `BLOB`
-- `_DATE`, `_TEXT`, and other custom media tags besides `_PRIM`
+- Custom media tags other than `_PRIM`, `_DATE` and `_TEXT`
 
 ## Export today
 
-`Export` writes a new GEDCOM 5.5.1 file from the database:
+**Family tree → Export GEDCOM** asks which parts to include. Everything starts checked. The export builds a new GEDCOM 5.5.1 file from the database. Photos, videos and documents, when left checked, are packed into a zip beside that file and linked with `OBJE`.
 
-- Name, sex (`M`, `F`, or `U`), birth, death
+- Name, prefix, nickname, suffix, and sex (`M`, `F`, or `U`)
+- Birth and death
 - Occupation, education, and religion, either from the profile field or from the event
-- Other timeline events, with date, place, `TYPE` set from the description, and the event note
+- Other timeline events, with date, place, the original tag (a custom tag such as `_MILT` is written as itself), `TYPE` from the description, and the event note
 - The person's notes
 - Email, phone, mobile, fax, website, and address
 - Families: husband and wife (a male spouse is written as `HUSB`), marriage date, divorce date, engagement, and children whose father and mother are that pair
+- Photos, videos and documents, including `_DATE` and `_TEXT` when Kinnect has them
 
-It does not write photos, videos, documents, or anything in the "not imported" lists. It does not edit the stored original. That merge is the next piece of work, and it is why the original is kept.
+It does not edit the stored original. Tags that were never imported (further names, aliases, `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites, and the rest of the "not imported" lists) stay in that original file only. They are not copied into the file this export downloads.

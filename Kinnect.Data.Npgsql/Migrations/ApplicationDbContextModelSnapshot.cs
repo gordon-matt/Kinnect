@@ -543,6 +543,18 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Property<int?>("MotherId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("NamePrefix")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NameSuffix")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Note")
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");

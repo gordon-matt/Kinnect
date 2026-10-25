@@ -7,6 +7,12 @@ public interface IGedcomService
     /// <summary>Exports all people and relationships as a GEDCOM 5.5.1 string.</summary>
     Task<string> ExportAsync();
 
+    /// <summary>Writes a .ged, or a zip when photos, videos or documents are included.</summary>
+    Task<GedcomExportFile> ExportFileAsync(
+        GedcomExportOptions options,
+        IProgress<GedcomExportProgress>? progress,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Imports a GEDCOM, creating or updating Person records. The stream is either a plain .ged or a zip holding the
     /// .ged and its media files; with a zip the referenced images are imported as photos. The uploaded .ged is kept

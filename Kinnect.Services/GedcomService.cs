@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using GeneGenie.Gedcom;
 using GeneGenie.Gedcom.Enums;
@@ -20,11 +21,59 @@ public partial class GedcomService(
     IFileStorageService fileStorage,
     ILogger<GedcomService> logger) : IGedcomService
 {
-    public async Task<string> ExportAsync()
+    public Task<string> ExportAsync() =>
+        BuildGedcomAsync(GedcomExportOptions.WithoutMedia(), progress: null, staged: [], CancellationToken.None);
+
+    public async Task<GedcomExportFile> ExportFileAsync(
+        GedcomExportOptions options,
+        IProgress<GedcomExportProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
+        var staged = await StageMediaAsync(options, cancellationToken);
+        string gedcom = await BuildGedcomAsync(options, progress, staged, cancellationToken);
+        string directory = Directory.CreateTempSubdirectory("kinnect-gedcom-export-").FullName;
+        if (staged.Count == 0)
+        {
+            string path = Path.Combine(directory, "kinnect.ged");
+            await File.WriteAllTextAsync(path, gedcom, cancellationToken);
+            progress?.Report(new GedcomExportProgress(1, 1, "kinnect.ged"));
+            return new GedcomExportFile(path, "kinnect.ged", "application/x-gedcom");
+        }
+
+        string zipPath = Path.Combine(directory, "kinnect-gedcom.zip");
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = zip.CreateEntry("kinnect.ged");
+            await using (var writer = new StreamWriter(entry.Open()))
+            {
+                await writer.WriteAsync(gedcom.AsMemory(), cancellationToken);
+            }
+
+            var files = staged.DistinctBy(item => item.ZipPath).ToList();
+            int copied = 0;
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                zip.CreateEntryFromFile(file.SourcePath, file.ZipPath);
+                copied++;
+                progress?.Report(new GedcomExportProgress(copied, files.Count, file.Title ?? file.ZipPath));
+            }
+        }
+
+        return new GedcomExportFile(zipPath, "kinnect-gedcom.zip", "application/zip");
+    }
+
+    private async Task<string> BuildGedcomAsync(
+        GedcomExportOptions options,
+        IProgress<GedcomExportProgress>? progress,
+        IReadOnlyList<StagedMedia> staged,
+        CancellationToken cancellationToken)
     {
         var people = (await personRepository.FindAsync(new SearchOptions<Person>())).ToList();
         var spouses = (await spouseRepository.FindAsync(new SearchOptions<PersonSpouse>())).ToList();
         var events = (await eventRepository.FindAsync(new SearchOptions<PersonEvent>())).ToList();
+        int completed = 0;
+        int total = Math.Max(1, people.Count);
 
         var eventsByPerson = events.ToLookup(e => e.PersonId);
         var contactsByPerson = (await contactRepository.FindAsync(new SearchOptions<Contact>())).ToLookup(c => c.PersonId);
@@ -41,10 +90,25 @@ public partial class GedcomService(
         // Individuals
         foreach (var person in people)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string xref = person.GedcomId ?? $"@I{person.Id}@";
             sb.AppendLine($"0 {xref} INDI");
-            sb.AppendLine($"1 NAME {person.GivenNames} /{person.FamilyName}/");
-            sb.AppendLine($"1 SEX {person.IsMale switch { true => "M", false => "F", _ => "U" }}");
+            if (options.Names)
+            {
+                sb.AppendLine($"1 NAME {person.GivenNames} /{person.FamilyName}/");
+                WriteNamePart(sb, "NPFX", person.NamePrefix);
+                WriteNamePart(sb, "NICK", person.Nickname);
+                WriteNamePart(sb, "NSFX", person.NameSuffix);
+                sb.AppendLine($"1 SEX {person.IsMale switch { true => "M", false => "F", _ => "U" }}");
+            }
+
+            if (!options.Events)
+            {
+                WritePersonTail(sb, person, options, contactsByPerson, staged);
+                completed++;
+                progress?.Report(new GedcomExportProgress(completed, total, person.GivenNames));
+                continue;
+            }
 
             var birthEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Birth);
             if (birthEvt != null)
@@ -90,20 +154,9 @@ public partial class GedcomService(
                 sb.AppendLine($"1 RELI {person.Religion}");
             }
 
-            if (!string.IsNullOrWhiteSpace(person.Note))
+            if (options.Notes && !string.IsNullOrWhiteSpace(person.Note))
             {
                 WriteNote(sb, 1, person.Note);
-            }
-
-            foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
-            {
-                if (string.IsNullOrWhiteSpace(contact.Value))
-                {
-                    continue;
-                }
-
-                string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
-                sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
             }
 
             // Additional life events (skip birth/death and types stored elsewhere)
@@ -111,7 +164,8 @@ public partial class GedcomService(
                 .Where(e => e.EventType != PersonEventType.Birth && e.EventType != PersonEventType.Death
                     && !PersonEventType.IsNonTimelineEventType(e.EventType)))
             {
-                sb.AppendLine($"1 {evt.EventType}");
+                PersonEventType.TryReadStoredTag(evt.EventType, evt.Description, out string tag, out string? detail);
+                sb.AppendLine($"1 {tag}");
                 if (evt.Year.HasValue)
                 {
                     sb.AppendLine($"2 DATE {FormatDate(evt.Year, evt.Month, evt.Day)}");
@@ -119,9 +173,9 @@ public partial class GedcomService(
 
                 WritePlace(sb, evt.Place, evt.Latitude, evt.Longitude);
 
-                if (!string.IsNullOrWhiteSpace(evt.Description))
+                if (!string.IsNullOrWhiteSpace(detail))
                 {
-                    sb.AppendLine($"2 TYPE {evt.Description}");
+                    sb.AppendLine($"2 TYPE {detail}");
                 }
 
                 if (!string.IsNullOrWhiteSpace(evt.Note))
@@ -129,6 +183,30 @@ public partial class GedcomService(
                     WriteNote(sb, 2, evt.Note);
                 }
             }
+
+            if (options.Contacts)
+            {
+                foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
+                {
+                    if (string.IsNullOrWhiteSpace(contact.Value))
+                    {
+                        continue;
+                    }
+
+                    string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
+                    sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
+                }
+            }
+
+            WriteMedia(sb, staged.Where(item => item.PersonId == person.Id));
+            completed++;
+            progress?.Report(new GedcomExportProgress(completed, total, person.GivenNames));
+        }
+
+        if (!options.Families)
+        {
+            sb.AppendLine("0 TRLR");
+            return sb.ToString();
         }
 
         // Families
@@ -188,6 +266,183 @@ public partial class GedcomService(
         sb.AppendLine("0 TRLR");
         return sb.ToString();
     }
+
+    private async Task<List<StagedMedia>> StageMediaAsync(GedcomExportOptions options, CancellationToken cancellationToken)
+    {
+        var staged = new List<StagedMedia>();
+        if (options.Photos)
+        {
+            var photos = (await photoRepository.FindAsync(new SearchOptions<Photo>())).ToList();
+            var links = (await personPhotoRepository.FindAsync(new SearchOptions<PersonPhoto>())).ToList();
+            foreach (var photo in photos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var people = links.Where(link => link.PhotoId == photo.Id).Select(link => link.PersonId).Distinct().ToList();
+                if (people.Count == 0)
+                {
+                    people.Add(photo.UploadedByPersonId);
+                }
+
+                AddMedia(staged, people, photo.Id, photo.FilePath, photo.Title, photo.Description, photo.YearTaken, photo.MonthTaken, photo.DayTaken);
+            }
+        }
+
+        if (options.Videos)
+        {
+            foreach (var video in await videoRepository.FindAsync(new SearchOptions<Video>()))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AddMedia(staged, [video.UploadedByPersonId], video.Id, video.FilePath, video.Title, video.Description, null, null, null);
+            }
+        }
+
+        if (options.Documents)
+        {
+            foreach (var document in await documentRepository.FindAsync(new SearchOptions<Document>()))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AddMedia(staged, [document.UploadedByPersonId], document.Id, document.FilePath, document.Title, document.Description, null, null, null);
+            }
+        }
+
+        return staged;
+    }
+
+    private void AddMedia(
+        List<StagedMedia> staged,
+        IReadOnlyList<int> personIds,
+        int id,
+        string relativePath,
+        string? title,
+        string? description,
+        short? year,
+        byte? month,
+        byte? day)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return;
+        }
+
+        string source = fileStorage.GetFullPath(relativePath);
+        if (!File.Exists(source))
+        {
+            return;
+        }
+
+        string extension = Path.GetExtension(source);
+        string zipPath = $"media/{id}{extension}";
+        var (date, text) = ExportCaption(description, year, month, day);
+        string form = extension.TrimStart('.').ToUpperInvariant();
+        foreach (int personId in personIds.Distinct())
+        {
+            staged.Add(new StagedMedia(personId, source, zipPath, title, form, date, text));
+        }
+    }
+
+    private void WritePersonTail(
+        StringBuilder sb,
+        Person person,
+        GedcomExportOptions options,
+        ILookup<int, Contact> contactsByPerson,
+        IReadOnlyList<StagedMedia> staged)
+    {
+        if (options.Notes && !string.IsNullOrWhiteSpace(person.Note))
+        {
+            WriteNote(sb, 1, person.Note);
+        }
+
+        if (options.Contacts)
+        {
+            foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
+            {
+                if (string.IsNullOrWhiteSpace(contact.Value))
+                {
+                    continue;
+                }
+
+                string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
+                sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
+            }
+        }
+
+        WriteMedia(sb, staged.Where(item => item.PersonId == person.Id));
+    }
+
+    private static void WriteMedia(StringBuilder sb, IEnumerable<StagedMedia> items)
+    {
+        foreach (var item in items)
+        {
+            sb.AppendLine("1 OBJE");
+            sb.AppendLine($"2 FILE {item.ZipPath}");
+            if (!string.IsNullOrWhiteSpace(item.Form))
+            {
+                sb.AppendLine($"2 FORM {item.Form}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.Title))
+            {
+                sb.AppendLine($"2 TITL {SingleLine(item.Title)}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.Date))
+            {
+                sb.AppendLine($"2 _DATE {SingleLine(item.Date)}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.Text))
+            {
+                WriteContinued(sb, 2, "_TEXT", item.Text);
+            }
+        }
+    }
+
+    private static void WriteNamePart(StringBuilder sb, string tag, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            sb.AppendLine($"2 {tag} {SingleLine(value)}");
+        }
+    }
+
+    private static void WriteContinued(StringBuilder sb, int level, string tag, string text)
+    {
+        string[] lines = text.Replace("\r\n", "\n").Split('\n');
+        sb.AppendLine($"{level} {tag} {lines[0]}");
+        foreach (string line in lines.Skip(1))
+        {
+            sb.AppendLine($"{level + 1} CONT {line}");
+        }
+    }
+
+    private static string SingleLine(string value) =>
+        value.Replace("\r\n", " ").Replace('\n', ' ').Replace('\r', ' ').Trim();
+
+    private static (string? Date, string? Text) ExportCaption(string? description, short? year, byte? month, byte? day)
+    {
+        if (year is not null)
+        {
+            return (FormatDate(year, month, day), string.IsNullOrWhiteSpace(description) ? null : description);
+        }
+
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return (null, null);
+        }
+
+        const string prefix = "Date: ";
+        if (description.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            int split = description.IndexOf("\n\n", StringComparison.Ordinal);
+            string date = description[prefix.Length..(split < 0 ? description.Length : split)].Trim();
+            string? text = split < 0 ? null : description[(split + 2)..].Trim();
+            return (date, string.IsNullOrWhiteSpace(text) ? null : text);
+        }
+
+        return (null, description);
+    }
+
+    private sealed record StagedMedia(int PersonId, string SourcePath, string ZipPath, string? Title, string Form, string? Date, string? Text);
 
     public async Task<Result<GedcomImportResult>> ImportAsync(Stream stream, string? fileName = null)
     {
@@ -344,16 +599,22 @@ public partial class GedcomService(
             }
         }
 
-        short? year = null; byte? month = null; byte? day = null;
+        short? year = null;
+        byte? month = null;
+        var smallNumbers = new List<byte>();
         foreach (string part in dateString.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
-            if (short.TryParse(part, out short y) && y >= 1 && y <= 9999)
+            if (short.TryParse(part, out short number) && number is >= 1 and <= 9999)
             {
-                year = y;
-            }
-            else if (byte.TryParse(part, out byte d) && d >= 1 && d <= 31)
-            {
-                day = d;
+                // A day is at most 31. A longer number, or anything above 31, is the year.
+                if (number > 31 || part.Length >= 3)
+                {
+                    year = number;
+                }
+                else
+                {
+                    smallNumbers.Add((byte)number);
+                }
             }
             else
             {
@@ -364,6 +625,22 @@ public partial class GedcomService(
                 }
             }
         }
+
+        byte? day = null;
+        if (smallNumbers.Count == 1 && (month is not null || year is not null))
+        {
+            day = smallNumbers[0];
+        }
+        else if (smallNumbers.Count == 1)
+        {
+            year = smallNumbers[0];
+        }
+        else if (smallNumbers.Count > 1)
+        {
+            day = smallNumbers[0];
+            year ??= smallNumbers[1];
+        }
+
         return (year, month, day);
     }
 
@@ -530,8 +807,6 @@ public partial class GedcomService(
         });
 
         var name = individual.Names.FirstOrDefault();
-        string givenNames = GivenNamesFrom(name?.Given);
-        string familyName = name?.Surname?.Trim() ?? string.Empty;
         bool? isMale = individual.Sex switch
         {
             GedcomSex.Male => true,
@@ -544,8 +819,6 @@ public partial class GedcomService(
         {
             person = new Person
             {
-                GivenNames = givenNames,
-                FamilyName = familyName,
                 IsMale = isMale,
                 GedcomId = individual.XRefID,
                 Note = PersonNote(individual, database),
@@ -553,6 +826,7 @@ public partial class GedcomService(
                 UpdatedAtUtc = DateTime.UtcNow
             };
 
+            ApplyName(person, name);
             ApplyFacts(individual, person);
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
@@ -560,8 +834,7 @@ public partial class GedcomService(
         }
         else
         {
-            person.GivenNames = givenNames;
-            person.FamilyName = familyName;
+            ApplyName(person, name);
             person.IsMale = isMale;
             person.Note = PersonNote(individual, database) ?? person.Note;
             ApplyFacts(individual, person);
@@ -583,6 +856,26 @@ public partial class GedcomService(
             context.NewPersonIds.Add(person.Id);
             await ImportIndividualMediaAsync(individual, database, person, importedEvents, context);
         }
+    }
+
+    private static void ApplyName(Person person, GedcomName? name)
+    {
+        person.GivenNames = GivenNamesFrom(name?.Given);
+        person.FamilyName = name?.Surname?.Trim() ?? string.Empty;
+        person.NamePrefix = NamePart(name?.Prefix);
+        person.Nickname = NamePart(name?.Nick);
+        person.NameSuffix = NamePart(name?.Suffix);
+    }
+
+    private static string? NamePart(string? value)
+    {
+        string trimmed = value?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
     }
 
     /// <summary>
@@ -754,11 +1047,11 @@ public partial class GedcomService(
 
         foreach (var custom in individual.Custom)
         {
-            string description = string.IsNullOrWhiteSpace(custom.Classification)
-                ? custom.Tag
-                : $"{custom.Tag}: {custom.Classification}";
-            var saved = await InsertEventAsync(
-                personId, custom, database, summary, PersonEventType.Custom, description);
+            string tag = string.IsNullOrWhiteSpace(custom.Tag) ? PersonEventType.Custom : custom.Tag.Trim();
+            string? description = !string.IsNullOrWhiteSpace(custom.Classification)
+                ? custom.Classification
+                : string.IsNullOrWhiteSpace(custom.EventName) ? null : custom.EventName;
+            var saved = await InsertEventAsync(personId, custom, database, summary, tag, description);
             imported.Add((custom, saved.Id));
         }
 
@@ -818,7 +1111,7 @@ public partial class GedcomService(
         string? descriptionOverride = null)
     {
         string tag = tagOverride ?? GedcomEvent.TypeToTag(source.EventType);
-        if (tag is "_UNKN" or "EVEN")
+        if (string.IsNullOrWhiteSpace(tag) || tag is "_UNKN")
         {
             tag = PersonEventType.Custom;
         }

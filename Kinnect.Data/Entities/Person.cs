@@ -8,6 +8,15 @@ public class Person : BaseEntity<int>
 
     public string GivenNames { get; set; } = null!;
 
+    /// <summary>GEDCOM <c>NPFX</c>, such as Dr.</summary>
+    public string? NamePrefix { get; set; }
+
+    /// <summary>GEDCOM <c>NSFX</c>, such as Jr.</summary>
+    public string? NameSuffix { get; set; }
+
+    /// <summary>GEDCOM <c>NICK</c>.</summary>
+    public string? Nickname { get; set; }
+
     /// <summary>Null when the sex is unknown, which GEDCOM records as <c>U</c>.</summary>
     public bool? IsMale { get; set; }
 
@@ -69,6 +78,9 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.HasKey(m => m.Id);
         builder.Property(m => m.FamilyName).IsRequired().HasMaxLength(200);
         builder.Property(m => m.GivenNames).IsRequired().HasMaxLength(200);
+        builder.Property(m => m.NamePrefix).HasMaxLength(100);
+        builder.Property(m => m.NameSuffix).HasMaxLength(100);
+        builder.Property(m => m.Nickname).HasMaxLength(100);
         builder.Property(m => m.ProfileImagePath).HasMaxLength(500);
         builder.Property(m => m.Occupation).HasMaxLength(500);
         builder.Property(m => m.Education).HasMaxLength(500);

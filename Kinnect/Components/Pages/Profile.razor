@@ -15,7 +15,7 @@
 @inject IJSRuntime Js
 @inject ToastService Toasts
 
-<PageTitle>@(person?.FullName ?? "Profile")</PageTitle>
+<PageTitle>@(person is null ? "Profile" : DisplayName)</PageTitle>
 
 @if (missing)
 {
@@ -27,7 +27,7 @@ else if (person is null)
 }
 else
 {
-    <PageHeader Title="@person.FullName">
+    <PageHeader Title="@DisplayName" Description="@NicknameLine">
         <Actions>
             @if (canEdit && Editing)
             {
@@ -61,9 +61,14 @@ else
                 {
                     <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card kinnect-stack">
                         <div class="kinnect-pair">
+                            <label class="nf-field">Prefix <InputText class="nf-input" @bind-Value="form.NamePrefix" /></label>
+                            <label class="nf-field">Suffix <InputText class="nf-input" @bind-Value="form.NameSuffix" /></label>
+                        </div>
+                        <div class="kinnect-pair">
                             <label class="nf-field">Given names <InputText class="nf-input" @bind-Value="form.GivenNames" /></label>
                             <label class="nf-field">Family name <InputText class="nf-input" @bind-Value="form.FamilyName" /></label>
                         </div>
+                        <label class="nf-field">Nickname <InputText class="nf-input" @bind-Value="form.Nickname" /></label>
                         <div class="kinnect-switch" role="group" aria-label="Sex">
                             <button type="button" class="@(form.IsMale == true ? "is-active" : null)" aria-pressed="@(form.IsMale == true)" @onclick="() => form.IsMale = true">Male</button>
                             <button type="button" class="@(form.IsMale == false ? "is-active" : null)" aria-pressed="@(form.IsMale == false)" @onclick="() => form.IsMale = false">Female</button>
@@ -323,7 +328,7 @@ else
                     <div class="kinnect-card kinnect-stack">
                         <h2>@(editingEventId is null ? "Add event" : "Edit event")</h2>
                         <select class="nf-select" @bind="eventForm.EventType">
-                            @foreach (var option in PersonEventType.TimelineSelectableTypes)
+                            @foreach (var option in EventTypeOptions)
                             {
                                 <option value="@option.Type">@option.Label</option>
                             }
@@ -654,6 +659,26 @@ else
     public int PersonId { get; set; }
 
     private PersonDto? person;
+    private string DisplayName => person is null
+        ? string.Empty
+        : string.Join(" ", new[] { person.NamePrefix, person.GivenNames, person.FamilyName, person.NameSuffix }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    private string? NicknameLine => string.IsNullOrWhiteSpace(person?.Nickname) ? null : $"Known as {person.Nickname}";
+
+    private IEnumerable<(string Type, string Label)> EventTypeOptions
+    {
+        get
+        {
+            var options = PersonEventType.TimelineSelectableTypes.ToList();
+            if (options.All(option => option.Type != eventForm.EventType))
+            {
+                options.Add((eventForm.EventType, PersonEventType.GetLabel(eventForm.EventType)));
+            }
+
+            return options;
+        }
+    }
+
     private PersonEditRequest form = new();
     private PersonEventRequest eventForm = new() { EventType = PersonEventType.Birth };
     private int? editingEventId;
@@ -1345,6 +1370,9 @@ else
         {
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
+            NamePrefix = person.NamePrefix,
+            Nickname = person.Nickname,
+            NameSuffix = person.NameSuffix,
             IsMale = person.IsMale,
             Latitude = person.Latitude,
             Longitude = person.Longitude,

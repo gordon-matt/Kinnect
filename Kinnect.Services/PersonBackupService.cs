@@ -39,6 +39,9 @@ public sealed class PersonBackupService(
                 UserId = p.UserId,
                 FamilyName = p.FamilyName,
                 GivenNames = p.GivenNames,
+                NamePrefix = p.NamePrefix,
+                Nickname = p.Nickname,
+                NameSuffix = p.NameSuffix,
                 IsMale = p.IsMale,
                 ProfileImagePath = p.ProfileImagePath,
                 Latitude = p.Latitude,
@@ -187,7 +190,7 @@ public sealed class PersonBackupService(
             return Result.Error("Could not read or parse the backup file.");
         }
 
-        if (doc is null || doc.SchemaVersion is not (1 or 2))
+        if (doc is null || doc.SchemaVersion is < 1 or > 5)
         {
             return Result.Invalid(new ValidationError("Unsupported or empty backup file."));
         }
@@ -216,6 +219,13 @@ public sealed class PersonBackupService(
                 entity.UserId = entry.UserId;
                 entity.FamilyName = entry.FamilyName;
                 entity.GivenNames = entry.GivenNames;
+                if (doc.SchemaVersion >= 5)
+                {
+                    entity.NamePrefix = entry.NamePrefix;
+                    entity.Nickname = entry.Nickname;
+                    entity.NameSuffix = entry.NameSuffix;
+                }
+
                 entity.IsMale = entry.IsMale;
                 entity.ProfileImagePath = entry.ProfileImagePath;
                 entity.Latitude = entry.Latitude;

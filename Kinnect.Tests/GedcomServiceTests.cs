@@ -258,8 +258,11 @@ public class GedcomServiceTests : IDisposable
             2 VERS 5.5.1
             0 @I1@ INDI
             1 NAME John Fitzgerald /KENNEDY/
+            2 NPFX Dr
             2 GIVN John, Fitzgerald
+            2 NICK Jack
             2 SURN KENNEDY
+            2 NSFX Jr
             1 SEX M
             0 @I2@ INDI
             1 NAME Alex /Kay/
@@ -271,6 +274,9 @@ public class GedcomServiceTests : IDisposable
             1 EVEN
             2 TYPE Enlisted
             2 DATE 1914
+            1 _MILT
+            2 DATE 1917
+            2 PLAC France
             1 OCCU Clerk
             1 ADDR 12 King Street
             2 CITY Adelaide
@@ -287,6 +293,9 @@ public class GedcomServiceTests : IDisposable
         var people = await db.People.ToListAsync();
         var kennedy = people.Single(person => person.FamilyName == "KENNEDY");
         Assert.Equal("John Fitzgerald", kennedy.GivenNames);
+        Assert.Equal("Dr", kennedy.NamePrefix);
+        Assert.Equal("Jack", kennedy.Nickname);
+        Assert.Equal("Jr", kennedy.NameSuffix);
 
         var person = people.Single(person => person.GivenNames == "Alex");
         Assert.Null(person.IsMale);
@@ -302,7 +311,57 @@ public class GedcomServiceTests : IDisposable
         var events = await db.PersonEvents.ToListAsync();
         Assert.Contains(events, e => e.EventType == PersonEventType.Emigration && e.Place == "Liverpool");
         Assert.Contains(events, e => e.EventType == PersonEventType.Custom && e.Description == "Enlisted");
+        Assert.Contains(events, e => e.EventType == "_MILT" && e.Place == "France" && e.Description == null);
+
+        string exported = await sut.ExportAsync();
+        Assert.Contains("2 NPFX Dr", exported, StringComparison.Ordinal);
+        Assert.Contains("2 NICK Jack", exported, StringComparison.Ordinal);
+        Assert.Contains("2 NSFX Jr", exported, StringComparison.Ordinal);
+        Assert.Contains("1 _MILT", exported, StringComparison.Ordinal);
+        Assert.DoesNotContain("2 TYPE _MILT", exported, StringComparison.Ordinal);
         Assert.Contains(events, e => e.EventType == PersonEventType.Occupation && e.Description == "Clerk");
+    }
+
+    [Fact]
+    public async Task ImportAsync_MediaDateAndText_UsesTakenOnForAnExactDateAndDescriptionForAPhrase()
+    {
+        var (options, factory) = SqliteDb.Create();
+        var sut = CreateSut(factory);
+        string ged = """
+            0 HEAD
+            1 GEDC
+            2 VERS 5.5.1
+            0 @I1@ INDI
+            1 NAME Jane /Roe/
+            1 OBJE
+            2 FILE photos/a.png
+            3 FORM png
+            3 _DATE 15 MAR 1920
+            3 _TEXT At the house
+            1 OBJE
+            2 FILE docs/note.txt
+            3 FORM txt
+            3 _DATE ABT 1900
+            3 _TEXT A rough date
+            0 TRLR
+            """;
+        using var zip = CreateZip(
+            ("family.ged", Encoding.UTF8.GetBytes(ged)),
+            ("photos/a.png", CreatePng()),
+            ("docs/note.txt", "hello"u8.ToArray()));
+
+        var result = await sut.ImportAsync(zip, "family.zip");
+
+        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
+        await using var db = SqliteDb.CreateContext(options);
+        var photo = await db.Photos.SingleAsync();
+        Assert.Equal((short)1920, photo.YearTaken);
+        Assert.Equal((byte)3, photo.MonthTaken);
+        Assert.Equal((byte)15, photo.DayTaken);
+        Assert.Equal("At the house", photo.Description);
+
+        var document = await db.Documents.SingleAsync();
+        Assert.Equal("Date: ABT 1900\n\nA rough date", document.Description);
     }
 
     [Fact]

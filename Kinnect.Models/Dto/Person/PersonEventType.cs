@@ -101,8 +101,53 @@ public static class PersonEventType
         [Custom] = "Custom Event",
     };
 
-    public static string GetLabel(string type) =>
-        Labels.TryGetValue(type, out string? label) ? label : type;
+    public static string GetLabel(string type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            return "Custom Event";
+        }
+
+        return Labels.TryGetValue(type, out string? label) ? label : $"Custom Event ({type})";
+    }
+
+    /// <summary>
+    /// A custom event stored before the original tag was kept on <see cref="Custom"/> may have that tag in the
+    /// description (<c>_MILT</c> or <c>_MILT: Enlisted</c>). A normal description such as <c>Enlisted</c> is left alone.
+    /// </summary>
+    public static bool TryReadStoredTag(string eventType, string? description, out string tag, out string? detail)
+    {
+        tag = eventType;
+        detail = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (!string.Equals(eventType, Custom, StringComparison.OrdinalIgnoreCase) || detail is null)
+        {
+            return false;
+        }
+
+        int colon = detail.IndexOf(':');
+        string head = (colon < 0 ? detail : detail[..colon]).Trim();
+        if (head.Length is < 1 or > 20 || Labels.ContainsKey(head))
+        {
+            return false;
+        }
+
+        foreach (char character in head)
+        {
+            if (character is not ('_' or (>= 'A' and <= 'Z') or (>= '0' and <= '9')))
+            {
+                return false;
+            }
+        }
+
+        tag = head;
+        detail = colon < 0 ? null : detail[(colon + 1)..].Trim();
+        if (detail?.Length == 0)
+        {
+            detail = null;
+        }
+
+        return true;
+    }
 
     /// <summary>Types that belong on the person timeline. Marriage, divorce and engagement live on the spouse relationship.</summary>
     public static IEnumerable<(string Type, string Label)> TimelineSelectableTypes =>
@@ -134,5 +179,5 @@ public static class PersonEventType
 
     /// <summary>Events that can sensibly be copied onto relatives, such as a shared residence.</summary>
     public static bool CanCopyToRelatives(string eventType) =>
-        CopyableToRelatives.Contains(eventType.ToUpperInvariant());
+        CopyableToRelatives.Contains(eventType.ToUpperInvariant()) || !Labels.ContainsKey(eventType);
 }

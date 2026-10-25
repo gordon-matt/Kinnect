@@ -1,0 +1,99 @@
+@using Kinnect.Models.FamilyTree
+@inject IGedcomService Gedcom
+@inject GedcomExportStore Exports
+@inject ToastService Toasts
+
+<div class="kinnect-lightbox" @onclick="Close">
+    <div class="kinnect-card kinnect-stack" style="width: min(32rem, 100%)" @onclick:stopPropagation="true">
+        <div class="kinnect-split">
+            <h2>Export GEDCOM</h2>
+            <button type="button" class="nf-icon-button" title="Close" @onclick="Close"><Icon Name="x" /></button>
+        </div>
+        @if (downloadUrl is null)
+        {
+            <p class="kinnect-muted">Everything is included unless you clear it. Photos, videos and documents are packed into a zip with the GEDCOM.</p>
+            <label class="nf-check"><input type="checkbox" @bind="options.Names" disabled="@running" /> Names and sex</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Notes" disabled="@running" /> Notes</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Events" disabled="@running" /> Events</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Contacts" disabled="@running" /> Contacts</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Families" disabled="@running" /> Families</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Photos" disabled="@running" /> Photos</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Videos" disabled="@running" /> Videos</label>
+            <label class="nf-check"><input type="checkbox" @bind="options.Documents" disabled="@running" /> Documents</label>
+            @if (running)
+            {
+                <div class="kinnect-progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" role="progressbar">
+                    <span style="width:@(percent)%"></span>
+                </div>
+                <p class="kinnect-muted">@label</p>
+            }
+            <div class="kinnect-row">
+                <button type="button" class="nf-button nf-button-primary" disabled="@running" @onclick="ExportAsync">Export</button>
+                <button type="button" class="nf-button" @onclick="Close">@(running ? "Cancel" : "Close")</button>
+            </div>
+        }
+        else
+        {
+            <p>The file is ready.</p>
+            <a class="nf-button nf-button-primary" href="@downloadUrl">Download</a>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    private readonly GedcomExportOptions options = new();
+    private bool running;
+    private int percent;
+    private string label = "Preparing the export…";
+    private string? downloadUrl;
+    private CancellationTokenSource? cancellation;
+
+    private async Task ExportAsync()
+    {
+        running = true;
+        percent = 0;
+        label = "Preparing the export…";
+        cancellation = new CancellationTokenSource();
+        var progress = new Progress<GedcomExportProgress>(update =>
+        {
+            percent = update.Total <= 0 ? 0 : (int)Math.Round(100d * update.Completed / update.Total);
+            label = string.IsNullOrWhiteSpace(update.Label) ? "Writing the file…" : update.Label;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            var file = await Gedcom.ExportFileAsync(options, progress, cancellation.Token);
+            string token = Exports.Put(file);
+            downloadUrl = $"/api/gedcom/export/{token}";
+            percent = 100;
+            label = file.DownloadName;
+        }
+        catch (OperationCanceledException)
+        {
+            await Closed.InvokeAsync();
+        }
+        catch (Exception)
+        {
+            Toasts.Error("The GEDCOM export failed.");
+        }
+        finally
+        {
+            running = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        if (running)
+        {
+            cancellation?.Cancel();
+            return;
+        }
+
+        await Closed.InvokeAsync();
+    }
+}

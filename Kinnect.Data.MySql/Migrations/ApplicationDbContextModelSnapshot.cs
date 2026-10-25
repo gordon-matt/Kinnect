@@ -516,6 +516,18 @@ namespace Kinnect.Data.MySql.Migrations
                     b.Property<int?>("MotherId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NamePrefix")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("NameSuffix")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<string>("Note")
                         .HasMaxLength(4000)
                         .HasColumnType("varchar(4000)");

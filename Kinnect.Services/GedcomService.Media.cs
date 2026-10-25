@@ -234,10 +234,14 @@ public partial class GedcomService
             Constants.FileStorage.Photos,
             Constants.FileStorage.GedcomImportedMedia);
 
+        bool exactDate = ExactDate(request.Date, out short? takenYear, out byte? takenMonth, out byte? takenDay);
         var photo = await photoRepository.InsertAsync(new Photo
         {
             Title = Truncate(request.Title, 500),
-            Description = request.Description,
+            Description = Caption(request, exactDate),
+            YearTaken = exactDate ? takenYear : null,
+            MonthTaken = exactDate ? takenMonth : null,
+            DayTaken = exactDate ? takenDay : null,
             FilePath = filePath,
             ThumbnailPath = thumbnailPath,
             UploadedByPersonId = uploaderId,
@@ -258,7 +262,7 @@ public partial class GedcomService
         var video = await videoRepository.InsertAsync(new Video
         {
             Title = Truncate(request.Title, 500),
-            Description = request.Description,
+            Description = Caption(request, storeDateSeparately: false),
             FilePath = path,
             UploadedByPersonId = uploaderId,
             CreatedAtUtc = DateTime.UtcNow,
@@ -276,7 +280,7 @@ public partial class GedcomService
         var document = await documentRepository.InsertAsync(new Document
         {
             Title = Truncate(request.Title, 500),
-            Description = request.Description,
+            Description = Caption(request, storeDateSeparately: false),
             FilePath = path,
             ContentType = ContentTypeFor(entryName),
             FileSize = size,
@@ -316,7 +320,7 @@ public partial class GedcomService
                 continue;
             }
 
-            string? description = ResolveFirstNote(media.Notes, database);
+            string? note = ResolveFirstNote(media.Notes, database);
             foreach (var file in media.Files)
             {
                 if (string.IsNullOrWhiteSpace(file.Filename))
@@ -324,7 +328,14 @@ public partial class GedcomService
                     continue;
                 }
 
-                yield return new MediaRequest(file.Filename, file.Format, TitleFor(media, file), description, file.IsPrimary);
+                yield return new MediaRequest(
+                    file.Filename,
+                    file.Format,
+                    TitleFor(media, file),
+                    note,
+                    FirstText(file.Date, media.Date),
+                    FirstText(file.Text, media.Text),
+                    file.IsPrimary);
             }
         }
     }
@@ -343,9 +354,9 @@ public partial class GedcomService
         string title = media.Title?.Trim() ?? string.Empty;
         string allFileNames = string.Join(", ", media.Files.Select(f => f.Filename));
 
-        if (title.Length == 0
-            || string.Equals(title, file.Filename, StringComparison.Ordinal)
-            || string.Equals(title, allFileNames, StringComparison.Ordinal))
+        if (title.Length == 0 ||
+            string.Equals(title, file.Filename, StringComparison.Ordinal) ||
+            string.Equals(title, allFileNames, StringComparison.Ordinal))
         {
             string name = Path.GetFileNameWithoutExtension(file.Filename.Replace('\\', '/'));
             return string.IsNullOrWhiteSpace(name) ? "Photo" : name;
@@ -357,9 +368,74 @@ public partial class GedcomService
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
 
-    private sealed record MediaRequest(string Reference, string? Format, string Title, string? Description, bool IsPrimary);
+    private static string? FirstText(string? preferred, string? fallback) =>
+        !string.IsNullOrWhiteSpace(preferred) ? preferred.Trim() : string.IsNullOrWhiteSpace(fallback) ? null : fallback.Trim();
 
-    private enum GedcomMediaKind { Photo, Document, Video }
+    /// <summary>A calendar date, or a year, with no qualifier such as ABT or FROM.</summary>
+    private static bool ExactDate(string? raw, out short? year, out byte? month, out byte? day)
+    {
+        year = null;
+        month = null;
+        day = null;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        foreach (string word in raw.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (word.Equals("ABT", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("ABOUT", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("EST", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("BEF", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("AFT", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("CAL", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("CIRCA", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("INT", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("FROM", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("TO", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("BET", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("AND", StringComparison.OrdinalIgnoreCase) ||
+                word.Equals("BETWEEN", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        (year, month, day) = ParseDateString(raw);
+        return year is not null;
+    }
+
+    /// <summary>
+    /// Photos keep an exact <c>_DATE</c> in the taken-on columns. A phrase, and every date on a video or document,
+    /// is written above <c>_TEXT</c> in the description.
+    /// </summary>
+    private static string? Caption(MediaRequest request, bool storeDateSeparately)
+    {
+        var parts = new List<string>();
+        if (!storeDateSeparately && !string.IsNullOrWhiteSpace(request.Date))
+        {
+            parts.Add($"Date: {request.Date.Trim()}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Text))
+        {
+            parts.Add(request.Text.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Note)
+            && !string.Equals(request.Note.Trim(), request.Text?.Trim(), StringComparison.Ordinal))
+        {
+            parts.Add(request.Note.Trim());
+        }
+
+        return parts.Count == 0 ? null : Truncate(string.Join("\n\n", parts), 4000);
+    }
+
+    private sealed record MediaRequest(string Reference, string? Format, string Title, string? Note, string? Date, string? Text, bool IsPrimary);
+
+    private enum GedcomMediaKind
+    { Photo, Document, Video }
 
     private sealed record ImportedMedia(GedcomMediaKind Kind, int Id, string EntryName, bool IsPrimary);
 

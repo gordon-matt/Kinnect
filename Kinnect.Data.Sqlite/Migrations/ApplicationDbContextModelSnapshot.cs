@@ -514,6 +514,18 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Property<int?>("MotherId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("NamePrefix")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NameSuffix")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Note")
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
