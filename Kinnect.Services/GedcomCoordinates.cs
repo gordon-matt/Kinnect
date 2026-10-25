@@ -1,5 +1,5 @@
 using System.Globalization;
-using GeneGenie.Gedcom;
+using GedcomSharp.Model;
 
 namespace Kinnect.Services;
 
@@ -8,17 +8,8 @@ namespace Kinnect.Services;
 /// </summary>
 internal static class GedcomCoordinates
 {
-    public static (double? Latitude, double? Longitude) Read(GedcomPlace? place)
-    {
-        if (place is null)
-        {
-            return (null, null);
-        }
-
-        double? latitude = Parse(place.Latitude, latitude: true);
-        double? longitude = Parse(place.Longitude, latitude: false);
-        return latitude is null || longitude is null ? (null, null) : (latitude, longitude);
-    }
+    public static (double? Latitude, double? Longitude) Read(Place? place) =>
+        place?.Latitude is double latitude && place.Longitude is double longitude ? (latitude, longitude) : (null, null);
 
     public static string FormatLatitude(double latitude) => Format(latitude, positive: 'N', negative: 'S');
 
@@ -30,35 +21,5 @@ internal static class GedcomCoordinates
         return string.Create(
             CultureInfo.InvariantCulture,
             $"{hemisphere}{Math.Abs(value):0.######}");
-    }
-
-    private static double? Parse(string? text, bool latitude)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        text = text.Trim();
-        int sign = 1;
-        char head = text[0];
-        if (head is 'S' or 's' or 'W' or 'w')
-        {
-            sign = -1;
-            text = text[1..].Trim();
-        }
-        else if (head is 'N' or 'n' or 'E' or 'e')
-        {
-            text = text[1..].Trim();
-        }
-
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
-        {
-            return null;
-        }
-
-        value *= sign;
-        bool inRange = latitude ? value is >= -90 and <= 90 : value is >= -180 and <= 180;
-        return inRange ? value : null;
     }
 }

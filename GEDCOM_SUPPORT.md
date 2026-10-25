@@ -2,7 +2,7 @@
 
 Kinnect can import a GEDCOM once, while the tree is still empty, from **Settings → onboarding** as an administrator. Upload a `.ged` / `.gedcom`, or a `.zip` that contains the GEDCOM and the files it points at.
 
-The uploaded `.ged` is stored byte for byte (under the file-storage `gedcom` folder, which is not served). Export downloads a new file built from what Kinnect stores. Anything under "not imported" remains in the stored original and is not copied into that download.
+The uploaded `.ged` is stored byte for byte (under the file-storage `gedcom` folder, which is not served). Export starts from that file and writes Kinnect's changes into the parts it keeps. Tags Kinnect does not use stay in the download. A tree that was built in Kinnect, with no uploaded file, is written from scratch.
 
 This page is the checklist for adding more later.
 
@@ -98,7 +98,9 @@ Not imported from a multimedia record:
 
 ## Export today
 
-**Family tree → Export GEDCOM** asks which parts to include. Everything starts checked. The export builds a new GEDCOM 5.5.1 file from the database. Photos, videos and documents, when left checked, are packed into a zip beside that file and linked with `OBJE`.
+**Family tree → Export GEDCOM** asks which parts to bring up to date. Everything starts checked. When a GEDCOM was imported, the download is that file with the checked parts replaced by what Kinnect holds now. Further names, aliases, `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites, source citations, and the rest of the "not imported" lists stay in the download. Clearing a box leaves that part out. Photos, videos and documents, when left checked, are packed into a zip beside the GEDCOM and linked with `OBJE`.
+
+A tree that was not imported is written as a new GEDCOM 5.5.1 file from the database. In that case there is no earlier file to keep.
 
 - Name, prefix, nickname, suffix, and sex (`M`, `F`, or `U`)
 - Birth and death
@@ -109,4 +111,4 @@ Not imported from a multimedia record:
 - Families: husband and wife (a male spouse is written as `HUSB`), marriage date, divorce date, engagement, and children whose father and mother are that pair
 - Photos, videos and documents, including `_DATE` and `_TEXT` when Kinnect has them
 
-It does not edit the stored original. Tags that were never imported (further names, aliases, `CHAN`, `REFN`, `RIN`, `AFN`, record ids from other sites, and the rest of the "not imported" lists) stay in that original file only. They are not copied into the file this export downloads.
+The stored original on the server is not edited. The download is a separate file.

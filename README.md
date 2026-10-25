@@ -24,7 +24,7 @@ Browse your family as an interactive chart—pan, zoom, and follow links between
 
 ### GEDCOM import (optional)
 
-If you already have a tree elsewhere, you can bring it in with a standard **GEDCOM** file (offered during onboarding when the database is empty and you have administrator access). Individuals, relationships, life events, contacts, and media are mapped into the app’s model. To bring in **photos, videos, and documents** as well, upload a `.zip` containing the `.ged` file and the folders those files live in. A plain `.ged` imports the tree without media. The uploaded GEDCOM is kept unchanged on the server so a future export can merge into it without losing anything Kinnect does not use. [GEDCOM support](GEDCOM_SUPPORT.md) lists exactly what is imported and what is still left in the original file. **Import is entirely optional**—you can skip it and **build the tree from scratch** by adding people manually, one at a time, with the same end result: a tree you grow and maintain inside Kinnect. When the tree did come from a GEDCOM, the administrator has to link their account to someone already in that tree.
+If you already have a tree elsewhere, you can bring it in with a standard **GEDCOM** file (offered during onboarding when the database is empty and you have administrator access). Individuals, relationships, life events, contacts, and media are mapped into the app’s model. To bring in **photos, videos, and documents** as well, upload a `.zip` containing the `.ged` file and the folders those files live in. A plain `.ged` imports the tree without media. The uploaded GEDCOM is kept unchanged on the server. Export writes Kinnect's changes into a copy of that file, so tags Kinnect does not use stay in the download. [GEDCOM support](GEDCOM_SUPPORT.md) lists exactly what is imported and what is still left in the original file. **Import is entirely optional**—you can skip it and **build the tree from scratch** by adding people manually, one at a time, with the same end result: a tree you grow and maintain inside Kinnect. When the tree did come from a GEDCOM, the administrator has to link their account to someone already in that tree.
 
 ### Home feed
 
@@ -228,7 +228,7 @@ Kinnect builds on excellent open work from the community:
 | Project | Description | Repository |
 |--------|-------------|------------|
 | **family-chart.js** | D3-based interactive family tree visualization (npm package `family-chart`; used in the tree UI) | [github.com/donatso/family-chart](https://github.com/donatso/family-chart) |
-| **GeneGenie.Gedcom** | .NET library for loading, parsing, and working with GEDCOM data | [github.com/TheGeneGenieProject/GeneGenie.Gedcom](https://github.com/TheGeneGenieProject/GeneGenie.Gedcom) |
+| **GedcomSharp** | Reads and writes GEDCOM 5.5, 5.5.1, 5.5.5 and 7.0, plus GEDZIP and GEDCOM X | [github.com/gordon-matt/GedcomSharp](https://github.com/gordon-matt/GedcomSharp) |
 | **SignalR-Chat** | A real-time chat application using .NET 7, SignalR and Knockout.js | [github.com/AKouki/SignalR-Chat](https://github.com/AKouki/SignalR-Chat) |
 
 Thank you to the authors and contributors of these and other projects this app is built on.

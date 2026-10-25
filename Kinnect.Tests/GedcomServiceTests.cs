@@ -323,6 +323,72 @@ public class GedcomServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExportAsync_KeepsTagsThatWereNotImportedAndAppliesEdits()
+    {
+        var (options, factory) = SqliteDb.Create();
+        var sut = CreateSut(factory);
+        string ged = """
+            0 HEAD
+            1 GEDC
+            2 VERS 5.5.1
+            1 CHAR UTF-8
+            0 @I1@ INDI
+            1 NAME John /Smith/
+            2 NICK Jack
+            1 NAME John /Other/
+            2 TYPE also known as
+            1 SEX M
+            1 REFN 12345
+            1 AFN ABCD-EF
+            1 CHAN
+            2 DATE 1 JAN 2000
+            1 ALIA @I9@
+            1 BIRT
+            2 DATE 1 JAN 1900
+            2 PLAC Boston
+            2 CAUS Fever
+            2 SOUR @S1@
+            1 NOTE @N1@
+            0 @N1@ NOTE Kept aside.
+            1 SOUR @S1@
+            0 @S1@ SOUR
+            1 TITL The parish book
+            0 TRLR
+            """;
+
+        await using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(ged)))
+        {
+            var imported = await sut.ImportAsync(stream, "keep.ged");
+            Assert.True(imported.IsSuccess, string.Join("; ", imported.Errors));
+        }
+
+        await using (var db = SqliteDb.CreateContext(options))
+        {
+            var person = await db.People.SingleAsync();
+            person.Nickname = "Johnny";
+            var birth = await db.PersonEvents.SingleAsync(evt => evt.EventType == PersonEventType.Birth);
+            birth.Year = 1901;
+            await db.SaveChangesAsync();
+        }
+
+        string exported = await sut.ExportAsync();
+        Assert.Contains("2 NICK Johnny", exported, StringComparison.Ordinal);
+        Assert.Contains("1 NAME John /Other/", exported, StringComparison.Ordinal);
+        Assert.Contains("2 TYPE also known as", exported, StringComparison.Ordinal);
+        Assert.Contains("1 REFN 12345", exported, StringComparison.Ordinal);
+        Assert.Contains("1 AFN ABCD-EF", exported, StringComparison.Ordinal);
+        Assert.Contains("1 CHAN", exported, StringComparison.Ordinal);
+        Assert.Contains("1 ALIA @I9@", exported, StringComparison.Ordinal);
+        Assert.Contains("2 CAUS Fever", exported, StringComparison.Ordinal);
+        Assert.Contains("2 SOUR @S1@", exported, StringComparison.Ordinal);
+        Assert.Contains("1 TITL The parish book", exported, StringComparison.Ordinal);
+        Assert.Contains("1 NOTE @N1@", exported, StringComparison.Ordinal);
+        Assert.Contains("0 @N1@ NOTE Kept aside.", exported, StringComparison.Ordinal);
+        Assert.Contains("01 JAN 1901", exported, StringComparison.Ordinal);
+        Assert.DoesNotContain("01 JAN 1900", exported, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ImportAsync_MediaDateAndText_UsesTakenOnForAnExactDateAndDescriptionForAPhrase()
     {
         var (options, factory) = SqliteDb.Create();

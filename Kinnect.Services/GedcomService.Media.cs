@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
-using GeneGenie.Gedcom;
+using GedcomSharp.Model;
+using GedcomTags = GedcomSharp.GedcomTags;
 using Kinnect.Models.FamilyTree;
 
 namespace Kinnect.Services;
@@ -45,8 +46,7 @@ public partial class GedcomService
     }
 
     private async Task ImportIndividualMediaAsync(
-        GedcomIndividualRecord individual,
-        GedcomDatabase database,
+        IndividualRecord individual,
         Person person,
         List<(GedcomEvent Source, int EventId)> importedEvents,
         MediaImportContext context)
@@ -54,14 +54,14 @@ public partial class GedcomService
         int[] owner = [person.Id];
 
         // Media attached directly to the person. The first one becomes the profile picture.
-        var own = await ImportMediaAsync(CollectMedia(individual, database), context, owner, person.Id, eventId: null);
+        var own = await ImportMediaAsync(CollectMedia(individual), context, owner, person.Id, eventId: null);
 
         // Media attached to a source citation on the person (e.g. a scanned certificate).
-        await ImportMediaAsync(CollectCitationMedia(individual, database), context, owner, person.Id, eventId: null);
+        await ImportMediaAsync(CollectCitationMedia(individual), context, owner, person.Id, eventId: null);
 
         foreach (var (source, eventId) in importedEvents)
         {
-            var requests = CollectMedia(source, database).Concat(CollectCitationMedia(source, database));
+            var requests = CollectMedia(source).Concat(CollectCitationMedia(source));
             await ImportMediaAsync(requests, context, owner, person.Id, eventId);
         }
 
@@ -75,8 +75,7 @@ public partial class GedcomService
     }
 
     private async Task ImportFamilyMediaAsync(
-        GedcomFamilyRecord family,
-        GedcomDatabase database,
+        FamilyRecord family,
         int? husbandId,
         int? wifeId,
         MediaImportContext context)
@@ -93,9 +92,9 @@ public partial class GedcomService
             return;
         }
 
-        var requests = CollectMedia(family, database)
-            .Concat(CollectCitationMedia(family, database))
-            .Concat(family.Events.SelectMany(e => CollectMedia(e, database).Concat(CollectCitationMedia(e, database))));
+        var requests = CollectMedia(family)
+            .Concat(CollectCitationMedia(family))
+            .Concat(family.Events.SelectMany(familyEvent => CollectMedia(familyEvent).Concat(CollectCitationMedia(familyEvent))));
 
         await ImportMediaAsync(requests, context, personIds, personIds[0], eventId: null);
     }
@@ -311,54 +310,56 @@ public partial class GedcomService
         _ => "application/octet-stream",
     };
 
-    private static IEnumerable<MediaRequest> CollectMedia(GedcomRecord record, GedcomDatabase database)
+    private static IEnumerable<MediaRequest> CollectMedia(GedcomCitableView record)
     {
-        foreach (string xref in record.Multimedia)
+        foreach (var link in record.MediaLinks)
         {
-            if (database[xref] is not GedcomMultimediaRecord media)
+            var media = link.Resolve();
+            string? note = FirstNote(media?.Notes ?? link.Notes);
+            string? recordDate = media?.Structure.ChildValue(GedcomTags.DATE);
+            string? recordText = media?.Structure.ChildValue(GedcomTags.Extensions.TEXT);
+            foreach (var file in media?.Files ?? link.Files)
             {
-                continue;
-            }
-
-            string? note = ResolveFirstNote(media.Notes, database);
-            foreach (var file in media.Files)
-            {
-                if (string.IsNullOrWhiteSpace(file.Filename))
+                if (string.IsNullOrWhiteSpace(file.Path))
                 {
                     continue;
                 }
 
+                bool primary = link.IsPrimary || IsYes(file.Structure.ChildValue(GedcomTags.Extensions.PRIM));
                 yield return new MediaRequest(
-                    file.Filename,
+                    file.Path,
                     file.Format,
-                    TitleFor(media, file),
+                    TitleFor(media, link, file),
                     note,
-                    FirstText(file.Date, media.Date),
-                    FirstText(file.Text, media.Text),
-                    file.IsPrimary);
+                    FirstText(file.Structure.ChildValue(GedcomTags.Extensions.DATE), recordDate),
+                    FirstText(file.Structure.ChildValue(GedcomTags.Extensions.TEXT), recordText),
+                    primary);
             }
         }
     }
 
-    private static IEnumerable<MediaRequest> CollectCitationMedia(GedcomRecord record, GedcomDatabase database) =>
-        record.Sources.SelectMany(citation => CollectMedia(citation, database));
+    private static IEnumerable<MediaRequest> CollectCitationMedia(GedcomCitableView record) =>
+        record.SourceCitations.SelectMany(CollectMedia);
 
-    /// <summary>GeneGenie falls back to the file names when a record has no TITL, which is not a useful title.</summary>
-    private static string TitleFor(GedcomMultimediaRecord media, GedcomMultimediaFile file)
+    private static bool IsYes(string? value) => value is not null && value.Trim().StartsWith('Y');
+
+    /// <summary>A title that is only the file name is replaced with the name without its extension.</summary>
+    private static string TitleFor(MultimediaRecord? media, MultimediaLink link, MultimediaFile file)
     {
-        if (!string.IsNullOrWhiteSpace(file.Title))
+        if (!string.IsNullOrWhiteSpace(file.Title) && !string.Equals(file.Title.Trim(), file.Path, StringComparison.Ordinal))
         {
             return file.Title.Trim();
         }
 
-        string title = media.Title?.Trim() ?? string.Empty;
-        string allFileNames = string.Join(", ", media.Files.Select(f => f.Filename));
+        string title = (media?.Title ?? link.Title)?.Trim() ?? string.Empty;
+        var files = media?.Files ?? link.Files;
+        string allFileNames = string.Join(", ", files.Select(item => item.Path));
 
         if (title.Length == 0 ||
-            string.Equals(title, file.Filename, StringComparison.Ordinal) ||
+            string.Equals(title, file.Path, StringComparison.Ordinal) ||
             string.Equals(title, allFileNames, StringComparison.Ordinal))
         {
-            string name = Path.GetFileNameWithoutExtension(file.Filename.Replace('\\', '/'));
+            string name = Path.GetFileNameWithoutExtension((file.Path ?? string.Empty).Replace('\\', '/'));
             return string.IsNullOrWhiteSpace(name) ? "Photo" : name;
         }
 

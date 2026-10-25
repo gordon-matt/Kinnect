@@ -1,9 +1,10 @@
 using System.IO.Compression;
 using System.Text;
-using GeneGenie.Gedcom;
-using GeneGenie.Gedcom.Enums;
-using GeneGenie.Gedcom.Parser;
+using GedcomSharp.Model;
+using GedcomTags = GedcomSharp.GedcomTags;
 using Kinnect.Models.FamilyTree;
+using GedcomDate = GedcomSharp.Values.GedcomDate;
+using GedcomSex = GedcomSharp.Values.GedcomSex;
 
 namespace Kinnect.Services;
 
@@ -77,6 +78,25 @@ public partial class GedcomService(
 
         var eventsByPerson = events.ToLookup(e => e.PersonId);
         var contactsByPerson = (await contactRepository.FindAsync(new SearchOptions<Contact>())).ToLookup(c => c.PersonId);
+
+        string? original = await ReadStoredOriginalAsync(cancellationToken);
+        if (!string.IsNullOrEmpty(original))
+        {
+            try
+            {
+                string? patched = PatchOriginal(
+                    original, people, spouses, eventsByPerson, contactsByPerson, staged, options, progress, cancellationToken);
+                if (patched is not null)
+                {
+                    return patched;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "The stored GEDCOM could not be patched. A new file was written instead.");
+            }
+        }
+
         var sb = new StringBuilder();
 
         // Header
@@ -91,7 +111,7 @@ public partial class GedcomService(
         foreach (var person in people)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string xref = person.GedcomId ?? $"@I{person.Id}@";
+            string xref = FormatXref(person.GedcomId, person.Id);
             sb.AppendLine($"0 {xref} INDI");
             if (options.Names)
             {
@@ -223,12 +243,12 @@ public partial class GedcomService(
             sb.AppendLine($"0 @F{familyIndex++}@ FAM");
             if (husband != null)
             {
-                sb.AppendLine($"1 HUSB {husband.GedcomId ?? $"@I{husband.Id}@"}");
+                sb.AppendLine($"1 HUSB {FormatXref(husband.GedcomId, husband.Id)}");
             }
 
             if (wife != null)
             {
-                sb.AppendLine($"1 WIFE {wife.GedcomId ?? $"@I{wife.Id}@"}");
+                sb.AppendLine($"1 WIFE {FormatXref(wife.GedcomId, wife.Id)}");
             }
 
             if (spouse.MarriageYear.HasValue)
@@ -259,7 +279,7 @@ public partial class GedcomService(
 
             foreach (var child in children)
             {
-                sb.AppendLine($"1 CHIL {child.GedcomId ?? $"@I{child.Id}@"}");
+                sb.AppendLine($"1 CHIL {FormatXref(child.GedcomId, child.Id)}");
             }
         }
 
@@ -477,9 +497,14 @@ public partial class GedcomService(
                 File.Move(uploadPath, gedcomPath);
             }
 
-            var reader = GedcomRecordReader.CreateReader(gedcomPath);
-            var database = reader.Database;
+            var read = await new GedcomSharp.GedcomReader().ReadAsync(gedcomPath);
+            if (!read.IsSuccess)
+            {
+                string detail = string.Join(" ", read.Errors.Concat(read.ValidationErrors.Select(error => error.ErrorMessage)));
+                return Result.Error(string.IsNullOrWhiteSpace(detail) ? "The file could not be read as GEDCOM." : detail);
+            }
 
+            var dataset = read.Value;
             await StoreOriginalAsync(gedcomPath, originalName);
 
             var context = new MediaImportContext(archive, summary);
@@ -487,16 +512,17 @@ public partial class GedcomService(
             // Map GEDCOM XRef IDs → our DB person IDs
             var xrefToPersonId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var individual in database.Individuals)
+            foreach (var individual in dataset.Individuals)
             {
-                await ImportIndividualAsync(individual, database, xrefToPersonId, summary, context);
+                await ImportIndividualAsync(individual, xrefToPersonId, summary, context);
             }
 
-            foreach (var family in database.Families)
+            foreach (var family in dataset.Families)
             {
-                await ImportFamilyAsync(family, database, xrefToPersonId, summary, context);
+                await ImportFamilyAsync(family, xrefToPersonId, summary, context);
             }
 
+            await RestoreFoldedTagsAsync(gedcomPath);
             context.AddSummaryWarnings();
             return Result.Success(summary);
         }
@@ -519,17 +545,15 @@ public partial class GedcomService(
         }
     }
 
-    private static void ApplyFacts(GedcomIndividualRecord individual, Person person)
+    private static void ApplyFacts(IndividualRecord individual, Person person)
     {
-        // Facts live on Attributes. FindEvent only walks Events, so occupation would be missed.
-        person.Occupation = FactValue(FindFact(individual, GedcomEventType.OCCUFact)) ?? person.Occupation;
-        person.Education = FactValue(FindFact(individual, GedcomEventType.EDUCFact)) ?? person.Education;
-        person.Religion = FactValue(FindFact(individual, GedcomEventType.RELIFact)) ?? person.Religion;
+        person.Occupation = FactValue(FindFact(individual, GedcomTags.OCCU)) ?? person.Occupation;
+        person.Education = FactValue(FindFact(individual, GedcomTags.EDUC)) ?? person.Education;
+        person.Religion = FactValue(FindFact(individual, GedcomTags.RELI)) ?? person.Religion;
     }
 
-    private static GedcomEvent? FindFact(GedcomIndividualRecord individual, GedcomEventType type) =>
-        individual.Attributes.FirstOrDefault(fact => fact.EventType == type)
-        ?? individual.Events.FirstOrDefault(fact => fact.EventType == type);
+    private static GedcomEvent? FindFact(IndividualRecord individual, string tag) =>
+        individual.Events.FirstOrDefault(fact => fact.Tag == tag);
 
     /// <summary>A fact's text is the TYPE (classification) when there is one, and otherwise the value on the tag itself.</summary>
     private static string? FactValue(GedcomEvent? fact)
@@ -539,12 +563,12 @@ public partial class GedcomService(
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(fact.Classification))
+        if (!string.IsNullOrWhiteSpace(fact.Type))
         {
-            return fact.Classification;
+            return fact.Type;
         }
 
-        return string.IsNullOrWhiteSpace(fact.EventName) ? null : fact.EventName;
+        return string.IsNullOrWhiteSpace(fact.Value) || fact.Value == "Y" ? null : fact.Value;
     }
 
     private static string FormatDate(short? year, byte? month, byte? day)
@@ -563,22 +587,21 @@ public partial class GedcomService(
         return day == null ? $"{monthAbbr} {year:D4}" : $"{day:D2} {monthAbbr} {year:D4}";
     }
 
-    private static (short? Year, byte? Month, byte? Day) ParseDate(GedcomDate? date)
+    private static (short? Year, byte? Month, byte? Day) ParseDate(GedcomDate date)
     {
-        if (date?.DateTime1 == null && string.IsNullOrWhiteSpace(date?.DateString))
+        if (date.IsEmpty)
         {
             return (null, null, null);
         }
 
-        // Prefer the parsed DateTime if available
-        if (date!.DateTime1.HasValue)
+        // A parsed date keeps a partial precision (year only, or year and month). Anything that did not parse
+        // is read from the original text, which still holds forms such as "ABT 1850".
+        if (date.Start is { Year: > 0 } start)
         {
-            var dt = date.DateTime1.Value;
-            return ((short)dt.Year, (byte)dt.Month, (byte)dt.Day);
+            return ((short)start.Year, (byte?)start.Month, (byte?)start.Day);
         }
 
-        // Fall back to parsing the date string ourselves
-        return ParseDateString(date.DateString);
+        return ParseDateString(date.OriginalText ?? date.ToString());
     }
 
     private static (short? Year, byte? Month, byte? Day) ParseDateString(string? dateString)
@@ -644,15 +667,16 @@ public partial class GedcomService(
         return (year, month, day);
     }
 
-    private static string? ResolveFirstNote(GedcomRecordList<string> noteXrefs, GedcomDatabase db)
+    private static string? FirstNote(IEnumerable<NoteLink> notes)
     {
-        foreach (string xref in noteXrefs)
+        foreach (var note in notes)
         {
-            if (db[xref] is GedcomNoteRecord note && !string.IsNullOrWhiteSpace(note.Text))
+            if (!string.IsNullOrWhiteSpace(note.Text))
             {
                 return note.Text;
             }
         }
+
         return null;
     }
 
@@ -669,14 +693,13 @@ public partial class GedcomService(
     }
 
     private async Task ImportFamilyAsync(
-        GedcomFamilyRecord family,
-        GedcomDatabase database,
+        FamilyRecord family,
         Dictionary<string, int> xrefToPersonId,
         GedcomImportResult summary,
         MediaImportContext context)
     {
-        int? husbandId = family.Husband != null && xrefToPersonId.TryGetValue(family.Husband, out int hid) ? hid : null;
-        int? wifeId = family.Wife != null && xrefToPersonId.TryGetValue(family.Wife, out int wid) ? wid : null;
+        int? husbandId = family.HusbandXref is { } husband && xrefToPersonId.TryGetValue(husband, out int hid) ? hid : null;
+        int? wifeId = family.WifeXref is { } wife && xrefToPersonId.TryGetValue(wife, out int wid) ? wid : null;
 
         if (husbandId.HasValue && wifeId.HasValue)
         {
@@ -696,19 +719,8 @@ public partial class GedcomService(
                     spouseRecord.MarriageDay = Day;
                 }
 
-                GedcomFamilyEvent? divorceEvent = null;
-                GedcomFamilyEvent? engagementEvent = null;
-                foreach (var famEv in family.Events)
-                {
-                    if (famEv.EventType == GedcomEventType.DIV && divorceEvent is null)
-                    {
-                        divorceEvent = famEv;
-                    }
-                    else if (famEv.EventType == GedcomEventType.ENGA && engagementEvent is null)
-                    {
-                        engagementEvent = famEv;
-                    }
-                }
+                var divorceEvent = family.Events.FirstOrDefault(familyEvent => familyEvent.Tag == GedcomTags.DIV);
+                var engagementEvent = family.Events.FirstOrDefault(familyEvent => familyEvent.Tag == GedcomTags.ENGA);
 
                 if (divorceEvent != null)
                 {
@@ -733,7 +745,7 @@ public partial class GedcomService(
         }
 
         // Link children to their parents
-        foreach (string childXref in family.Children)
+        foreach (string childXref in family.ChildXrefs)
         {
             if (!xrefToPersonId.TryGetValue(childXref, out int childId))
             {
@@ -758,8 +770,8 @@ public partial class GedcomService(
             }
         }
 
-        await ImportFamilyMediaAsync(family, database, husbandId, wifeId, context);
-        await ImportFamilyEventsAsync(family, database, husbandId, wifeId, summary);
+        await ImportFamilyMediaAsync(family, husbandId, wifeId, context);
+        await ImportFamilyEventsAsync(family, husbandId, wifeId, summary);
     }
 
     /// <summary>
@@ -767,8 +779,7 @@ public partial class GedcomService(
     /// both spouses, because Kinnect has no family-event table of its own.
     /// </summary>
     private async Task ImportFamilyEventsAsync(
-        GedcomFamilyRecord family,
-        GedcomDatabase database,
+        FamilyRecord family,
         int? husbandId,
         int? wifeId,
         GedcomImportResult summary)
@@ -781,29 +792,28 @@ public partial class GedcomService(
 
         foreach (var familyEvent in family.Events)
         {
-            string tag = GedcomEvent.TypeToTag(familyEvent.EventType);
-            if (tag is PersonEventType.Marriage or PersonEventType.Divorce or PersonEventType.Engagement)
+            if (familyEvent.Tag is GedcomTags.MARR or GedcomTags.DIV or GedcomTags.ENGA)
             {
                 continue;
             }
 
             foreach (int personId in personIds)
             {
-                await InsertEventAsync(personId, familyEvent, database, summary, tag);
+                await InsertEventAsync(personId, familyEvent, summary, familyEvent.Tag);
             }
         }
     }
 
     private async Task ImportIndividualAsync(
-        GedcomIndividualRecord individual,
-        GedcomDatabase database,
+        IndividualRecord individual,
         Dictionary<string, int> xrefToPersonId,
         GedcomImportResult summary,
         MediaImportContext context)
     {
+        string xref = individual.Xref ?? string.Empty;
         var person = await personRepository.FindOneAsync(new SearchOptions<Person>
         {
-            Query = x => x.GedcomId == individual.XRefID
+            Query = x => x.GedcomId == xref
         });
 
         var name = individual.Names.FirstOrDefault();
@@ -820,8 +830,8 @@ public partial class GedcomService(
             person = new Person
             {
                 IsMale = isMale,
-                GedcomId = individual.XRefID,
-                Note = PersonNote(individual, database),
+                GedcomId = xref,
+                Note = PersonNote(individual),
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
@@ -836,16 +846,16 @@ public partial class GedcomService(
         {
             ApplyName(person, name);
             person.IsMale = isMale;
-            person.Note = PersonNote(individual, database) ?? person.Note;
+            person.Note = PersonNote(individual) ?? person.Note;
             ApplyFacts(individual, person);
             person.UpdatedAtUtc = DateTime.UtcNow;
             await personRepository.UpdateAsync(person);
             summary.PeopleUpdated++;
         }
 
-        xrefToPersonId[individual.XRefID] = person.Id;
+        xrefToPersonId[xref] = person.Id;
 
-        var importedEvents = await ImportPersonEventsAsync(individual, database, person.Id, summary, replaceExisting: !isNewPerson);
+        var importedEvents = await ImportPersonEventsAsync(individual, person.Id, summary, replaceExisting: !isNewPerson);
 
         // Re-importing over an existing person replaces their events, which would orphan or duplicate photos.
         // Media is therefore only brought in for people created by this import.
@@ -854,16 +864,16 @@ public partial class GedcomService(
         if (isNewPerson)
         {
             context.NewPersonIds.Add(person.Id);
-            await ImportIndividualMediaAsync(individual, database, person, importedEvents, context);
+            await ImportIndividualMediaAsync(individual, person, importedEvents, context);
         }
     }
 
-    private static void ApplyName(Person person, GedcomName? name)
+    private static void ApplyName(Person person, PersonalName? name)
     {
         person.GivenNames = GivenNamesFrom(name?.Given);
         person.FamilyName = name?.Surname?.Trim() ?? string.Empty;
         person.NamePrefix = NamePart(name?.Prefix);
-        person.Nickname = NamePart(name?.Nick);
+        person.Nickname = NamePart(name?.Nickname);
         person.NameSuffix = NamePart(name?.Suffix);
     }
 
@@ -899,10 +909,10 @@ public partial class GedcomService(
     }
 
     /// <summary>The person's own notes, joined. Event notes stay on the events.</summary>
-    private static string? PersonNote(GedcomIndividualRecord individual, GedcomDatabase database)
+    private static string? PersonNote(IndividualRecord individual)
     {
         var notes = individual.Notes
-            .Select(xref => database[xref] is GedcomNoteRecord note ? note.Text : null)
+            .Select(note => note.Text)
             .Where(text => !string.IsNullOrWhiteSpace(text))
             .ToList();
 
@@ -910,53 +920,34 @@ public partial class GedcomService(
     }
 
     /// <summary>
-    /// True when the record is only an address. The reader moves an individual's ADDR onto a residence
-    /// and then clears it, so email and phone have to be read from that event.
+    /// True when the record is only an address. An address with no date, place or note is contact information,
+    /// and importing it as an event would add a blank row.
     /// </summary>
-    private static bool IsContactOnly(GedcomEvent source, GedcomDatabase database)
+    private static bool IsContactOnly(GedcomEvent source)
     {
-        if (source.Address is null)
+        if (source.Contact.Address is null && !source.Contact.Emails.Any() && !source.Contact.Phones.Any())
         {
             return false;
         }
 
         var (year, month, day) = ParseDate(source.Date);
-        if (year.HasValue || month.HasValue || day.HasValue || !string.IsNullOrWhiteSpace(source.Place?.Name))
+        if (year.HasValue || month.HasValue || day.HasValue || !string.IsNullOrWhiteSpace(source.PlaceName))
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(source.Classification) || !string.IsNullOrWhiteSpace(source.EventName))
+        if (!string.IsNullOrWhiteSpace(source.Type) || (!string.IsNullOrWhiteSpace(source.Value) && source.Value != "Y"))
         {
             return false;
         }
 
-        return ResolveFirstNote(source.Notes, database) is null;
+        return FirstNote(source.Notes) is null;
     }
 
-    private async Task ImportContactsAsync(GedcomIndividualRecord individual, int personId, bool replaceExisting)
+    private async Task ImportContactsAsync(IndividualRecord individual, int personId, bool replaceExisting)
     {
-        var addresses = new List<GedcomAddress>();
-        if (individual.Address is not null)
-        {
-            addresses.Add(individual.Address);
-        }
-
-        foreach (var fact in individual.Events.Concat(individual.Attributes))
-        {
-            if (fact.Address is not null)
-            {
-                addresses.Add(fact.Address);
-            }
-        }
-
-        if (addresses.Count == 0)
-        {
-            return;
-        }
-
-        var contacts = new List<Contact>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var contacts = new List<Contact>();
         void Add(ContactType type, string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -979,27 +970,43 @@ public partial class GedcomService(
             });
         }
 
-        foreach (var address in addresses)
+        void AddDetails(ContactDetails details)
         {
-            Add(ContactType.Email, address.Email1);
-            Add(ContactType.Email, address.Email2);
-            Add(ContactType.Email, address.Email3);
-            Add(ContactType.Phone, address.Phone1);
-            Add(ContactType.Phone, address.Phone2);
-            Add(ContactType.Phone, address.Phone3);
-            Add(ContactType.Fax, address.Fax1);
-            Add(ContactType.Fax, address.Fax2);
-            Add(ContactType.Fax, address.Fax3);
-            Add(ContactType.Website, address.Www1);
-            Add(ContactType.Website, address.Www2);
-            Add(ContactType.Website, address.Www3);
-
-            string postal = string.Join(", ", new[]
+            foreach (string email in details.Emails)
             {
-                address.AddressLine, address.AddressLine1, address.AddressLine2, address.AddressLine3,
-                address.City, address.State, address.PostCode, address.Country,
-            }.Where(part => !string.IsNullOrWhiteSpace(part)).Distinct(StringComparer.OrdinalIgnoreCase));
-            Add(ContactType.Address, postal);
+                Add(ContactType.Email, email);
+            }
+
+            foreach (string phone in details.Phones)
+            {
+                Add(ContactType.Phone, phone);
+            }
+
+            foreach (string fax in details.Faxes)
+            {
+                Add(ContactType.Fax, fax);
+            }
+
+            foreach (string website in details.Websites)
+            {
+                Add(ContactType.Website, website);
+            }
+
+            if (details.Address is { } address)
+            {
+                string postal = string.Join(", ", new[]
+                {
+                    address.Lines, address.Line1, address.Line2, address.Line3,
+                    address.City, address.State, address.PostalCode, address.Country,
+                }.Where(part => !string.IsNullOrWhiteSpace(part)).Distinct(StringComparer.OrdinalIgnoreCase));
+                Add(ContactType.Address, postal);
+            }
+        }
+
+        AddDetails(new ContactDetails(individual.Structure));
+        foreach (var fact in PersonEvents(individual))
+        {
+            AddDetails(fact.Contact);
         }
 
         if (contacts.Count == 0)
@@ -1015,10 +1022,38 @@ public partial class GedcomService(
         await contactRepository.InsertAsync(contacts);
     }
 
+    private static readonly HashSet<string> skippedExtensions = new(StringComparer.Ordinal)
+    {
+        "_UID", "_EMAIL", "_URL", "_WWW", "_FAX", "_PRIM", "_PRIMARY", "_RIN",
+    };
+
+    /// <summary>
+    /// Standard events and attributes, plus extension tags such as <c>_MILT</c> that carry a value.
+    /// Identifier and contact extensions are not events.
+    /// </summary>
+    private static IEnumerable<GedcomEvent> PersonEvents(IndividualRecord individual)
+    {
+        var events = individual.Events.ToList();
+        var seen = events.Select(gedcomEvent => gedcomEvent.Structure).ToHashSet();
+        foreach (var child in individual.Structure.Children)
+        {
+            if (!child.IsExtension || skippedExtensions.Contains(child.Tag) || !seen.Add(child))
+            {
+                continue;
+            }
+
+            if (child.HasValue || child.HasChildren)
+            {
+                events.Add(new GedcomEvent(child));
+            }
+        }
+
+        return events;
+    }
+
     /// <summary>Imports the individual's events and returns, for each, the GEDCOM record it came from and its new id.</summary>
     private async Task<List<(GedcomEvent Source, int EventId)>> ImportPersonEventsAsync(
-        GedcomIndividualRecord individual,
-        GedcomDatabase database,
+        IndividualRecord individual,
         int personId,
         GedcomImportResult summary,
         bool replaceExisting)
@@ -1031,72 +1066,16 @@ public partial class GedcomService(
             await eventRepository.DeleteAsync(x => x.PersonId == personId);
         }
 
-        // Facts such as occupation are kept on Attributes, not Events, so both lists are imported.
-        // An address with no date or place is contact information. The reader also parks the
-        // individual's own address on a residence, so that row would otherwise be a blank event.
-        foreach (var indEvent in individual.Events.Concat(individual.Attributes))
+        // An address with no date or place is contact information, so it is not also stored as an event.
+        foreach (var indEvent in PersonEvents(individual))
         {
-            if (IsContactOnly(indEvent, database))
+            if (IsContactOnly(indEvent))
             {
                 continue;
             }
 
-            var saved = await InsertEventAsync(personId, indEvent, database, summary, tagOverride: null);
+            var saved = await InsertEventAsync(personId, indEvent, summary, tagOverride: null);
             imported.Add((indEvent, saved.Id));
-        }
-
-        foreach (var custom in individual.Custom)
-        {
-            string tag = string.IsNullOrWhiteSpace(custom.Tag) ? PersonEventType.Custom : custom.Tag.Trim();
-            string? description = !string.IsNullOrWhiteSpace(custom.Classification)
-                ? custom.Classification
-                : string.IsNullOrWhiteSpace(custom.EventName) ? null : custom.EventName;
-            var saved = await InsertEventAsync(personId, custom, database, summary, tag, description);
-            imported.Add((custom, saved.Id));
-        }
-
-        bool hasBirtInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.Birth);
-        if (!hasBirtInEvents && individual.Birth != null)
-        {
-            var (year, month, day) = ParseDate(individual.Birth.Date);
-            var (birthLatitude, birthLongitude) = GedcomCoordinates.Read(individual.Birth.Place);
-            var saved = await eventRepository.InsertAsync(new PersonEvent
-            {
-                PersonId = personId,
-                EventType = PersonEventType.Birth,
-                Year = year,
-                Month = month,
-                Day = day,
-                Place = individual.Birth.Place?.Name,
-                Latitude = birthLatitude,
-                Longitude = birthLongitude,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-
-            imported.Add((individual.Birth, saved.Id));
-            summary.EventsImported++;
-        }
-
-        bool hasDeatInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.DEAT);
-        if (!hasDeatInEvents && individual.Death != null)
-        {
-            var (year, month, day) = ParseDate(individual.Death.Date);
-            var (deathLatitude, deathLongitude) = GedcomCoordinates.Read(individual.Death.Place);
-            var saved = await eventRepository.InsertAsync(new PersonEvent
-            {
-                PersonId = personId,
-                EventType = PersonEventType.Death,
-                Year = year,
-                Month = month,
-                Day = day,
-                Place = individual.Death.Place?.Name,
-                Latitude = deathLatitude,
-                Longitude = deathLongitude,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-
-            imported.Add((individual.Death, saved.Id));
-            summary.EventsImported++;
         }
 
         return imported;
@@ -1105,12 +1084,11 @@ public partial class GedcomService(
     private async Task<PersonEvent> InsertEventAsync(
         int personId,
         GedcomEvent source,
-        GedcomDatabase database,
         GedcomImportResult summary,
         string? tagOverride,
         string? descriptionOverride = null)
     {
-        string tag = tagOverride ?? GedcomEvent.TypeToTag(source.EventType);
+        string tag = tagOverride ?? source.Tag;
         if (string.IsNullOrWhiteSpace(tag) || tag is "_UNKN")
         {
             tag = PersonEventType.Custom;
@@ -1126,10 +1104,10 @@ public partial class GedcomService(
         string? description = descriptionOverride;
         if (description is null)
         {
-            // OCCU Clerk stores the value on EventName. EVEN / TYPE Enlisted stores it on Classification.
-            description = !string.IsNullOrWhiteSpace(source.Classification)
-                ? source.Classification
-                : string.IsNullOrWhiteSpace(source.EventName) ? null : source.EventName;
+            // OCCU Clerk stores the value on the tag. EVEN / TYPE Enlisted stores it on TYPE.
+            description = !string.IsNullOrWhiteSpace(source.Type)
+                ? source.Type
+                : string.IsNullOrWhiteSpace(source.Value) || source.Value == "Y" ? null : source.Value;
         }
 
         var saved = await eventRepository.InsertAsync(new PersonEvent
@@ -1139,11 +1117,11 @@ public partial class GedcomService(
             Year = year,
             Month = month,
             Day = day,
-            Place = source.Place?.Name,
+            Place = source.PlaceName,
             Latitude = latitude,
             Longitude = longitude,
             Description = description is null ? null : Truncate(description, 2000),
-            Note = ResolveFirstNote(source.Notes, database) is string note ? Truncate(note, 4000) : null,
+            Note = FirstNote(source.Notes) is string note ? Truncate(note, 4000) : null,
             CreatedAtUtc = DateTime.UtcNow
         });
 

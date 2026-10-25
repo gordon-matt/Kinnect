@@ -11,7 +11,7 @@
         </div>
         @if (downloadUrl is null)
         {
-            <p class="kinnect-muted">Everything is included unless you clear it. Photos, videos and documents are packed into a zip with the GEDCOM.</p>
+            <p class="kinnect-muted">Checked parts are brought up to date from Kinnect. Everything else in the imported file stays, including tags Kinnect does not use. Photos, videos and documents are packed into a zip with the GEDCOM.</p>
             <label class="nf-check"><input type="checkbox" @bind="options.Names" disabled="@running" /> Names and sex</label>
             <label class="nf-check"><input type="checkbox" @bind="options.Notes" disabled="@running" /> Notes</label>
             <label class="nf-check"><input type="checkbox" @bind="options.Events" disabled="@running" /> Events</label>

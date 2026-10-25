@@ -14,8 +14,7 @@
 	<ItemGroup>
 		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
 		<PackageReference Include="Ardalis.Result" Version="10.1.0" />
-		<!-- Local fork, until the multimedia fixes (FILE/TITL and _PRIM) are in a published package. -->
-		<ProjectReference Include="..\..\..\Libraries\GeneGenie.Gedcom\GeneGenie.Gedcom\GeneGenie.Gedcom.csproj" />
+		<ProjectReference Include="..\..\..\Libraries\GedcomSharp\GedcomSharp\GedcomSharp.csproj" />
 		<PackageReference Include="Keycloak.NETCore.Client" Version="2.0.0" />
 		<PackageReference Include="MetadataExtractor" Version="2.9.3" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
