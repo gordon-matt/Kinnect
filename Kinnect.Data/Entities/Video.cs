@@ -21,6 +21,9 @@ public class Video : BaseEntity<int>
     /// <summary>True while a background job is compressing or re-encoding the uploaded file.</summary>
     public bool IsProcessing { get; set; }
 
+    /// <summary>The <c>FILE</c> value from an imported GEDCOM. Null for videos uploaded in Kinnect.</summary>
+    public string? GedcomFileReference { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
 
     public virtual MediaFolder? Folder { get; set; }
@@ -49,5 +52,6 @@ public class VideoMap : IEntityTypeConfiguration<Video>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.Property(m => m.IsProcessing).IsRequired();
+        builder.Property(m => m.GedcomFileReference).HasMaxLength(1000);
     }
 }

@@ -34,6 +34,12 @@ public class Photo : BaseEntity<int>
 
     public int? FolderId { get; set; }
 
+    /// <summary>
+    /// The <c>FILE</c> value this photo had in the imported GEDCOM (e.g. <c>photos/Louis_XIV.jpg</c>), so a later
+    /// export can find the original <c>OBJE</c> record. Null for photos uploaded in Kinnect.
+    /// </summary>
+    public string? GedcomFileReference { get; set; }
+
     public virtual Person UploadedBy { get; set; } = null!;
 
     public virtual MediaFolder? Folder { get; set; }
@@ -52,6 +58,7 @@ public class PhotoMap : IEntityTypeConfiguration<Photo>
         builder.Property(m => m.Title).IsRequired().HasMaxLength(500);
         builder.Property(m => m.FilePath).IsRequired().HasMaxLength(1000);
         builder.Property(m => m.ThumbnailPath).HasMaxLength(1000);
+        builder.Property(m => m.GedcomFileReference).HasMaxLength(1000);
 
         builder.Property(m => m.LatLongAcquiredFromExif).IsRequired();
 

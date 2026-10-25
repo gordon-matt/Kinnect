@@ -54,7 +54,6 @@ public class PersonService(
             FamilyName = request.FamilyName,
             GivenNames = request.GivenNames,
             IsMale = request.IsMale,
-            Bio = request.Bio,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             FatherId = request.FatherId,
@@ -166,7 +165,7 @@ public class PersonService(
                 Id = p.Id.ToString(),
                 Data = new FamilyTreeData
                 {
-                    Gender = p.IsMale ? "M" : "F",
+                    Gender = p.IsMale switch { true => "M", false => "F", _ => "U" },
                     FirstName = p.GivenNames,
                     LastName = p.FamilyName,
                     Birthday = birthday,
@@ -363,7 +362,6 @@ public class PersonService(
         person.FamilyName = snapshot.FamilyName;
         person.GivenNames = snapshot.GivenNames;
         person.IsMale = snapshot.IsMale;
-        person.Bio = snapshot.Bio;
         person.Latitude = snapshot.Latitude;
         person.Longitude = snapshot.Longitude;
         person.FatherId = snapshot.FatherId;
@@ -371,7 +369,7 @@ public class PersonService(
         person.Occupation = snapshot.Occupation;
         person.Education = snapshot.Education;
         person.Religion = snapshot.Religion;
-        person.Note = snapshot.Note;
+        person.Note = PersonNoteText.Merge(snapshot.LegacyBio, snapshot.Note);
         person.IsDeceased = snapshot.IsDeceased;
         person.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -387,20 +385,20 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
-        if (!string.IsNullOrEmpty(currentUserId))
-        {
-            var myPerson = await GetByUserIdAsync(currentUserId);
-            if (myPerson.IsSuccess && myPerson.Value!.Id == personId)
-            {
-                return Result.Forbidden();
-            }
-        }
-
         string? linkedUserId = person.UserId;
+        bool unlinkingSelf = !string.IsNullOrEmpty(currentUserId)
+            && string.Equals(linkedUserId, currentUserId, StringComparison.Ordinal);
         person.UserId = null;
         person.UpdatedAtUtc = DateTime.UtcNow;
         await personRepository.UpdateAsync(person);
-        await LockAccountAsync(linkedUserId);
+
+        // Unlinking someone else is how an administrator withdraws their access. Unlinking yourself
+        // has to leave the account usable, so you can choose a different person.
+        if (!unlinkingSelf)
+        {
+            await LockAccountAsync(linkedUserId);
+        }
+
         return Result.Success();
     }
 
@@ -459,7 +457,6 @@ public class PersonService(
         person.FamilyName = request.FamilyName;
         person.GivenNames = request.GivenNames;
         person.IsMale = request.IsMale;
-        person.Bio = request.Bio;
         person.Latitude = request.Latitude;
         person.Longitude = request.Longitude;
         person.FatherId = request.FatherId;
@@ -608,7 +605,6 @@ public class PersonService(
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
             IsMale = person.IsMale,
-            Bio = person.Bio,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
             FatherId = person.FatherId,
@@ -659,7 +655,7 @@ public class PersonService(
             .Select(contact => new ContactDto
             {
                 Id = contact.Id,
-                Name = contact.Name,
+                Type = contact.Type,
                 Value = contact.Value
             })
             .ToList();
@@ -722,34 +718,25 @@ public class PersonService(
 
         foreach (var input in inputs)
         {
-            string name = input.Name?.Trim() ?? string.Empty;
             string value = input.Value?.Trim() ?? string.Empty;
-            if (name.Length == 0 && value.Length == 0)
+            if (value.Length == 0)
             {
                 continue;
             }
 
-            if (name.Length == 0)
+            if (!Enum.IsDefined(input.Type))
             {
-                errors.Add(new ValidationError("Give the contact a name, such as Email or Mobile."));
-            }
-            else if (name.Length > Contact.MaxNameLength)
-            {
-                errors.Add(new ValidationError($"Contact names can be at most {Contact.MaxNameLength} characters."));
+                errors.Add(new ValidationError("Choose a contact type."));
             }
 
-            if (value.Length == 0)
-            {
-                errors.Add(new ValidationError($"Give the {(name.Length == 0 ? "contact" : name)} a value."));
-            }
-            else if (value.Length > Contact.MaxValueLength)
+            if (value.Length > Contact.MaxValueLength)
             {
                 errors.Add(new ValidationError($"Contact values can be at most {Contact.MaxValueLength} characters."));
             }
 
             contacts.Add(new Contact
             {
-                Name = name,
+                Type = input.Type,
                 Value = value,
                 SortOrder = order++
             });

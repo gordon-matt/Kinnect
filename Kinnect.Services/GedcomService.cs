@@ -6,10 +6,19 @@ using Kinnect.Models.FamilyTree;
 
 namespace Kinnect.Services;
 
-public class GedcomService(
+public partial class GedcomService(
     IRepository<Person> personRepository,
     IRepository<PersonSpouse> spouseRepository,
-    IRepository<PersonEvent> eventRepository) : IGedcomService
+    IRepository<PersonEvent> eventRepository,
+    IRepository<Photo> photoRepository,
+    IRepository<PersonPhoto> personPhotoRepository,
+    IRepository<PhotoEvent> photoEventRepository,
+    IRepository<Document> documentRepository,
+    IRepository<Video> videoRepository,
+    IRepository<Contact> contactRepository,
+    IRepository<GedcomFile> gedcomFileRepository,
+    IFileStorageService fileStorage,
+    ILogger<GedcomService> logger) : IGedcomService
 {
     public async Task<string> ExportAsync()
     {
@@ -18,6 +27,7 @@ public class GedcomService(
         var events = (await eventRepository.FindAsync(new SearchOptions<PersonEvent>())).ToList();
 
         var eventsByPerson = events.ToLookup(e => e.PersonId);
+        var contactsByPerson = (await contactRepository.FindAsync(new SearchOptions<Contact>())).ToLookup(c => c.PersonId);
         var sb = new StringBuilder();
 
         // Header
@@ -34,7 +44,7 @@ public class GedcomService(
             string xref = person.GedcomId ?? $"@I{person.Id}@";
             sb.AppendLine($"0 {xref} INDI");
             sb.AppendLine($"1 NAME {person.GivenNames} /{person.FamilyName}/");
-            sb.AppendLine($"1 SEX {(person.IsMale ? "M" : "F")}");
+            sb.AppendLine($"1 SEX {person.IsMale switch { true => "M", false => "F", _ => "U" }}");
 
             var birthEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Birth);
             if (birthEvt != null)
@@ -66,24 +76,40 @@ public class GedcomService(
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(person.Occupation))
+            // These three are also stored as events. Write the profile field only when there is no event,
+            // so a person who was typed in by hand still exports, and an imported fact is not listed twice.
+            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Occupation)
+                && !string.IsNullOrWhiteSpace(person.Occupation))
             {
                 sb.AppendLine($"1 OCCU {person.Occupation}");
             }
 
-            if (!string.IsNullOrWhiteSpace(person.Education))
+            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Education)
+                && !string.IsNullOrWhiteSpace(person.Education))
             {
                 sb.AppendLine($"1 EDUC {person.Education}");
             }
 
-            if (!string.IsNullOrWhiteSpace(person.Religion))
+            if (!eventsByPerson[person.Id].Any(e => e.EventType == PersonEventType.Religion)
+                && !string.IsNullOrWhiteSpace(person.Religion))
             {
                 sb.AppendLine($"1 RELI {person.Religion}");
             }
 
-            if (!string.IsNullOrWhiteSpace(person.Bio))
+            if (!string.IsNullOrWhiteSpace(person.Note))
             {
-                WriteNote(sb, 1, person.Bio);
+                WriteNote(sb, 1, person.Note);
+            }
+
+            foreach (var contact in contactsByPerson[person.Id].OrderBy(contact => contact.SortOrder))
+            {
+                if (string.IsNullOrWhiteSpace(contact.Value))
+                {
+                    continue;
+                }
+
+                string value = contact.Value.Replace("\r\n", ", ").Replace('\n', ' ').Replace('\r', ' ').Trim();
+                sb.AppendLine($"1 {ContactTypes.GedcomTag(contact.Type)} {value}");
             }
 
             // Additional life events (skip birth/death and types stored elsewhere)
@@ -148,6 +174,15 @@ public class GedcomService(
                 sb.AppendLine($"2 DATE {FormatDate(spouse.DivorceYear, spouse.DivorceMonth, spouse.DivorceDay)}");
             }
 
+            if (spouse.HasEngagement)
+            {
+                sb.AppendLine("1 ENGA");
+                if (spouse.EngagementYear.HasValue)
+                {
+                    sb.AppendLine($"2 DATE {FormatDate(spouse.EngagementYear, spouse.EngagementMonth, spouse.EngagementDay)}");
+                }
+            }
+
             // Children whose both parent IDs match either spouse
             var children = people.Where(p =>
                 (p.FatherId == spouse.PersonId || p.FatherId == spouse.SpouseId) &&
@@ -163,68 +198,107 @@ public class GedcomService(
         return sb.ToString();
     }
 
-    public async Task<Result<GedcomImportResult>> ImportAsync(Stream stream)
+    public async Task<Result<GedcomImportResult>> ImportAsync(Stream stream, string? fileName = null)
     {
         var summary = new GedcomImportResult();
-        string tempFile = Path.GetTempFileName() + ".ged";
+        var workDirectory = Directory.CreateTempSubdirectory("kinnect-gedcom-");
+        GedcomMediaArchive? archive = null;
 
         try
         {
-            await using (var fs = File.Create(tempFile))
+            string uploadPath = Path.Combine(workDirectory.FullName, "upload");
+            await using (var fs = File.Create(uploadPath))
             {
                 await stream.CopyToAsync(fs);
             }
 
-            var reader = GedcomRecordReader.CreateReader(tempFile);
+            // A .ged only holds text. Photos arrive in a zip next to it, so accept either.
+            string gedcomPath = Path.Combine(workDirectory.FullName, "import.ged");
+            string originalName = fileName ?? "import.ged";
+            if (GedcomMediaArchive.IsZip(uploadPath))
+            {
+                archive = GedcomMediaArchive.Open(uploadPath);
+                if (archive.GedcomEntryName is null)
+                {
+                    return Result.Error("The zip file does not contain a .ged or .gedcom file.");
+                }
+
+                archive.ExtractGedcom(gedcomPath);
+                originalName = Path.GetFileName(archive.GedcomEntryName.Replace('\\', '/'));
+            }
+            else
+            {
+                File.Move(uploadPath, gedcomPath);
+            }
+
+            var reader = GedcomRecordReader.CreateReader(gedcomPath);
             var database = reader.Database;
+
+            await StoreOriginalAsync(gedcomPath, originalName);
+
+            var context = new MediaImportContext(archive, summary);
 
             // Map GEDCOM XRef IDs → our DB person IDs
             var xrefToPersonId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var individual in database.Individuals)
             {
-                await ImportIndividualAsync(individual, database, xrefToPersonId, summary);
+                await ImportIndividualAsync(individual, database, xrefToPersonId, summary, context);
             }
 
             foreach (var family in database.Families)
             {
-                await ImportFamilyAsync(family, database, xrefToPersonId, summary);
+                await ImportFamilyAsync(family, database, xrefToPersonId, summary, context);
             }
 
+            context.AddSummaryWarnings();
             return Result.Success(summary);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "GEDCOM import failed");
             return Result.Error($"GEDCOM import failed: {ex.Message}");
         }
         finally
         {
-            if (File.Exists(tempFile))
+            archive?.Dispose();
+            try
             {
-                File.Delete(tempFile);
+                workDirectory.Delete(recursive: true);
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Could not remove temporary GEDCOM import folder {Folder}", workDirectory.FullName);
             }
         }
     }
 
     private static void ApplyFacts(GedcomIndividualRecord individual, Person person)
     {
-        var occu = individual.FindEvent(GedcomEventType.OCCUFact);
-        if (occu != null && !string.IsNullOrWhiteSpace(occu.Classification))
+        // Facts live on Attributes. FindEvent only walks Events, so occupation would be missed.
+        person.Occupation = FactValue(FindFact(individual, GedcomEventType.OCCUFact)) ?? person.Occupation;
+        person.Education = FactValue(FindFact(individual, GedcomEventType.EDUCFact)) ?? person.Education;
+        person.Religion = FactValue(FindFact(individual, GedcomEventType.RELIFact)) ?? person.Religion;
+    }
+
+    private static GedcomEvent? FindFact(GedcomIndividualRecord individual, GedcomEventType type) =>
+        individual.Attributes.FirstOrDefault(fact => fact.EventType == type)
+        ?? individual.Events.FirstOrDefault(fact => fact.EventType == type);
+
+    /// <summary>A fact's text is the TYPE (classification) when there is one, and otherwise the value on the tag itself.</summary>
+    private static string? FactValue(GedcomEvent? fact)
+    {
+        if (fact is null)
         {
-            person.Occupation = occu.Classification;
+            return null;
         }
 
-        var educ = individual.FindEvent(GedcomEventType.EDUCFact);
-        if (educ != null && !string.IsNullOrWhiteSpace(educ.Classification))
+        if (!string.IsNullOrWhiteSpace(fact.Classification))
         {
-            person.Education = educ.Classification;
+            return fact.Classification;
         }
 
-        var reli = individual.FindEvent(GedcomEventType.RELIFact);
-        if (reli != null && !string.IsNullOrWhiteSpace(reli.Classification))
-        {
-            person.Religion = reli.Classification;
-        }
+        return string.IsNullOrWhiteSpace(fact.EventName) ? null : fact.EventName;
     }
 
     private static string FormatDate(short? year, byte? month, byte? day)
@@ -330,7 +404,8 @@ public class GedcomService(
         GedcomFamilyRecord family,
         GedcomDatabase database,
         Dictionary<string, int> xrefToPersonId,
-        GedcomImportResult summary)
+        GedcomImportResult summary,
+        MediaImportContext context)
     {
         int? husbandId = family.Husband != null && xrefToPersonId.TryGetValue(family.Husband, out int hid) ? hid : null;
         int? wifeId = family.Wife != null && xrefToPersonId.TryGetValue(family.Wife, out int wid) ? wid : null;
@@ -354,12 +429,16 @@ public class GedcomService(
                 }
 
                 GedcomFamilyEvent? divorceEvent = null;
+                GedcomFamilyEvent? engagementEvent = null;
                 foreach (var famEv in family.Events)
                 {
-                    if (famEv.EventType == GedcomEventType.DIV)
+                    if (famEv.EventType == GedcomEventType.DIV && divorceEvent is null)
                     {
                         divorceEvent = famEv;
-                        break;
+                    }
+                    else if (famEv.EventType == GedcomEventType.ENGA && engagementEvent is null)
+                    {
+                        engagementEvent = famEv;
                     }
                 }
 
@@ -369,6 +448,15 @@ public class GedcomService(
                     spouseRecord.DivorceYear = Year;
                     spouseRecord.DivorceMonth = Month;
                     spouseRecord.DivorceDay = Day;
+                }
+
+                if (engagementEvent != null)
+                {
+                    var (Year, Month, Day) = ParseDate(engagementEvent.Date);
+                    spouseRecord.HasEngagement = true;
+                    spouseRecord.EngagementYear = Year;
+                    spouseRecord.EngagementMonth = Month;
+                    spouseRecord.EngagementDay = Day;
                 }
 
                 await spouseRepository.InsertAsync(spouseRecord);
@@ -401,13 +489,49 @@ public class GedcomService(
                 summary.RelationshipsImported++;
             }
         }
+
+        await ImportFamilyMediaAsync(family, database, husbandId, wifeId, context);
+        await ImportFamilyEventsAsync(family, database, husbandId, wifeId, summary);
+    }
+
+    /// <summary>
+    /// Marriage, divorce and engagement dates live on the spouse link. Every other family event is copied onto
+    /// both spouses, because Kinnect has no family-event table of its own.
+    /// </summary>
+    private async Task ImportFamilyEventsAsync(
+        GedcomFamilyRecord family,
+        GedcomDatabase database,
+        int? husbandId,
+        int? wifeId,
+        GedcomImportResult summary)
+    {
+        var personIds = new[] { husbandId, wifeId }.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        if (personIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var familyEvent in family.Events)
+        {
+            string tag = GedcomEvent.TypeToTag(familyEvent.EventType);
+            if (tag is PersonEventType.Marriage or PersonEventType.Divorce or PersonEventType.Engagement)
+            {
+                continue;
+            }
+
+            foreach (int personId in personIds)
+            {
+                await InsertEventAsync(personId, familyEvent, database, summary, tag);
+            }
+        }
     }
 
     private async Task ImportIndividualAsync(
         GedcomIndividualRecord individual,
         GedcomDatabase database,
         Dictionary<string, int> xrefToPersonId,
-        GedcomImportResult summary)
+        GedcomImportResult summary,
+        MediaImportContext context)
     {
         var person = await personRepository.FindOneAsync(new SearchOptions<Person>
         {
@@ -415,9 +539,15 @@ public class GedcomService(
         });
 
         var name = individual.Names.FirstOrDefault();
-        string givenNames = name?.Given?.Trim() ?? "Unknown";
+        string givenNames = GivenNamesFrom(name?.Given);
         string familyName = name?.Surname?.Trim() ?? string.Empty;
-        bool isMale = individual.Sex == GedcomSex.Male;
+        bool? isMale = individual.Sex switch
+        {
+            GedcomSex.Male => true,
+            GedcomSex.Female => false,
+            _ => null,
+        };
+        bool isNewPerson = false;
 
         if (person is null)
         {
@@ -427,6 +557,7 @@ public class GedcomService(
                 FamilyName = familyName,
                 IsMale = isMale,
                 GedcomId = individual.XRefID,
+                Note = PersonNote(individual, database),
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
@@ -434,12 +565,14 @@ public class GedcomService(
             ApplyFacts(individual, person);
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
+            isNewPerson = true;
         }
         else
         {
             person.GivenNames = givenNames;
             person.FamilyName = familyName;
             person.IsMale = isMale;
+            person.Note = PersonNote(individual, database) ?? person.Note;
             ApplyFacts(individual, person);
             person.UpdatedAtUtc = DateTime.UtcNow;
             await personRepository.UpdateAsync(person);
@@ -448,65 +581,201 @@ public class GedcomService(
 
         xrefToPersonId[individual.XRefID] = person.Id;
 
-        await ImportPersonEventsAsync(individual, database, person.Id, summary);
+        var importedEvents = await ImportPersonEventsAsync(individual, database, person.Id, summary, replaceExisting: !isNewPerson);
+
+        // Re-importing over an existing person replaces their events, which would orphan or duplicate photos.
+        // Media is therefore only brought in for people created by this import.
+        await ImportContactsAsync(individual, person.Id, replaceExisting: !isNewPerson);
+
+        if (isNewPerson)
+        {
+            context.NewPersonIds.Add(person.Id);
+            await ImportIndividualMediaAsync(individual, database, person, importedEvents, context);
+        }
     }
 
-    private async Task ImportPersonEventsAsync(
+    /// <summary>
+    /// GEDCOM <c>GIVN</c> separates given names with commas, so <c>John, Fitzgerald</c> is two given names.
+    /// </summary>
+    private static string GivenNamesFrom(string? given)
+    {
+        if (string.IsNullOrWhiteSpace(given))
+        {
+            return "Unknown";
+        }
+
+        string spaced = System.Text.RegularExpressions.Regex.Replace(given.Trim(), @"\s*,\s*", " ");
+        spaced = System.Text.RegularExpressions.Regex.Replace(spaced, @"\s+", " ").Trim();
+        if (spaced.Length == 0)
+        {
+            return "Unknown";
+        }
+
+        return spaced.Length <= 200 ? spaced : spaced[..200];
+    }
+
+    /// <summary>The person's own notes, joined. Event notes stay on the events.</summary>
+    private static string? PersonNote(GedcomIndividualRecord individual, GedcomDatabase database)
+    {
+        var notes = individual.Notes
+            .Select(xref => database[xref] is GedcomNoteRecord note ? note.Text : null)
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .ToList();
+
+        return notes.Count == 0 ? null : Truncate(string.Join("\n\n", notes), 4000);
+    }
+
+    /// <summary>
+    /// True when the record is only an address. The reader moves an individual's ADDR onto a residence
+    /// and then clears it, so email and phone have to be read from that event.
+    /// </summary>
+    private static bool IsContactOnly(GedcomEvent source, GedcomDatabase database)
+    {
+        if (source.Address is null)
+        {
+            return false;
+        }
+
+        var (year, month, day) = ParseDate(source.Date);
+        if (year.HasValue || month.HasValue || day.HasValue || !string.IsNullOrWhiteSpace(source.Place?.Name))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(source.Classification) || !string.IsNullOrWhiteSpace(source.EventName))
+        {
+            return false;
+        }
+
+        return ResolveFirstNote(source.Notes, database) is null;
+    }
+
+    private async Task ImportContactsAsync(GedcomIndividualRecord individual, int personId, bool replaceExisting)
+    {
+        var addresses = new List<GedcomAddress>();
+        if (individual.Address is not null)
+        {
+            addresses.Add(individual.Address);
+        }
+
+        foreach (var fact in individual.Events.Concat(individual.Attributes))
+        {
+            if (fact.Address is not null)
+            {
+                addresses.Add(fact.Address);
+            }
+        }
+
+        if (addresses.Count == 0)
+        {
+            return;
+        }
+
+        var contacts = new List<Contact>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(ContactType type, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            string trimmed = value.Trim();
+            if (!seen.Add(type + "\n" + trimmed))
+            {
+                return;
+            }
+
+            contacts.Add(new Contact
+            {
+                PersonId = personId,
+                Type = type,
+                Value = Truncate(trimmed, Contact.MaxValueLength),
+                SortOrder = contacts.Count,
+            });
+        }
+
+        foreach (var address in addresses)
+        {
+            Add(ContactType.Email, address.Email1);
+            Add(ContactType.Email, address.Email2);
+            Add(ContactType.Email, address.Email3);
+            Add(ContactType.Phone, address.Phone1);
+            Add(ContactType.Phone, address.Phone2);
+            Add(ContactType.Phone, address.Phone3);
+            Add(ContactType.Fax, address.Fax1);
+            Add(ContactType.Fax, address.Fax2);
+            Add(ContactType.Fax, address.Fax3);
+            Add(ContactType.Website, address.Www1);
+            Add(ContactType.Website, address.Www2);
+            Add(ContactType.Website, address.Www3);
+
+            string postal = string.Join(", ", new[]
+            {
+                address.AddressLine, address.AddressLine1, address.AddressLine2, address.AddressLine3,
+                address.City, address.State, address.PostCode, address.Country,
+            }.Where(part => !string.IsNullOrWhiteSpace(part)).Distinct(StringComparer.OrdinalIgnoreCase));
+            Add(ContactType.Address, postal);
+        }
+
+        if (contacts.Count == 0)
+        {
+            return;
+        }
+
+        if (replaceExisting)
+        {
+            await contactRepository.DeleteAsync(contact => contact.PersonId == personId);
+        }
+
+        await contactRepository.InsertAsync(contacts);
+    }
+
+    /// <summary>Imports the individual's events and returns, for each, the GEDCOM record it came from and its new id.</summary>
+    private async Task<List<(GedcomEvent Source, int EventId)>> ImportPersonEventsAsync(
         GedcomIndividualRecord individual,
         GedcomDatabase database,
         int personId,
-        GedcomImportResult summary)
+        GedcomImportResult summary,
+        bool replaceExisting)
     {
-        // Clear old imported events before re-importing
-        await eventRepository.DeleteAsync(x => x.PersonId == personId);
+        var imported = new List<(GedcomEvent Source, int EventId)>();
 
-        var tagMap = new Dictionary<GedcomEventType, string>
+        // Clear old imported events before re-importing. A person created by this import has none.
+        if (replaceExisting)
         {
-            [GedcomEventType.Birth] = PersonEventType.Birth,
-            [GedcomEventType.DEAT] = PersonEventType.Death,
-            [GedcomEventType.BURI] = PersonEventType.Burial,
-            [GedcomEventType.CREM] = PersonEventType.Cremation,
-            [GedcomEventType.CHR] = PersonEventType.Christening,
-            [GedcomEventType.BAPM] = PersonEventType.Baptism,
-            [GedcomEventType.CONF] = PersonEventType.Confirmation,
-            [GedcomEventType.ADOP] = PersonEventType.Adoption,
-            [GedcomEventType.EMIG] = PersonEventType.Emigration,
-            [GedcomEventType.IMMI] = PersonEventType.Immigration,
-            [GedcomEventType.NATU] = PersonEventType.Naturalization,
-            [GedcomEventType.RESI] = PersonEventType.Residence,
-        };
+            await eventRepository.DeleteAsync(x => x.PersonId == personId);
+        }
 
-        foreach (var indEvent in individual.Events)
+        // Facts such as occupation are kept on Attributes, not Events, so both lists are imported.
+        // An address with no date or place is contact information. The reader also parks the
+        // individual's own address on a residence, so that row would otherwise be a blank event.
+        foreach (var indEvent in individual.Events.Concat(individual.Attributes))
         {
-            if (!tagMap.TryGetValue(indEvent.EventType, out string? tag))
+            if (IsContactOnly(indEvent, database))
             {
                 continue;
             }
 
-            var (year, month, day) = ParseDate(indEvent.Date);
-            string? noteText = ResolveFirstNote(indEvent.Notes, database);
+            var saved = await InsertEventAsync(personId, indEvent, database, summary, tagOverride: null);
+            imported.Add((indEvent, saved.Id));
+        }
 
-            await eventRepository.InsertAsync(new PersonEvent
-            {
-                PersonId = personId,
-                EventType = tag,
-                Year = year,
-                Month = month,
-                Day = day,
-                Place = indEvent.Place?.Name,
-                Description = indEvent.Classification,
-                Note = noteText,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-
-            summary.EventsImported++;
+        foreach (var custom in individual.Custom)
+        {
+            string description = string.IsNullOrWhiteSpace(custom.Classification)
+                ? custom.Tag
+                : $"{custom.Tag}: {custom.Classification}";
+            var saved = await InsertEventAsync(
+                personId, custom, database, summary, PersonEventType.Custom, description);
+            imported.Add((custom, saved.Id));
         }
 
         bool hasBirtInEvents = individual.Events.Any(e => e.EventType == GedcomEventType.Birth);
         if (!hasBirtInEvents && individual.Birth != null)
         {
             var (year, month, day) = ParseDate(individual.Birth.Date);
-            await eventRepository.InsertAsync(new PersonEvent
+            var saved = await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
                 EventType = PersonEventType.Birth,
@@ -517,6 +786,7 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow
             });
 
+            imported.Add((individual.Birth, saved.Id));
             summary.EventsImported++;
         }
 
@@ -524,7 +794,7 @@ public class GedcomService(
         if (!hasDeatInEvents && individual.Death != null)
         {
             var (year, month, day) = ParseDate(individual.Death.Date);
-            await eventRepository.InsertAsync(new PersonEvent
+            var saved = await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
                 EventType = PersonEventType.Death,
@@ -535,7 +805,56 @@ public class GedcomService(
                 CreatedAtUtc = DateTime.UtcNow
             });
 
+            imported.Add((individual.Death, saved.Id));
             summary.EventsImported++;
         }
+
+        return imported;
+    }
+
+    private async Task<PersonEvent> InsertEventAsync(
+        int personId,
+        GedcomEvent source,
+        GedcomDatabase database,
+        GedcomImportResult summary,
+        string? tagOverride,
+        string? descriptionOverride = null)
+    {
+        string tag = tagOverride ?? GedcomEvent.TypeToTag(source.EventType);
+        if (tag is "_UNKN" or "EVEN")
+        {
+            tag = PersonEventType.Custom;
+        }
+
+        if (tag.Length > 20)
+        {
+            tag = tag[..20];
+        }
+
+        var (year, month, day) = ParseDate(source.Date);
+        string? description = descriptionOverride;
+        if (description is null)
+        {
+            // OCCU Clerk stores the value on EventName. EVEN / TYPE Enlisted stores it on Classification.
+            description = !string.IsNullOrWhiteSpace(source.Classification)
+                ? source.Classification
+                : string.IsNullOrWhiteSpace(source.EventName) ? null : source.EventName;
+        }
+
+        var saved = await eventRepository.InsertAsync(new PersonEvent
+        {
+            PersonId = personId,
+            EventType = tag,
+            Year = year,
+            Month = month,
+            Day = day,
+            Place = source.Place?.Name,
+            Description = description is null ? null : Truncate(description, 2000),
+            Note = ResolveFirstNote(source.Notes, database) is string note ? Truncate(note, 4000) : null,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        summary.EventsImported++;
+        return saved;
     }
 }

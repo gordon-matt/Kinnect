@@ -7,4 +7,8 @@
 		<Version>1.1.0</Version>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
+	</ItemGroup>
+
 </Project>

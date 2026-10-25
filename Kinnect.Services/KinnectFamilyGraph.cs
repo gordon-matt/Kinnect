@@ -59,7 +59,7 @@ public sealed class KinnectFamilyGraph(
             cards.Add(new PersonData
             {
                 Id = id,
-                Gender = person.IsMale ? Gender.Male : Gender.Female,
+                Gender = person.IsMale switch { true => Gender.Male, false => Gender.Female, _ => Gender.Unknown },
                 FirstName = person.GivenNames,
                 LastName = person.FamilyName,
                 BirthDate = ToPartial(birth),
@@ -289,8 +289,7 @@ public sealed class KinnectFamilyGraph(
         {
             FamilyName = card.LastName.Trim(),
             GivenNames = string.IsNullOrWhiteSpace(card.FirstName) ? existing.GivenNames : card.FirstName.Trim(),
-            IsMale = card.Gender == Gender.Unknown ? existing.IsMale : card.Gender == Gender.Male,
-            Bio = existing.Bio,
+            IsMale = card.Gender switch { Gender.Male => true, Gender.Female => false, _ => existing.IsMale },
             Latitude = existing.Latitude,
             Longitude = existing.Longitude,
             FatherId = father,
@@ -442,7 +441,7 @@ public sealed class KinnectFamilyGraph(
         {
             FamilyName = card.LastName.Trim(),
             GivenNames = string.IsNullOrWhiteSpace(card.FirstName) ? "Unknown" : card.FirstName.Trim(),
-            IsMale = card.Gender == Gender.Unknown ? existing?.IsMale ?? true : card.Gender == Gender.Male,
+            IsMale = card.Gender switch { Gender.Male => true, Gender.Female => false, _ => existing?.IsMale },
             FatherId = father,
             MotherId = mother,
             Note = string.IsNullOrWhiteSpace(card.Notes) ? null : card.Notes.Trim(),

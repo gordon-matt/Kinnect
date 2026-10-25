@@ -306,26 +306,26 @@ public class PersonServiceTests
             GivenNames = "Jane",
             Contacts =
             [
-                new ContactInput { Name = "  Email ", Value = "\tjane@example.com  " },
-                new ContactInput { Name = "  ", Value = " " },
-                new ContactInput { Name = "Mobile", Value = " 0400 000 000 " },
+                new ContactInput { Type = ContactType.Email, Value = "\tjane@example.com  " },
+                new ContactInput { Type = ContactType.Phone, Value = " " },
+                new ContactInput { Type = ContactType.Mobile, Value = " 0400 000 000 " },
             ]
         }, "user-1");
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value.Contacts.Count);
-        Assert.Equal("Email", result.Value.Contacts[0].Name);
+        Assert.Equal(ContactType.Email, result.Value.Contacts[0].Type);
         Assert.Equal("jane@example.com", result.Value.Contacts[0].Value);
         Assert.Equal("0400 000 000", result.Value.Contacts[1].Value);
 
         await using var assertDb = InMemoryDb.CreateContext(options);
         var stored = await assertDb.Contacts.OrderBy(c => c.SortOrder).ToListAsync();
-        Assert.Equal(["Email", "Mobile"], stored.Select(c => c.Name));
+        Assert.Equal([ContactType.Email, ContactType.Mobile], stored.Select(c => c.Type));
         Assert.Equal(["jane@example.com", "0400 000 000"], stored.Select(c => c.Value));
     }
 
     [Fact]
-    public async Task UpdateAsync_RejectsContactWithoutAValue()
+    public async Task UpdateAsync_DropsAContactRowLeftBlank()
     {
         var (options, factory) = InMemoryDb.Create();
         await using var db = InMemoryDb.CreateContext(options);
@@ -344,10 +344,11 @@ public class PersonServiceTests
         {
             FamilyName = "Doe",
             GivenNames = "Jane",
-            Contacts = [new ContactInput { Name = "Email", Value = "   " }]
+            Contacts = [new ContactInput { Type = ContactType.Email, Value = "   " }]
         }, "user-1", isAdmin: true);
 
-        Assert.Equal(ResultStatus.Invalid, result.Status);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Contacts);
     }
 
     [Fact]
@@ -362,7 +363,7 @@ public class PersonServiceTests
             IsMale = false,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow,
-            Contacts = [new Contact { Name = "Email", Value = "jane@example.com" }]
+            Contacts = [new Contact { Type = ContactType.Email, Value = "jane@example.com" }]
         };
         db.People.Add(person);
         await db.SaveChangesAsync();
@@ -375,6 +376,37 @@ public class PersonServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value.Contacts);
+    }
+
+    [Fact]
+    public void Merge_JoinsBioAndNoteWithHeadings()
+    {
+        Assert.Equal("Only bio", PersonNoteText.Merge("Only bio", null));
+        Assert.Equal("Only note", PersonNoteText.Merge("  ", "Only note"));
+        Assert.Equal("Bio\nThe life.\n\nNotes\nThe papers.", PersonNoteText.Merge("The life.", "The papers."));
+    }
+
+    [Fact]
+    public async Task UnlinkUserAccountAsync_AllowsTheSignedInPersonToUnlink()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Kay",
+            GivenNames = "Ada",
+            UserId = "admin",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(factory).UnlinkUserAccountAsync(person.Id, "admin");
+
+        Assert.True(result.IsSuccess);
+        await using var assertDb = InMemoryDb.CreateContext(options);
+        Assert.Null((await assertDb.People.SingleAsync()).UserId);
     }
 
     private static PersonService CreateService(TestDbContextFactory factory) => new(

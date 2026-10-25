@@ -37,7 +37,6 @@ public sealed class PersonBackupService(
                 FamilyName = p.FamilyName,
                 GivenNames = p.GivenNames,
                 IsMale = p.IsMale,
-                Bio = p.Bio,
                 ProfileImagePath = p.ProfileImagePath,
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
@@ -79,7 +78,7 @@ public sealed class PersonBackupService(
             Contacts = contacts.Select(contact => new ContactBackupEntry
             {
                 PersonId = contact.PersonId,
-                Name = contact.Name,
+                Type = contact.Type,
                 Value = contact.Value,
                 SortOrder = contact.SortOrder
             }).ToList()
@@ -166,7 +165,6 @@ public sealed class PersonBackupService(
                 entity.FamilyName = entry.FamilyName;
                 entity.GivenNames = entry.GivenNames;
                 entity.IsMale = entry.IsMale;
-                entity.Bio = entry.Bio;
                 entity.ProfileImagePath = entry.ProfileImagePath;
                 entity.Latitude = entry.Latitude;
                 entity.Longitude = entry.Longitude;
@@ -175,7 +173,7 @@ public sealed class PersonBackupService(
                 entity.Occupation = entry.Occupation;
                 entity.Education = entry.Education;
                 entity.Religion = entry.Religion;
-                entity.Note = entry.Note;
+                entity.Note = PersonNoteText.Merge(entry.Bio, entry.Note);
                 entity.IsDeceased = entry.IsDeceased;
                 entity.GedcomId = entry.GedcomId;
                 entity.CreatedAtUtc = entry.CreatedAtUtc;
@@ -247,9 +245,8 @@ public sealed class PersonBackupService(
 
                 foreach (var contact in doc.Contacts)
                 {
-                    string name = contact.Name?.Trim() ?? string.Empty;
                     string value = contact.Value?.Trim() ?? string.Empty;
-                    if (!existingIds.Contains(contact.PersonId) || name.Length == 0 || value.Length == 0)
+                    if (!existingIds.Contains(contact.PersonId) || value.Length == 0)
                     {
                         continue;
                     }
@@ -257,7 +254,7 @@ public sealed class PersonBackupService(
                     db.Contacts.Add(new Contact
                     {
                         PersonId = contact.PersonId,
-                        Name = name,
+                        Type = string.IsNullOrWhiteSpace(contact.Name) ? contact.Type : ContactTypes.FromLabel(contact.Name),
                         Value = value,
                         SortOrder = contact.SortOrder
                     });

@@ -8,9 +8,8 @@ public class Person : BaseEntity<int>
 
     public string GivenNames { get; set; } = null!;
 
-    public bool IsMale { get; set; }
-
-    public string? Bio { get; set; }
+    /// <summary>Null when the sex is unknown, which GEDCOM records as <c>U</c>.</summary>
+    public bool? IsMale { get; set; }
 
     public string? ProfileImagePath { get; set; }
 
@@ -70,7 +69,6 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.HasKey(m => m.Id);
         builder.Property(m => m.FamilyName).IsRequired().HasMaxLength(200);
         builder.Property(m => m.GivenNames).IsRequired().HasMaxLength(200);
-        builder.Property(m => m.IsMale).IsRequired();
         builder.Property(m => m.ProfileImagePath).HasMaxLength(500);
         builder.Property(m => m.Occupation).HasMaxLength(500);
         builder.Property(m => m.Education).HasMaxLength(500);

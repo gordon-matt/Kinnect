@@ -196,15 +196,13 @@ namespace Kinnect.Data.Npgsql.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<int>("PersonId")
                         .HasColumnType("integer");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
                         .HasColumnType("integer");
 
                     b.Property<string>("Value")
@@ -245,6 +243,10 @@ namespace Kinnect.Data.Npgsql.Migrations
 
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -340,6 +342,40 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.GedcomFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GedcomFiles", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
@@ -452,9 +488,6 @@ namespace Kinnect.Data.Npgsql.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Bio")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -482,7 +515,7 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsMale")
+                    b.Property<bool?>("IsMale")
                         .HasColumnType("boolean");
 
                     b.Property<double?>("Latitude")
@@ -736,6 +769,10 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Property<int?>("FolderId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<bool>("LatLongAcquiredFromExif")
                         .HasColumnType("boolean");
 
@@ -893,6 +930,10 @@ namespace Kinnect.Data.Npgsql.Migrations
 
                     b.Property<int?>("FolderId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<bool>("IsProcessing")
                         .HasColumnType("boolean");

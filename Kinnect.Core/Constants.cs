@@ -40,6 +40,15 @@ public static class Constants
         public const string Videos = "videos";
         public const string Documents = "documents";
 
+        /// <summary>
+        /// Top-level folder holding the original uploaded GEDCOM files. It is private data, so the
+        /// <c>/uploads</c> static file handler must never serve it.
+        /// </summary>
+        public const string GedcomOriginals = "gedcom";
+
+        /// <summary>Top-level folder (the "user" segment of the path) for photos created by a GEDCOM import.</summary>
+        public const string GedcomImportedMedia = "imported";
+
         /// <summary>Person tree JSON backups live under &lt;FileStorage:BasePath&gt;/backup.</summary>
         public const string PersonTreeBackups = "backup";
     }

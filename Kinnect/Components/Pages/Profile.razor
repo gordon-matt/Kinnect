@@ -65,10 +65,10 @@ else
                             <label class="nf-field">Family name <InputText class="nf-input" @bind-Value="form.FamilyName" /></label>
                         </div>
                         <div class="kinnect-switch" role="group" aria-label="Sex">
-                            <button type="button" class="@(form.IsMale ? "is-active" : null)" aria-pressed="@form.IsMale" @onclick="() => form.IsMale = true">Male</button>
-                            <button type="button" class="@(!form.IsMale ? "is-active" : null)" aria-pressed="@(!form.IsMale)" @onclick="() => form.IsMale = false">Female</button>
+                            <button type="button" class="@(form.IsMale == true ? "is-active" : null)" aria-pressed="@(form.IsMale == true)" @onclick="() => form.IsMale = true">Male</button>
+                            <button type="button" class="@(form.IsMale == false ? "is-active" : null)" aria-pressed="@(form.IsMale == false)" @onclick="() => form.IsMale = false">Female</button>
+                            <button type="button" class="@(form.IsMale is null ? "is-active" : null)" aria-pressed="@(form.IsMale is null)" @onclick="() => form.IsMale = null">Unknown</button>
                         </div>
-                        <label class="nf-field">Bio <InputTextArea class="nf-textarea" @bind-Value="form.Bio" /></label>
                         <label class="nf-field">Occupation <InputText class="nf-input" @bind-Value="form.Occupation" /></label>
                         <label class="nf-field">Education <InputText class="nf-input" @bind-Value="form.Education" /></label>
                         <label class="nf-field">Religion <InputText class="nf-input" @bind-Value="form.Religion" /></label>
@@ -106,11 +106,13 @@ else
                                 }
                             </div>
                         }
-                        <p>@person.Bio</p>
                         <p>@person.Occupation</p>
                         <p>@person.Education</p>
                         <p>@person.Religion</p>
-                        <p>@person.Note</p>
+                        @if (!string.IsNullOrWhiteSpace(person.Note))
+                        {
+                            <p style="white-space: pre-wrap">@person.Note</p>
+                        }
                     </div>
                     @SpouseRelationships
                 }
@@ -138,14 +140,10 @@ else
                                 <button class="nf-button nf-button-sm" type="button" disabled="@string.IsNullOrEmpty(selectedAccountId)" @onclick="LinkAccountAsync">Link user</button>
                             }
                         }
-                        else if (mine)
-                        {
-                            <p>@linkedAccount</p>
-                        }
                         else
                         {
                             <p>@linkedAccount</p>
-                            <button class="nf-button nf-button-sm" type="button" @onclick="UnlinkAccountAsync">Unlink user</button>
+                            <button class="nf-button nf-button-sm" type="button" @onclick="UnlinkAccountAsync">@(mine ? "This is not me" : "Unlink user")</button>
                         }
                     </div>
                 }
@@ -168,7 +166,7 @@ else
                             @foreach (var contact in person.Contacts)
                             {
                                 string? href = ContactHref(contact);
-                                <dt>@contact.Name</dt>
+                                <dt>@ContactTypes.Label(contact.Type)</dt>
                                 <dd>
                                     @if (href is null)
                                     {
@@ -210,12 +208,6 @@ else
                             <h2>Contact info</h2>
                             <button type="button" class="nf-button nf-button-sm" @onclick="AddContact">Add contact</button>
                         </div>
-                        <datalist id="kinnect-contact-names">
-                            @foreach (var suggestion in ContactNameSuggestions)
-                            {
-                                <option value="@suggestion"></option>
-                            }
-                        </datalist>
                         @{
                             var contacts = form.Contacts ?? [];
                         }
@@ -224,7 +216,12 @@ else
                             var contact = contacts[index];
                             int position = index;
                             <div class="kinnect-link-row" @key="contact">
-                                <input class="nf-input" list="kinnect-contact-names" maxlength="@Contact.MaxNameLength" @bind="contact.Name" placeholder="Email, Mobile, Facebook…" />
+                                <select class="nf-select" @bind="contact.Type">
+                                    @foreach (var type in Enum.GetValues<ContactType>())
+                                    {
+                                        <option value="@type">@ContactTypes.Label(type)</option>
+                                    }
+                                </select>
                                 <input class="nf-input" maxlength="@Contact.MaxValueLength" @bind="contact.Value" placeholder="Address, number or URL" />
                                 <span class="kinnect-contact-actions">
                                     <button type="button" class="nf-icon-button" title="Move up" disabled="@(position == 0)" @onclick="() => MoveContact(contact, -1)">
@@ -1349,7 +1346,6 @@ else
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
             IsMale = person.IsMale,
-            Bio = person.Bio,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
             FatherId = person.FatherId,
@@ -1360,7 +1356,7 @@ else
             Note = person.Note,
             IsDeceased = mine ? false : person.IsDeceased,
             Links = person.Links.Select(link => new PersonLinkInput { Name = link.Name, Url = link.Url }).ToList(),
-            Contacts = person.Contacts.Select(contact => new ContactInput { Name = contact.Name, Value = contact.Value }).ToList(),
+            Contacts = person.Contacts.Select(contact => new ContactInput { Type = contact.Type, Value = contact.Value }).ToList(),
         };
         var relativeResult = await Events.GetCloseRelativesAsync(PersonId);
         relatives = relativeResult.IsSuccess ? relativeResult.Value.ToList() : [];
@@ -1688,13 +1684,10 @@ else
 
     private void RemoveLink(PersonLinkInput link) => form.Links?.Remove(link);
 
-    private static readonly string[] ContactNameSuggestions =
-        ["Email", "Mobile", "Phone", "Facebook", "Instagram", "WhatsApp", "LinkedIn", "X (Twitter)"];
-
     private void AddContact()
     {
         form.Contacts ??= [];
-        form.Contacts.Add(new ContactInput());
+        form.Contacts.Add(new ContactInput { Type = ContactType.Email });
     }
 
     private void RemoveContact(ContactInput contact) => form.Contacts?.Remove(contact);
@@ -1732,9 +1725,8 @@ else
             return "mailto:" + value;
         }
 
-        bool phoneName = new[] { "mobile", "phone", "cell", "tel" }
-            .Any(word => contact.Name.Contains(word, StringComparison.OrdinalIgnoreCase));
-        if (phoneName && value.Length >= 5 && value.All(c => char.IsDigit(c) || c is '+' or ' ' or '(' or ')' or '-' or '.'))
+        bool phone = contact.Type is ContactType.Phone or ContactType.Mobile or ContactType.Fax;
+        if (phone && value.Length >= 5 && value.All(c => char.IsDigit(c) || c is '+' or ' ' or '(' or ')' or '-' or '.'))
         {
             return "tel:" + new string(value.Where(c => char.IsDigit(c) || c == '+').ToArray());
         }
@@ -1904,8 +1896,15 @@ else
 
     private async Task UnlinkAccountAsync()
     {
+        bool unlinkingSelf = person?.UserId is not null && person.UserId == Users.GetCurrentUserId();
         var result = await People.UnlinkUserAccountAsync(PersonId, Users.GetCurrentUserId());
-        Notify(result, "Account unlinked and locked.");
+        Notify(result, unlinkingSelf ? "Account unlinked. Choose the right person." : "Account unlinked and locked.");
+        if (result.IsSuccess && unlinkingSelf)
+        {
+            Nav.NavigateTo("/onboarding");
+            return;
+        }
+
         if (result.IsSuccess)
         {
             await ReloadAsync();

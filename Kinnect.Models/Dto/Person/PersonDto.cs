@@ -12,9 +12,8 @@ public class PersonDto
 
     public string FullName => $"{GivenNames} {FamilyName}";
 
-    public bool IsMale { get; set; }
-
-    public string? Bio { get; set; }
+    /// <summary>Null when the sex is unknown.</summary>
+    public bool? IsMale { get; set; }
 
     public string? ProfileImagePath { get; set; }
 

@@ -1,6 +1,4 @@
 using Hangfire;
-using Kinnect.Infrastructure;
-using Kinnect.Services.Abstractions;
 
 namespace Kinnect.Services.Jobs;
 

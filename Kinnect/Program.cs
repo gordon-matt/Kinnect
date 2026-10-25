@@ -131,6 +131,18 @@ if (!useKeycloak)
     app.UseHttpsRedirection();
 }
 
+// The original GEDCOM uploads live under the uploads folder but are private family data: never serve them.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments($"/uploads/{Constants.FileStorage.GedcomOriginals}", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    await next();
+});
+
 app.UseStaticFiles();
 
 {

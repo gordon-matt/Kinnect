@@ -198,15 +198,13 @@ namespace Kinnect.Data.Sql.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<int>("PersonId")
                         .HasColumnType("int");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
                         .HasColumnType("int");
 
                     b.Property<string>("Value")
@@ -247,6 +245,10 @@ namespace Kinnect.Data.Sql.Migrations
 
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -342,6 +344,40 @@ namespace Kinnect.Data.Sql.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.GedcomFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ImportedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GedcomFiles", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
@@ -454,9 +490,6 @@ namespace Kinnect.Data.Sql.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Bio")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -484,7 +517,7 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsMale")
+                    b.Property<bool?>("IsMale")
                         .HasColumnType("bit");
 
                     b.Property<double?>("Latitude")
@@ -738,6 +771,10 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Property<int?>("FolderId")
                         .HasColumnType("int");
 
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<bool>("LatLongAcquiredFromExif")
                         .HasColumnType("bit");
 
@@ -895,6 +932,10 @@ namespace Kinnect.Data.Sql.Migrations
 
                     b.Property<int?>("FolderId")
                         .HasColumnType("int");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<bool>("IsProcessing")
                         .HasColumnType("bit");

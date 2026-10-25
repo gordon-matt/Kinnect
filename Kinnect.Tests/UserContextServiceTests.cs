@@ -111,6 +111,37 @@ public class UserContextServiceTests
         Assert.Equal("circuit-user", sut.GetCurrentUserId());
     }
 
+    [Fact]
+    public void GetCurrentUserId_PrefersTheCircuitWhenHttpContextIsADifferentUser()
+    {
+        var accessor = new HttpContextAccessor();
+        var httpIdentity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "wrong-request")],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(httpIdentity) };
+
+        var circuitIdentity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "signed-in-user")],
+            authenticationType: "Test");
+        var sut = new UserContextService(accessor, new StubAuthenticationState(new ClaimsPrincipal(circuitIdentity)));
+
+        Assert.Equal("signed-in-user", sut.GetCurrentUserId());
+    }
+
+    [Fact]
+    public void GetCurrentUserId_AcceptsTheSubClaim()
+    {
+        var accessor = new HttpContextAccessor();
+        var identity = new ClaimsIdentity(
+            [new Claim("sub", "keycloak-user")],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+
+        var sut = new UserContextService(accessor);
+
+        Assert.Equal("keycloak-user", sut.GetCurrentUserId());
+    }
+
     private sealed class StubAuthenticationState(ClaimsPrincipal user) : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() =>

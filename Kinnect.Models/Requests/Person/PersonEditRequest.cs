@@ -6,9 +6,13 @@ public class PersonEditRequest
 
     public string GivenNames { get; set; } = null!;
 
-    public bool IsMale { get; set; }
+    /// <summary>Null when the sex is unknown.</summary>
+    public bool? IsMale { get; set; }
 
-    public string? Bio { get; set; }
+    /// <summary>Present on snapshots saved before bio and notes were one field. Not written on new snapshots.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    [System.Text.Json.Serialization.JsonPropertyName("Bio")]
+    public string? LegacyBio { get; set; }
 
     public double? Latitude { get; set; }
 
@@ -35,7 +39,7 @@ public class PersonEditRequest
     public List<PersonLinkInput>? Links { get; set; }
 
     /// <summary>
-    /// Contact details (email, mobile, Facebook and so on). Null leaves the stored list alone, like <see cref="Links"/>.
+    /// Contact details. Null leaves the stored list alone, like <see cref="Links"/>.
     /// </summary>
     public List<ContactInput>? Contacts { get; set; }
 }

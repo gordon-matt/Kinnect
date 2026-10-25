@@ -423,3 +423,7 @@ Kinnect/ffmpeg-tools
 Sejil-*.sqlite
 Kinnect/Sejil-*.sqlite
 /Kinnect/Kinnect/*.sqlite-journal
+
+*.db
+*.db-shm
+*.db-wal

@@ -27,6 +27,8 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<DocumentTag> DocumentTags { get; set; }
 
+    public DbSet<GedcomFile> GedcomFiles { get; set; }
+
     public DbSet<MediaFolder> MediaFolders { get; set; }
 
     public DbSet<Person> People { get; set; }

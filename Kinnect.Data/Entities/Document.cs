@@ -12,6 +12,9 @@ public class Document : BaseEntity<int>
 
     public long FileSize { get; set; }
 
+    /// <summary>The <c>FILE</c> value from an imported GEDCOM. Null for documents uploaded in Kinnect.</summary>
+    public string? GedcomFileReference { get; set; }
+
     public int UploadedByPersonId { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
@@ -30,6 +33,7 @@ public class DocumentMap : IEntityTypeConfiguration<Document>
         builder.Property(m => m.Title).IsRequired().HasMaxLength(500);
         builder.Property(m => m.FilePath).IsRequired().HasMaxLength(1000);
         builder.Property(m => m.ContentType).IsRequired().HasMaxLength(200);
+        builder.Property(m => m.GedcomFileReference).HasMaxLength(1000);
 
         builder.HasOne(m => m.UploadedBy)
             .WithMany()

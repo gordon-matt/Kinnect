@@ -35,6 +35,10 @@
     [Parameter]
     public EventCallback Uploaded { get; set; }
 
+    /// <summary>Raised after <see cref="Uploaded"/> with the raw response body, for endpoints that return a summary.</summary>
+    [Parameter]
+    public EventCallback<string> UploadedWithResponse { get; set; }
+
     [JSInvokable]
     public void OnUploadProgress(int percent)
     {
@@ -50,9 +54,10 @@
         {
             module ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/uploads.js");
             self ??= DotNetObjectReference.Create(this);
-            await module.InvokeAsync<string>("uploadInput", Url, input, Fields, self);
+            string response = await module.InvokeAsync<string>("uploadInput", Url, input, Fields, self);
             progress = null;
             await Uploaded.InvokeAsync();
+            await UploadedWithResponse.InvokeAsync(response);
         }
         catch (Exception ex)
         {

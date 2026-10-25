@@ -36,9 +36,9 @@ public class GedcomApiController(
         }
 
         await using var stream = file.OpenReadStream();
-        var result = await gedcomService.ImportAsync(stream);
+        var result = await gedcomService.ImportAsync(stream, file.FileName);
         return result.IsSuccess
-            ? Ok()
+            ? Ok(result.Value)
             : Fail(string.Join("; ", result.Errors));
     }
 

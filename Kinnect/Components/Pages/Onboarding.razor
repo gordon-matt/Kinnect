@@ -1,6 +1,8 @@
 @page "/onboarding"
 @attribute [Authorize]
+@using System.Text.Json
 @using Kinnect.Data
+@using Kinnect.Models.FamilyTree
 
 @inject ApplicationDbContextBase Database
 @inject IUserContextService Users
@@ -11,25 +13,34 @@
 <PageHeader Title="Welcome to Kinnect" />
 
 <div class="kinnect-columns-2">
-    <div>
-        <div class="kinnect-card kinnect-stack">
-            <h2>This is me</h2>
-            <input class="nf-input" @bind="givenNames" placeholder="Given names" />
-            <input class="nf-input" @bind="familyName" placeholder="Family name" />
-            <div class="kinnect-switch" role="group" aria-label="Sex">
-                <button type="button" class="@(isMale ? "is-active" : null)" aria-pressed="@isMale" @onclick="() => isMale = true">Male</button>
-                <button type="button" class="@(!isMale ? "is-active" : null)" aria-pressed="@(!isMale)" @onclick="() => isMale = false">Female</button>
+    @if (!importedTree)
+    {
+        <div>
+            <div class="kinnect-card kinnect-stack">
+                <h2>This is me</h2>
+                <input class="nf-input" @bind="givenNames" placeholder="Given names" />
+                <input class="nf-input" @bind="familyName" placeholder="Family name" />
+                <div class="kinnect-switch" role="group" aria-label="Sex">
+                    <button type="button" class="@(isMale == true ? "is-active" : null)" aria-pressed="@(isMale == true)" @onclick="() => isMale = true">Male</button>
+                    <button type="button" class="@(isMale == false ? "is-active" : null)" aria-pressed="@(isMale == false)" @onclick="() => isMale = false">Female</button>
+                    <button type="button" class="@(isMale is null ? "is-active" : null)" aria-pressed="@(isMale is null)" @onclick="() => isMale = null">Unknown</button>
+                </div>
+                <button class="nf-button nf-button-primary" type="button" @onclick="CreateAsync">Create my profile</button>
             </div>
-            <button class="nf-button nf-button-primary" type="button" @onclick="CreateAsync">Create my profile</button>
         </div>
-    </div>
+    }
     @if (unlinked.Count > 0)
     {
         <div>
             <div class="kinnect-card kinnect-stack">
-                <h2>I am already in the tree</h2>
+                <h2>@(importedTree ? "Which person are you?" : "I am already in the tree")</h2>
+                @if (importedTree)
+                {
+                    <p class="kinnect-muted">This tree was imported, so your account has to be one of these people.</p>
+                }
+                <input class="nf-input" @bind="personFilter" @bind:event="oninput" placeholder="Search by name" />
                 <ul class="kinnect-list">
-                    @foreach (var person in unlinked)
+                    @foreach (var person in FilteredPeople)
                     {
                         <li>
                             <span>@person.GivenNames @person.FamilyName</span>
@@ -37,6 +48,10 @@
                         </li>
                     }
                 </ul>
+                @if (!FilteredPeople.Any())
+                {
+                    <p class="kinnect-muted">No one matches that search.</p>
+                }
             </div>
         </div>
     }
@@ -46,7 +61,46 @@
             <div class="kinnect-card kinnect-stack">
                 <h2>Import a GEDCOM</h2>
                 <p class="kinnect-muted">Import your existing tree, then choose your name. This can only be done once.</p>
-                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom" Label="Import GEDCOM" Uploaded="OnImported" />
+                <p class="kinnect-muted">To bring in photos too, upload a .zip containing the .ged file and its photo folders. A plain .ged imports the tree without photos.</p>
+                <FileUpload Url="/api/gedcom/import" Accept=".ged,.gedcom,.zip" Label="Import GEDCOM" UploadedWithResponse="OnImported" />
+            </div>
+        </div>
+    }
+    @if (importResult is not null)
+    {
+        <div>
+            <div class="kinnect-card kinnect-stack">
+                <h2>Import summary</h2>
+                <ul class="kinnect-list">
+                    <li><span>People</span><span>@importResult.PeopleImported</span></li>
+                    <li><span>Events</span><span>@importResult.EventsImported</span></li>
+                    <li><span>Photos</span><span>@importResult.PhotosImported</span></li>
+                    @if (importResult.DocumentsImported > 0)
+                    {
+                        <li><span>Documents</span><span>@importResult.DocumentsImported</span></li>
+                    }
+                    @if (importResult.VideosImported > 0)
+                    {
+                        <li><span>Videos</span><span>@importResult.VideosImported</span></li>
+                    }
+                    @if (importResult.MediaMissing > 0)
+                    {
+                        <li><span>Photos not found</span><span>@importResult.MediaMissing</span></li>
+                    }
+                    @if (importResult.MediaSkipped > 0)
+                    {
+                        <li><span>Media skipped</span><span>@importResult.MediaSkipped</span></li>
+                    }
+                </ul>
+                @if (importResult.Warnings.Count > 0)
+                {
+                    <ul class="kinnect-muted">
+                        @foreach (string warning in importResult.Warnings)
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                }
             </div>
         </div>
     }
@@ -55,9 +109,18 @@
 @code {
     private string givenNames = string.Empty;
     private string familyName = string.Empty;
-    private bool isMale = true;
+    private bool? isMale = true;
     private bool canImport;
+    private bool importedTree;
+    private string personFilter = string.Empty;
     private List<Person> unlinked = [];
+    private GedcomImportResult? importResult;
+
+    private IEnumerable<Person> FilteredPeople =>
+        string.IsNullOrWhiteSpace(personFilter)
+            ? unlinked
+            : unlinked.Where(person =>
+                $"{person.GivenNames} {person.FamilyName}".Contains(personFilter.Trim(), StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,6 +137,7 @@
         }
 
         bool any = await Database.People.AnyAsync();
+        importedTree = await Database.GedcomFiles.AnyAsync();
         canImport = Users.IsAdmin() && !any;
         unlinked = any
             ? await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync()
@@ -83,6 +147,12 @@
     private async Task CreateAsync()
     {
         string? userId = Users.GetCurrentUserId();
+        if (importedTree)
+        {
+            Toasts.Error("Choose your name from the imported tree.");
+            return;
+        }
+
         if (userId is null || string.IsNullOrWhiteSpace(givenNames))
         {
             Toasts.Error("Enter your given names.");
@@ -118,13 +188,23 @@
         Nav.NavigateTo("/tree");
     }
 
-    private async Task OnImported()
+    private async Task OnImported(string response)
     {
+        try
+        {
+            importResult = JsonSerializer.Deserialize<GedcomImportResult>(response, JsonSerializerOptions.Web);
+        }
+        catch (JsonException)
+        {
+            importResult = null;
+        }
+
         unlinked = await Database.People
             .Where(person => person.UserId == null)
             .OrderBy(person => person.GivenNames)
             .ThenBy(person => person.FamilyName)
             .ToListAsync();
+        importedTree = await Database.GedcomFiles.AnyAsync();
         canImport = Users.IsAdmin() && !await Database.People.AnyAsync();
         Toasts.Success(unlinked.Count == 0
             ? "Import complete."

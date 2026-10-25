@@ -39,10 +39,7 @@ else
                         {
                             <div class="kinnect-row">
                                 <a href="@($"people/{personId}")">@row.PersonName</a>
-                                @if (row.Id != currentUserId)
-                                {
-                                    <button class="nf-button nf-button-sm" type="button" @onclick="() => UnlinkAsync(row)">Unlink</button>
-                                }
+                                <button class="nf-button nf-button-sm" type="button" @onclick="() => UnlinkAsync(row)">Unlink</button>
                             </div>
                         }
                         else if (unlinked.Count == 0)
@@ -142,15 +139,16 @@ else
 
     private async Task UnlinkAsync(UserRow row)
     {
-        if (row.PersonId is not int personId || row.Id == currentUserId)
+        if (row.PersonId is not int personId)
         {
             return;
         }
 
+        bool self = row.Id == currentUserId;
         var result = await People.UnlinkUserAccountAsync(personId, currentUserId);
         if (result.IsSuccess)
         {
-            Toasts.Success("Account unlinked and locked.");
+            Toasts.Success(self ? "Account unlinked. Choose the right person." : "Account unlinked and locked.");
         }
         else
         {

@@ -3,7 +3,7 @@ using Hangfire.Common;
 using Hangfire.States;
 using Hangfire.Storage;
 
-namespace Kinnect.Infrastructure;
+namespace Kinnect.Services.Jobs;
 
 public class HangfireSkipWhenPreviousInstanceIsRunningFilter : JobFilterAttribute, IClientFilter, IApplyStateFilter
 {

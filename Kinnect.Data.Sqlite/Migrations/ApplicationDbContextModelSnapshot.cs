@@ -185,15 +185,13 @@ namespace Kinnect.Data.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("PersonId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Value")
@@ -232,6 +230,10 @@ namespace Kinnect.Data.Sqlite.Migrations
 
                     b.Property<long>("FileSize")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -323,6 +325,38 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.GedcomFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ImportedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GedcomFiles", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
@@ -427,9 +461,6 @@ namespace Kinnect.Data.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Bio")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -457,7 +488,7 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsMale")
+                    b.Property<bool?>("IsMale")
                         .HasColumnType("INTEGER");
 
                     b.Property<double?>("Latitude")
@@ -703,6 +734,10 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Property<int?>("FolderId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("LatLongAcquiredFromExif")
                         .HasColumnType("INTEGER");
 
@@ -852,6 +887,10 @@ namespace Kinnect.Data.Sqlite.Migrations
 
                     b.Property<int?>("FolderId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsProcessing")
                         .HasColumnType("INTEGER");

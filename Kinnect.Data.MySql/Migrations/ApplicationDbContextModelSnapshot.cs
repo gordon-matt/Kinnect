@@ -187,15 +187,13 @@ namespace Kinnect.Data.MySql.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<int>("PersonId")
                         .HasColumnType("int");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
                         .HasColumnType("int");
 
                     b.Property<string>("Value")
@@ -234,6 +232,10 @@ namespace Kinnect.Data.MySql.Migrations
 
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -325,6 +327,38 @@ namespace Kinnect.Data.MySql.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.GedcomFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("ImportedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GedcomFiles", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
@@ -429,9 +463,6 @@ namespace Kinnect.Data.MySql.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<string>("Bio")
-                        .HasColumnType("longtext");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime(6)");
 
@@ -459,7 +490,7 @@ namespace Kinnect.Data.MySql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsMale")
+                    b.Property<bool?>("IsMale")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<double?>("Latitude")
@@ -705,6 +736,10 @@ namespace Kinnect.Data.MySql.Migrations
                     b.Property<int?>("FolderId")
                         .HasColumnType("int");
 
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
                     b.Property<bool>("LatLongAcquiredFromExif")
                         .HasColumnType("tinyint(1)");
 
@@ -854,6 +889,10 @@ namespace Kinnect.Data.MySql.Migrations
 
                     b.Property<int?>("FolderId")
                         .HasColumnType("int");
+
+                    b.Property<string>("GedcomFileReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<bool>("IsProcessing")
                         .HasColumnType("tinyint(1)");

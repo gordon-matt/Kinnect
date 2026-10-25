@@ -14,4 +14,8 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />
+	</ItemGroup>
+
 </Project>
