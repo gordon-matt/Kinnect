@@ -44,6 +44,40 @@ public sealed class KinnectChatUserDirectory(
         return result;
     }
 
+    /// <summary>
+    /// People to offer while someone types <c>@</c> in a room. Matches the linked person's name, and the
+    /// account name when no person is linked. Roles are left unset: the suggestion list only shows the name.
+    /// </summary>
+    public async Task<IReadOnlyList<ChatUser>> SearchAsync(string term, int take, CancellationToken cancellationToken = default)
+    {
+        int count = Math.Clamp(take, 1, 20);
+        string query = term?.Trim() ?? string.Empty;
+
+        var accounts = await users.GetAllUsersAsync(cancellationToken);
+        if (accounts.Count == 0)
+        {
+            return [];
+        }
+
+        var names = await PersonNamesAsync(accounts.Select(account => account.UserId), cancellationToken);
+        return accounts
+            .Select(account =>
+            {
+                string displayName = names.TryGetValue(account.UserId, out string? personName) && !string.IsNullOrWhiteSpace(personName)
+                    ? personName
+                    : account.Username;
+                return (account.UserId, account.Username, DisplayName: displayName);
+            })
+            .Where(person =>
+                query.Length == 0
+                || person.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || person.Username.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Take(count)
+            .Select(person => new ChatUser(person.UserId, person.DisplayName, false, false))
+            .ToList();
+    }
+
     private async Task<ChatUser> ToChatUserAsync(UserInfo info, IReadOnlyDictionary<string, string> names)
     {
         string name = names.TryGetValue(info.UserId, out string? personName) && !string.IsNullOrWhiteSpace(personName)

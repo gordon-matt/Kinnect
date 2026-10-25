@@ -21,10 +21,20 @@
 }
 else
 {
+    <ul class="kinnect-tabs">
+        @foreach (var name in Tabs)
+        {
+            <li>
+                <button type="button" class="@(tab == name ? "is-active" : null)" @onclick="() => tab = name">@name</button>
+            </li>
+        }
+    </ul>
+
     <div class="kinnect-stack">
+        @if (tab == "Images")
+        {
         <EditForm Model="images" OnValidSubmit="SaveImagesAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <h2>Images</h2>
             <label class="nf-check"><InputCheckbox @bind-Value="images.AutoShrinkImages" /> Shrink photos when they are uploaded</label>
             <div class="kinnect-pair">
                 <label class="nf-field">Max width (px) <InputNumber class="nf-input" @bind-Value="images.MaxWidth" /></label>
@@ -39,10 +49,11 @@ else
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save image settings</button></div>
         </EditForm>
-
+        }
+        else if (tab == "Documents")
+        {
         <EditForm Model="documents" OnValidSubmit="SaveDocumentsAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <h2>Documents</h2>
             <label class="nf-field">
                 Allowed file extensions
                 <InputText class="nf-input" @bind-Value="documents.AllowedExtensions" />
@@ -56,10 +67,11 @@ else
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save document settings</button></div>
         </EditForm>
-
+        }
+        else if (tab == "Videos")
+        {
         <EditForm Model="videos" OnValidSubmit="SaveVideosAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <h2>Videos</h2>
             <label class="nf-field">
                 FFmpeg tools folder
                 <InputText class="nf-input" @bind-Value="videos.ToolsPath" />
@@ -89,10 +101,11 @@ else
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save video settings</button></div>
         </EditForm>
-
+        }
+        else if (tab == "Email")
+        {
         <EditForm Model="email" OnValidSubmit="SaveEmailAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <h2>Email</h2>
             <div class="kinnect-pair">
                 <label class="nf-field">SMTP host <InputText class="nf-input" @bind-Value="email.Host" /></label>
                 <label class="nf-field">Port <InputNumber class="nf-input" @bind-Value="email.Port" /></label>
@@ -124,10 +137,11 @@ else
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save email settings</button></div>
         </EditForm>
-
+        }
+        else
+        {
         <EditForm Model="tree" OnValidSubmit="SaveTreeAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <h2>Family tree</h2>
             <label class="nf-field">
                 Most generations to show (1 to @TreeSettings.LargestMaxGenerations)
                 <InputNumber class="nf-input" @bind-Value="tree.MaxGenerations" />
@@ -136,11 +150,15 @@ else
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save tree settings</button></div>
         </EditForm>
+        }
     </div>
 }
 
 @code {
+    private static readonly string[] Tabs = ["Images", "Documents", "Videos", "Email", "Family tree"];
     private static readonly string[] VideoSizes = Enum.GetNames<Xabe.FFmpeg.VideoSize>();
+
+    private string tab = Tabs[0];
 
     private ImageSettings? images;
     private DocumentSettings? documents;

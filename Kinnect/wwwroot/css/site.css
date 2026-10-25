@@ -78,6 +78,8 @@ html {
     box-shadow: var(--nf-shadow);
 }
 .kinnect-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 0.5rem; align-items: center; }
+.kinnect-contact-actions { display: flex; gap: 0.1rem; justify-content: flex-end; }
+.kinnect-contact-actions svg { display: block; }
 .kinnect-contacts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 0.9rem; margin: 0; }
 .kinnect-contacts dt { color: var(--nf-muted); }
 .kinnect-contacts dd { margin: 0; overflow-wrap: anywhere; }

@@ -1,3 +1,4 @@
+using EasyChatz;
 using EasyChatz.Services;
 using Hangfire;
 
@@ -40,14 +41,20 @@ public sealed class UnreadMessageEmailJob(
             }
 
             int count = group.Count();
-            string subject = count == 1
-                ? "You have an unread message on Kinnect"
-                : $"You have {count} unread messages on Kinnect";
+            bool mentioned = group.Any(n => ChatMentions.Mentions(n.Content, toUserId));
+            string subject = mentioned
+                ? "You were mentioned on Kinnect"
+                : count == 1
+                    ? "You have an unread message on Kinnect"
+                    : $"You have {count} unread messages on Kinnect";
 
-            string preview = string.Join("\r\n", group.Take(3).Select(n => "- " + n.Content));
+            string preview = string.Join("\r\n", group.Take(3).Select(n => "- " + ChatMentions.ToPlainText(n.Content)));
+            string waiting = mentioned
+                ? $"You were mentioned on Kinnect ({count} unread message{(count == 1 ? "" : "s")})."
+                : $"You have {count} unread message{(count == 1 ? "" : "s")} waiting for you on Kinnect.";
             string body =
                 $"Hi {info.Username},\r\n\r\n" +
-                $"You have {count} unread private message{(count == 1 ? "" : "s")} waiting for you on Kinnect.\r\n\r\n" +
+                waiting + "\r\n\r\n" +
                 preview + "\r\n\r\n" +
                 "Log in to read and reply.\r\n\r\n" +
                 "— The Kinnect team";

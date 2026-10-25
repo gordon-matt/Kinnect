@@ -216,12 +216,25 @@ else
                                 <option value="@suggestion"></option>
                             }
                         </datalist>
-                        @foreach (var contact in form.Contacts ?? [])
+                        @{
+                            var contacts = form.Contacts ?? [];
+                        }
+                        @for (var index = 0; index < contacts.Count; index++)
                         {
-                            <div class="kinnect-link-row">
+                            var contact = contacts[index];
+                            int position = index;
+                            <div class="kinnect-link-row" @key="contact">
                                 <input class="nf-input" list="kinnect-contact-names" maxlength="@Contact.MaxNameLength" @bind="contact.Name" placeholder="Email, Mobile, Facebook…" />
                                 <input class="nf-input" maxlength="@Contact.MaxValueLength" @bind="contact.Value" placeholder="Address, number or URL" />
-                                <button type="button" class="nf-icon-button" title="Remove contact" @onclick="() => RemoveContact(contact)"><Icon Name="x" Size="16" /></button>
+                                <span class="kinnect-contact-actions">
+                                    <button type="button" class="nf-icon-button" title="Move up" disabled="@(position == 0)" @onclick="() => MoveContact(contact, -1)">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+                                    </button>
+                                    <button type="button" class="nf-icon-button" title="Move down" disabled="@(position == contacts.Count - 1)" @onclick="() => MoveContact(contact, 1)">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                                    </button>
+                                    <button type="button" class="nf-icon-button" title="Remove contact" @onclick="() => RemoveContact(contact)"><Icon Name="x" Size="16" /></button>
+                                </span>
                             </div>
                         }
                     </div>
@@ -1685,6 +1698,24 @@ else
     }
 
     private void RemoveContact(ContactInput contact) => form.Contacts?.Remove(contact);
+
+    private void MoveContact(ContactInput contact, int delta)
+    {
+        var contacts = form.Contacts;
+        if (contacts is null)
+        {
+            return;
+        }
+
+        int index = contacts.IndexOf(contact);
+        int target = index + delta;
+        if (index < 0 || target < 0 || target >= contacts.Count)
+        {
+            return;
+        }
+
+        (contacts[index], contacts[target]) = (contacts[target], contacts[index]);
+    }
 
     /// <summary>Makes an address, phone number or web address clickable. Anything else is shown as text.</summary>
     private static string? ContactHref(ContactDto contact)

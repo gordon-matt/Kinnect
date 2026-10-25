@@ -1,4 +1,18 @@
 <Solution>
+  <Folder Name="/EasyChatz/">
+    <Project Path="../../Components/EasyChatz/EasyChatz.AspNetCore/EasyChatz.AspNetCore.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Components/EasyChatz.Components.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Core/EasyChatz.Core.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Data.MySql/EasyChatz.Data.MySql.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Data.Npgsql/EasyChatz.Data.Npgsql.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Data.Sql/EasyChatz.Data.Sql.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Data.Sqlite/EasyChatz.Data.Sqlite.csproj" />
+    <Project Path="../../Components/EasyChatz/EasyChatz.Data/EasyChatz.Data.csproj" />
+  </Folder>
+  <Folder Name="/MyWebTree/">
+    <Project Path="../../Components/MyWebTree/MyWebTree.Components/MyWebTree.Components.csproj" />
+    <Project Path="../../Components/MyWebTree/MyWebTree.Core/MyWebTree.Core.csproj" />
+  </Folder>
   <Project Path="docker-compose.dcproj">
     <Build />
   </Project>
