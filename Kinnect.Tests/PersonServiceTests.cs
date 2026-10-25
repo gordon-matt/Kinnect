@@ -13,7 +13,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.CreateAsync(new PersonEditRequest
         {
@@ -49,7 +50,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.AddSpouseAsync(p.Id, p.Id);
 
@@ -96,7 +98,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.GetSpousesForPersonAsync(a.Id);
 
@@ -136,7 +139,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.LinkUserAccountAsync(p2.Id, "user-1");
 
@@ -185,7 +189,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.GetMapPinsAsync();
 
@@ -217,7 +222,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
         {
@@ -263,7 +269,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonSpouse>(factory),
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
-            new EntityFrameworkRepository<PersonLink>(factory));
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory));
 
         var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
         {
@@ -274,4 +281,107 @@ public class PersonServiceTests
 
         Assert.Equal(ResultStatus.Invalid, result.Status);
     }
+    [Fact]
+    public async Task UpdateAsync_TrimsContactNameAndValueAndDropsEmptyRows()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            UserId = "user-1",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var sut = CreateService(factory);
+
+        var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            Contacts =
+            [
+                new ContactInput { Name = "  Email ", Value = "\tjane@example.com  " },
+                new ContactInput { Name = "  ", Value = " " },
+                new ContactInput { Name = "Mobile", Value = " 0400 000 000 " },
+            ]
+        }, "user-1");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.Contacts.Count);
+        Assert.Equal("Email", result.Value.Contacts[0].Name);
+        Assert.Equal("jane@example.com", result.Value.Contacts[0].Value);
+        Assert.Equal("0400 000 000", result.Value.Contacts[1].Value);
+
+        await using var assertDb = InMemoryDb.CreateContext(options);
+        var stored = await assertDb.Contacts.OrderBy(c => c.SortOrder).ToListAsync();
+        Assert.Equal(["Email", "Mobile"], stored.Select(c => c.Name));
+        Assert.Equal(["jane@example.com", "0400 000 000"], stored.Select(c => c.Value));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RejectsContactWithoutAValue()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(factory).UpdateAsync(person.Id, new PersonEditRequest
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            Contacts = [new ContactInput { Name = "Email", Value = "   " }]
+        }, "user-1", isAdmin: true);
+
+        Assert.Equal(ResultStatus.Invalid, result.Status);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LeavesContactsAloneWhenNoneAreSent()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        await using var db = InMemoryDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane",
+            IsMale = false,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
+            Contacts = [new Contact { Name = "Email", Value = "jane@example.com" }]
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(factory).UpdateAsync(person.Id, new PersonEditRequest
+        {
+            FamilyName = "Doe",
+            GivenNames = "Jane"
+        }, "user-1", isAdmin: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Contacts);
+    }
+
+    private static PersonService CreateService(TestDbContextFactory factory) => new(
+        new EntityFrameworkRepository<Person>(factory),
+        new EntityFrameworkRepository<PersonSpouse>(factory),
+        new EntityFrameworkRepository<PersonVersion>(factory),
+        new EntityFrameworkRepository<PersonEvent>(factory),
+        new EntityFrameworkRepository<PersonLink>(factory),
+        new EntityFrameworkRepository<Contact>(factory));
 }

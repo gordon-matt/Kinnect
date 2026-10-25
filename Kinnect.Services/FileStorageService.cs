@@ -1,6 +1,5 @@
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
-using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
@@ -8,7 +7,7 @@ using Directory = System.IO.Directory;
 
 namespace Kinnect.Services;
 
-public class FileStorageService(IConfiguration configuration, IOptions<ImageProcessingOptions> imageOptions) : IFileStorageService
+public class FileStorageService(IConfiguration configuration, ISettingsService settings) : IFileStorageService
 {
     private string BasePath => configuration["FileStorage:BasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
@@ -42,7 +41,7 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
     public async Task<(string ImagePath, string? ThumbnailPath, double? Latitude, double? Longitude)> SaveImageAsync(Stream fileStream, string category, string userId)
     {
-        var opts = imageOptions.Value;
+        var opts = await settings.GetAsync<ImageSettings>();
         string safeUserId = SanitizePathSegment(userId);
 
         // Buffer the stream so we can read it multiple times
@@ -114,7 +113,7 @@ public class FileStorageService(IConfiguration configuration, IOptions<ImageProc
 
     public async Task<(string ImagePath, double? Latitude, double? Longitude)> SaveProfileImageAsync(Stream fileStream, int personId)
     {
-        var opts = imageOptions.Value;
+        var opts = await settings.GetAsync<ImageSettings>();
 
         using var buffer = new MemoryStream();
         await fileStream.CopyToAsync(buffer);

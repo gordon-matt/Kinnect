@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -7,31 +6,31 @@ namespace Kinnect.Services;
 
 /// <summary>
 /// Configures Xabe.FFmpeg static paths at startup: optional directory from config, common OS locations,
-/// or a downloaded official build (see <see cref="VideoProcessingOptions.ToolsPath"/>).
+/// or a downloaded official build (see <see cref="VideoSettings.ToolsPath"/>).
 /// </summary>
 public static class FfmpegBootstrapper
 {
     public static async Task EnsureConfiguredAsync(
-        IOptions<VideoProcessingOptions> videoOptions,
+        string? configuredToolsPath,
         IHostEnvironment hostEnvironment,
         ILogger logger,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? configured = videoOptions.Value.ToolsPath?.Trim();
+        string? configured = configuredToolsPath?.Trim();
         if (!string.IsNullOrEmpty(configured))
         {
             string dir = Path.GetFullPath(configured);
             if (HasFfmpegPair(dir))
             {
                 FFmpeg.SetExecutablesPath(dir);
-                logger.LogInformation("FFmpeg tools directory (from VideoProcessing:ToolsPath): {Path}", dir);
+                logger.LogInformation("FFmpeg tools directory (from the video settings): {Path}", dir);
                 return;
             }
 
             logger.LogWarning(
-                "VideoProcessing:ToolsPath is set to '{Path}' but ffmpeg/ffprobe were not found there; trying other locations.",
+                "The video tools path is set to '{Path}' but ffmpeg/ffprobe were not found there; trying other locations.",
                 dir);
         }
 
@@ -67,7 +66,7 @@ public static class FfmpegBootstrapper
         {
             logger.LogError(
                 ex,
-                "Failed to download FFmpeg. Install ffmpeg on the host, set PATH, or set VideoProcessing:ToolsPath to the folder containing ffmpeg and ffprobe.");
+                "Failed to download FFmpeg. Install ffmpeg on the host, set PATH, or set the tools path in the video settings to the folder containing ffmpeg and ffprobe.");
             return;
         }
 

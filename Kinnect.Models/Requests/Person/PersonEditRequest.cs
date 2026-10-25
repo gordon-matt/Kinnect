@@ -33,4 +33,9 @@ public class PersonEditRequest
     /// does not mention links does not wipe them.
     /// </summary>
     public List<PersonLinkInput>? Links { get; set; }
+
+    /// <summary>
+    /// Contact details (email, mobile, Facebook and so on). Null leaves the stored list alone, like <see cref="Links"/>.
+    /// </summary>
+    public List<ContactInput>? Contacts { get; set; }
 }

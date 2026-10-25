@@ -25,6 +25,7 @@ public sealed class PersonBackupService(
         var people = await db.People.AsNoTracking().OrderBy(p => p.Id).ToListAsync(cancellationToken);
         var spouses = await db.PersonSpouses.AsNoTracking().ToListAsync(cancellationToken);
         var links = await db.PersonLinks.AsNoTracking().OrderBy(link => link.SortOrder).ThenBy(link => link.Id).ToListAsync(cancellationToken);
+        var contacts = await db.Contacts.AsNoTracking().OrderBy(contact => contact.SortOrder).ThenBy(contact => contact.Id).ToListAsync(cancellationToken);
 
         var doc = new PersonTreeBackupDocument
         {
@@ -74,6 +75,13 @@ public sealed class PersonBackupService(
                 Name = link.Name,
                 Url = link.Url,
                 SortOrder = link.SortOrder
+            }).ToList(),
+            Contacts = contacts.Select(contact => new ContactBackupEntry
+            {
+                PersonId = contact.PersonId,
+                Name = contact.Name,
+                Value = contact.Value,
+                SortOrder = contact.SortOrder
             }).ToList()
         };
 
@@ -224,6 +232,34 @@ public sealed class PersonBackupService(
                         Name = link.Name,
                         Url = link.Url,
                         SortOrder = link.SortOrder
+                    });
+                }
+
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            if (doc.SchemaVersion >= 3)
+            {
+                var backedUpIds = doc.People.Select(person => person.Id).Where(existingIds.Contains).ToList();
+                await db.Contacts
+                    .Where(contact => backedUpIds.Contains(contact.PersonId))
+                    .ExecuteDeleteAsync(cancellationToken);
+
+                foreach (var contact in doc.Contacts)
+                {
+                    string name = contact.Name?.Trim() ?? string.Empty;
+                    string value = contact.Value?.Trim() ?? string.Empty;
+                    if (!existingIds.Contains(contact.PersonId) || name.Length == 0 || value.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    db.Contacts.Add(new Contact
+                    {
+                        PersonId = contact.PersonId,
+                        Name = name,
+                        Value = value,
+                        SortOrder = contact.SortOrder
                     });
                 }
 

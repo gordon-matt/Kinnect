@@ -188,6 +188,37 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.ToTable("ChatRooms", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.Contact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId", "SortOrder");
+
+                    b.ToTable("Contacts", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Document", b =>
                 {
                     b.Property<int>("Id")
@@ -230,6 +261,30 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.ToTable("Documents", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.DocumentSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowedExtensions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("AutoShrinkDocuments")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("MaxFileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DocumentSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.DocumentTag", b =>
                 {
                     b.Property<int>("DocumentId")
@@ -243,6 +298,82 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("DocumentTags", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.EmailSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("EnableSsl")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FromAddress")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FromName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Password")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AutoShrinkImages")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxWidth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quality")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ThumbnailHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ThumbnailQuality")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ThumbnailWidth")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ImageSettings", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.MediaFolder", b =>
@@ -722,6 +853,22 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.ToTable("Tags", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.TreeSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MaxGenerations")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TreeSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Video", b =>
                 {
                     b.Property<int>("Id")
@@ -784,6 +931,38 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.HasIndex("PersonEventId");
 
                     b.ToTable("VideoEvents", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.VideoSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AudioBitrate")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AutoShrinkVideos")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Crf")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OutputVideoSize")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ToolsPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VideoSettings", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.VideoTag", b =>
@@ -930,6 +1109,17 @@ namespace Kinnect.Data.Npgsql.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("ToRoom");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.Contact", b =>
+                {
+                    b.HasOne("Kinnect.Data.Entities.Person", "Person")
+                        .WithMany("Contacts")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.Document", b =>
@@ -1268,6 +1458,8 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Navigation("ChildrenAsFather");
 
                     b.Navigation("ChildrenAsMother");
+
+                    b.Navigation("Contacts");
 
                     b.Navigation("Events");
 

@@ -1,3 +1,5 @@
+using Kinnect.Tests.Infrastructure;
+
 namespace Kinnect.Tests;
 
 public class FileStorageServiceTests : IDisposable
@@ -31,7 +33,7 @@ public class FileStorageServiceTests : IDisposable
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["FileStorage:BasePath"] = _basePath })
             .Build();
-        var sut = new FileStorageService(config, Options.Create(new ImageProcessingOptions()));
+        var sut = new FileStorageService(config, new TestSettingsService());
 
         await using var stream = new MemoryStream("hello"u8.ToArray());
         string relative = await sut.SaveFileAsync(stream, "docs", "note.txt", "user-abc");
@@ -48,7 +50,7 @@ public class FileStorageServiceTests : IDisposable
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["FileStorage:BasePath"] = _basePath })
             .Build();
-        var sut = new FileStorageService(config, Options.Create(new ImageProcessingOptions()));
+        var sut = new FileStorageService(config, new TestSettingsService());
 
         string path = Path.Combine(_basePath, "x", "y.txt");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

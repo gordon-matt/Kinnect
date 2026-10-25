@@ -17,7 +17,6 @@ using Kinnect.Services.Mapping;
 using LogVue;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using Serilog;
 using Constants = Kinnect.Constants;
 
@@ -91,7 +90,6 @@ KinnectMappingRegistration.Register();
 builder.Services.AddExtensoMapperEntityFrameworkRepository();
 builder.Services.AddKinnectHangfire(builder.Configuration);
 builder.Services.KinnectAddServices();
-builder.Services.KinnectAddImageProcessing(builder.Configuration);
 builder.Services.KinnectAddUserInfoService(builder.Configuration);
 
 builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
@@ -185,13 +183,15 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 try
 {
-    await FfmpegBootstrapper.EnsureConfiguredAsync(
-        services.GetRequiredService<IOptions<VideoProcessingOptions>>(),
-        services.GetRequiredService<IHostEnvironment>(),
-        services.GetRequiredService<ILoggerFactory>().CreateLogger("Ffmpeg"));
-
     var context = services.GetRequiredService<ApplicationDbContextBase>();
     await context.Database.MigrateAsync();
+
+    // After the migration, because the video settings (tools path) now live in the database.
+    var videoSettings = await services.GetRequiredService<ISettingsService>().GetAsync<VideoSettings>();
+    await FfmpegBootstrapper.EnsureConfiguredAsync(
+        videoSettings.ToolsPath,
+        services.GetRequiredService<IHostEnvironment>(),
+        services.GetRequiredService<ILoggerFactory>().CreateLogger("Ffmpeg"));
 
     if (!useKeycloak)
     {

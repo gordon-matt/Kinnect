@@ -10,8 +10,11 @@ public class PersonService(
     IRepository<PersonVersion> versionRepository,
     IRepository<PersonEvent> eventRepository,
     IRepository<PersonLink> linkRepository,
+    IRepository<Contact> contactRepository,
     UserManager<ApplicationUser>? accounts = null) : IPersonService
 {
+    private const int MaxContacts = 20;
+
     public async Task<Result> AddSpouseAsync(int personId, int spouseId)
     {
         if (personId == spouseId)
@@ -40,6 +43,11 @@ public class PersonService(
         {
             return Result<PersonDto>.Invalid(links.Errors);
         }
+        var contacts = NormalizeContacts(request.Contacts);
+        if (contacts.Errors.Count > 0)
+        {
+            return Result<PersonDto>.Invalid(contacts.Errors);
+        }
 
         var person = await personRepository.InsertAsync(new Person
         {
@@ -66,7 +74,12 @@ public class PersonService(
             await ReplaceLinksAsync(person.Id, links.Links);
         }
 
-        return Result.Success(await WithLinksAsync(person));
+        if (contacts.Contacts is not null)
+        {
+            await ReplaceContactsAsync(person.Id, contacts.Contacts);
+        }
+
+        return Result.Success(await WithDetailsAsync(person));
     }
 
     public async Task<Result> DeleteAsync(int id, string currentUserId)
@@ -90,7 +103,7 @@ public class PersonService(
     public async Task<Result<PersonDto>> GetByIdAsync(int id)
     {
         var person = await personRepository.FindOneAsync(id);
-        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(await WithLinksAsync(person));
+        return person is null ? (Result<PersonDto>)Result.NotFound("Person not found.") : Result.Success(await WithDetailsAsync(person));
     }
 
     public async Task<Result<PersonDto>> GetByUserIdAsync(string userId)
@@ -100,7 +113,7 @@ public class PersonService(
             Query = x => x.UserId == userId
         });
 
-        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(await WithLinksAsync(person));
+        return person is null ? (Result<PersonDto>)Result.NotFound("No person record linked to this user.") : Result.Success(await WithDetailsAsync(person));
     }
 
     public async Task<Result<IEnumerable<FamilyTreeDatum>>> GetFamilyTreeDataAsync()
@@ -430,6 +443,11 @@ public class PersonService(
         {
             return Result<PersonDto>.Invalid(links.Errors);
         }
+        var contacts = NormalizeContacts(request.Contacts);
+        if (contacts.Errors.Count > 0)
+        {
+            return Result<PersonDto>.Invalid(contacts.Errors);
+        }
 
         if (person.UserId == currentUserId)
         {
@@ -459,7 +477,12 @@ public class PersonService(
             await ReplaceLinksAsync(person.Id, links.Links);
         }
 
-        return Result.Success(await WithLinksAsync(person));
+        if (contacts.Contacts is not null)
+        {
+            await ReplaceContactsAsync(person.Id, contacts.Contacts);
+        }
+
+        return Result.Success(await WithDetailsAsync(person));
     }
 
     public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false)
@@ -606,7 +629,7 @@ public class PersonService(
         });
     }
 
-    private async Task<PersonDto> WithLinksAsync(Person person)
+    private async Task<PersonDto> WithDetailsAsync(Person person)
     {
         var dto = person.ToDto();
         var stored = await linkRepository.FindAsync(new SearchOptions<PersonLink>
@@ -622,6 +645,22 @@ public class PersonService(
                 Id = link.Id,
                 Name = link.Name,
                 Url = link.Url
+            })
+            .ToList();
+
+        var storedContacts = await contactRepository.FindAsync(new SearchOptions<Contact>
+        {
+            Query = contact => contact.PersonId == person.Id
+        });
+
+        dto.Contacts = storedContacts
+            .OrderBy(contact => contact.SortOrder)
+            .ThenBy(contact => contact.Id)
+            .Select(contact => new ContactDto
+            {
+                Id = contact.Id,
+                Name = contact.Name,
+                Value = contact.Value
             })
             .ToList();
 
@@ -645,6 +684,83 @@ public class PersonService(
             link.PersonId = personId;
             await linkRepository.InsertAsync(link);
         }
+    }
+
+    private async Task ReplaceContactsAsync(int personId, IReadOnlyList<Contact> contacts)
+    {
+        var existing = await contactRepository.FindAsync(new SearchOptions<Contact>
+        {
+            Query = contact => contact.PersonId == personId
+        });
+
+        foreach (var contact in existing)
+        {
+            await contactRepository.DeleteAsync(contact);
+        }
+
+        foreach (var contact in contacts)
+        {
+            contact.PersonId = personId;
+            await contactRepository.InsertAsync(contact);
+        }
+    }
+
+    /// <summary>
+    /// Null input means "leave the stored contacts alone". Name and value are trimmed before they are checked
+    /// or saved, and a row with both left empty is dropped.
+    /// </summary>
+    private static (List<ValidationError> Errors, List<Contact>? Contacts) NormalizeContacts(IReadOnlyList<ContactInput>? inputs)
+    {
+        if (inputs is null)
+        {
+            return ([], null);
+        }
+
+        var errors = new List<ValidationError>();
+        var contacts = new List<Contact>();
+        int order = 0;
+
+        foreach (var input in inputs)
+        {
+            string name = input.Name?.Trim() ?? string.Empty;
+            string value = input.Value?.Trim() ?? string.Empty;
+            if (name.Length == 0 && value.Length == 0)
+            {
+                continue;
+            }
+
+            if (name.Length == 0)
+            {
+                errors.Add(new ValidationError("Give the contact a name, such as Email or Mobile."));
+            }
+            else if (name.Length > Contact.MaxNameLength)
+            {
+                errors.Add(new ValidationError($"Contact names can be at most {Contact.MaxNameLength} characters."));
+            }
+
+            if (value.Length == 0)
+            {
+                errors.Add(new ValidationError($"Give the {(name.Length == 0 ? "contact" : name)} a value."));
+            }
+            else if (value.Length > Contact.MaxValueLength)
+            {
+                errors.Add(new ValidationError($"Contact values can be at most {Contact.MaxValueLength} characters."));
+            }
+
+            contacts.Add(new Contact
+            {
+                Name = name,
+                Value = value,
+                SortOrder = order++
+            });
+        }
+
+        if (contacts.Count > MaxContacts)
+        {
+            errors.Add(new ValidationError($"A profile can have at most {MaxContacts} contacts."));
+        }
+
+        return (errors, contacts);
     }
 
     /// <summary>Null input means "leave the stored links alone".</summary>

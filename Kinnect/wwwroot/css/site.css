@@ -78,6 +78,9 @@ html {
     box-shadow: var(--nf-shadow);
 }
 .kinnect-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 0.5rem; align-items: center; }
+.kinnect-contacts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 0.9rem; margin: 0; }
+.kinnect-contacts dt { color: var(--nf-muted); }
+.kinnect-contacts dd { margin: 0; overflow-wrap: anywhere; }
 .kinnect-profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
 .kinnect-profile-head img,
 .kinnect-profile-picture { max-width: 180px; border-radius: var(--nf-radius); }

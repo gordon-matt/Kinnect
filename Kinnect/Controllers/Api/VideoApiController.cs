@@ -1,6 +1,5 @@
 using Hangfire;
 using Kinnect.Services.Jobs;
-using Microsoft.Extensions.Options;
 
 namespace Kinnect.Controllers.Api;
 
@@ -14,7 +13,7 @@ public class VideoApiController(
     IFileStorageService fileStorageService,
     IVideoProcessingService videoProcessingService,
     IBackgroundJobClient backgroundJobClient,
-    IOptions<VideoProcessingOptions> videoOptions) : ControllerBase
+    ISettingsService settingsService) : ControllerBase
 {
     private bool IsAdmin => User.IsInRole(Constants.Roles.Administrator);
 
@@ -63,8 +62,7 @@ public class VideoApiController(
             }
         }
 
-        var opts = videoOptions.Value;
-        bool queueTranscode = opts.AutoShrinkVideos;
+        bool queueTranscode = (await settingsService.GetAsync<VideoSettings>(HttpContext.RequestAborted)).AutoShrinkVideos;
 
         var tagList = string.IsNullOrWhiteSpace(tags) ? [] : tags.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
 

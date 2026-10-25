@@ -160,6 +160,29 @@ else
                         <FileUpload Url="@($"/api/people/{PersonId}/profile-image")" Accept="image/*" Label="Upload picture" Uploaded="OnPictureUploaded" />
                     </div>
                 }
+                @if (!Editing && person.Contacts.Count > 0)
+                {
+                    <div class="kinnect-card kinnect-stack">
+                        <h2>Contact info</h2>
+                        <dl class="kinnect-contacts">
+                            @foreach (var contact in person.Contacts)
+                            {
+                                string? href = ContactHref(contact);
+                                <dt>@contact.Name</dt>
+                                <dd>
+                                    @if (href is null)
+                                    {
+                                        @contact.Value
+                                    }
+                                    else
+                                    {
+                                        <a href="@href" target="@(href.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? "_blank" : null)" rel="noopener noreferrer">@contact.Value</a>
+                                    }
+                                </dd>
+                            }
+                        </dl>
+                    </div>
+                }
                 @if (Editing)
                 {
                     <div class="kinnect-card kinnect-stack">
@@ -179,6 +202,26 @@ else
                                 <input class="nf-input" @bind="link.Name" placeholder="Name" />
                                 <input class="nf-input" @bind="link.Url" placeholder="https://" />
                                 <button type="button" class="nf-icon-button" title="Remove link" @onclick="() => RemoveLink(link)"><Icon Name="x" Size="16" /></button>
+                            </div>
+                        }
+                    </div>
+                    <div class="kinnect-card kinnect-stack">
+                        <div class="kinnect-split">
+                            <h2>Contact info</h2>
+                            <button type="button" class="nf-button nf-button-sm" @onclick="AddContact">Add contact</button>
+                        </div>
+                        <datalist id="kinnect-contact-names">
+                            @foreach (var suggestion in ContactNameSuggestions)
+                            {
+                                <option value="@suggestion"></option>
+                            }
+                        </datalist>
+                        @foreach (var contact in form.Contacts ?? [])
+                        {
+                            <div class="kinnect-link-row">
+                                <input class="nf-input" list="kinnect-contact-names" maxlength="@Contact.MaxNameLength" @bind="contact.Name" placeholder="Email, Mobile, Facebook…" />
+                                <input class="nf-input" maxlength="@Contact.MaxValueLength" @bind="contact.Value" placeholder="Address, number or URL" />
+                                <button type="button" class="nf-icon-button" title="Remove contact" @onclick="() => RemoveContact(contact)"><Icon Name="x" Size="16" /></button>
                             </div>
                         }
                     </div>
@@ -1304,6 +1347,7 @@ else
             Note = person.Note,
             IsDeceased = mine ? false : person.IsDeceased,
             Links = person.Links.Select(link => new PersonLinkInput { Name = link.Name, Url = link.Url }).ToList(),
+            Contacts = person.Contacts.Select(contact => new ContactInput { Name = contact.Name, Value = contact.Value }).ToList(),
         };
         var relativeResult = await Events.GetCloseRelativesAsync(PersonId);
         relatives = relativeResult.IsSuccess ? relativeResult.Value.ToList() : [];
@@ -1630,6 +1674,42 @@ else
     }
 
     private void RemoveLink(PersonLinkInput link) => form.Links?.Remove(link);
+
+    private static readonly string[] ContactNameSuggestions =
+        ["Email", "Mobile", "Phone", "Facebook", "Instagram", "WhatsApp", "LinkedIn", "X (Twitter)"];
+
+    private void AddContact()
+    {
+        form.Contacts ??= [];
+        form.Contacts.Add(new ContactInput());
+    }
+
+    private void RemoveContact(ContactInput contact) => form.Contacts?.Remove(contact);
+
+    /// <summary>Makes an address, phone number or web address clickable. Anything else is shown as text.</summary>
+    private static string? ContactHref(ContactDto contact)
+    {
+        string value = contact.Value.Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return value;
+        }
+
+        if (!value.Contains(' ') && System.Net.Mail.MailAddress.TryCreate(value, out _) && value.Contains('@'))
+        {
+            return "mailto:" + value;
+        }
+
+        bool phoneName = new[] { "mobile", "phone", "cell", "tel" }
+            .Any(word => contact.Name.Contains(word, StringComparison.OrdinalIgnoreCase));
+        if (phoneName && value.Length >= 5 && value.All(c => char.IsDigit(c) || c is '+' or ' ' or '(' or ')' or '-' or '.'))
+        {
+            return "tel:" + new string(value.Where(c => char.IsDigit(c) || c == '+').ToArray());
+        }
+
+        return null;
+    }
 
     private void BeginCopyEvent(int eventId)
     {

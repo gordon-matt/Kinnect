@@ -179,6 +179,35 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.ToTable("ChatRooms", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.Contact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId", "SortOrder");
+
+                    b.ToTable("Contacts", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Document", b =>
                 {
                     b.Property<int>("Id")
@@ -219,6 +248,28 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.ToTable("Documents", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.DocumentSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AllowedExtensions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AutoShrinkDocuments")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("MaxFileSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DocumentSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.DocumentTag", b =>
                 {
                     b.Property<int>("DocumentId")
@@ -232,6 +283,78 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("DocumentTags", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.EmailSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EnableSsl")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FromAddress")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Password")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmailSettings", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.ImageSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AutoShrinkImages")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxWidth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quality")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ThumbnailHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ThumbnailQuality")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ThumbnailWidth")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ImageSettings", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.MediaFolder", b =>
@@ -693,6 +816,20 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.ToTable("Tags", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.TreeSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxGenerations")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TreeSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Video", b =>
                 {
                     b.Property<int>("Id")
@@ -753,6 +890,36 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.HasIndex("PersonEventId");
 
                     b.ToTable("VideoEvents", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.VideoSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AudioBitrate")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AutoShrinkVideos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Crf")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OutputVideoSize")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ToolsPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VideoSettings", "app");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.VideoTag", b =>
@@ -895,6 +1062,17 @@ namespace Kinnect.Data.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("ToRoom");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.Contact", b =>
+                {
+                    b.HasOne("Kinnect.Data.Entities.Person", "Person")
+                        .WithMany("Contacts")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.Document", b =>
@@ -1233,6 +1411,8 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Navigation("ChildrenAsFather");
 
                     b.Navigation("ChildrenAsMother");
+
+                    b.Navigation("Contacts");
 
                     b.Navigation("Events");
 

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
@@ -7,13 +6,13 @@ using Xabe.FFmpeg;
 namespace Kinnect.Services;
 
 public class VideoProcessingService(
-    IOptions<VideoProcessingOptions> videoOptions,
-    IOptions<ImageProcessingOptions> imageOptions,
+    ISettingsService settings,
     ILogger<VideoProcessingService> logger) : IVideoProcessingService
 {
     public async Task CompressAsync(string inputPath, string outputPath)
     {
-        var opts = videoOptions.Value;
+        var opts = await settings.GetAsync<VideoSettings>();
+        var outputSize = Enum.TryParse<VideoSize>(opts.OutputVideoSize, ignoreCase: true, out var parsedSize) ? parsedSize : VideoSize.Hd720;
 
         var mediaInfo = await FFmpeg.GetMediaInfo(inputPath);
 
@@ -29,9 +28,9 @@ public class VideoProcessingService(
             "Compressing video {Input} → {Output} (ChangeSize {VideoSize}, -noautorotate)",
             inputPath,
             outputPath,
-            opts.OutputVideoSize);
+            outputSize);
 
-        IConversion conversion = await FFmpeg.Conversions.FromSnippet.ChangeSize(inputPath, outputPath, opts.OutputVideoSize);
+        IConversion conversion = await FFmpeg.Conversions.FromSnippet.ChangeSize(inputPath, outputPath, outputSize);
         conversion.SetOverwriteOutput(true);
         conversion.AddParameter("-noautorotate", ParameterPosition.PreInput);
         conversion.AddParameter("-c:v libx264");
@@ -75,7 +74,7 @@ public class VideoProcessingService(
 
             // Resize the raw FFmpeg snapshot to match the configured thumbnail dimensions,
             // consistent with how photo thumbnails are generated.
-            var imgOpts = imageOptions.Value;
+            var imgOpts = await settings.GetAsync<ImageSettings>(cancellationToken);
             using var thumbImage = await Image.LoadAsync(tempPath, cancellationToken);
             thumbImage.Mutate(x => x.Resize(new ResizeOptions
             {

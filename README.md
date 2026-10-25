@@ -34,7 +34,7 @@ A single timeline for **posts**, **photos**, and **videos** from people in your 
 
 ### Profiles and life events
 
-Each person can have a rich **profile**: photos, narrative context, and **events** (birth, death, residence, and custom milestones). Events can tie into **maps** so you can see where things happened when locations are available.
+Each person can have a rich **profile**: photos, narrative context, **contact info** (email, mobile, Facebook, or anything else you want to name), and **events** (birth, death, residence, and custom milestones). Events can tie into **maps** so you can see where things happened when locations are available.
 
 <img src="https://github.com/gordon-matt/Kinnect/blob/master/_Misc/Screenshots/profile.png" alt="Profile" />
 
@@ -46,7 +46,7 @@ Upload and organize **photos** and **videos** with optional **folders** and **ta
 
 ### Chat
 
-**Rooms** and **messages** so family can talk in real time inside the same app—no need to route everything through external messengers.
+**Rooms** and **messages** so family can talk in real time inside the same app—no need to route everything through external messengers. Type `@` in a room to **mention** someone; people show as online whenever they have Kinnect open, not only while they are on the Messages page.
 
 <img src="https://github.com/gordon-matt/Kinnect/blob/master/_Misc/Screenshots/chat.png" alt="Chat" />
 
@@ -62,7 +62,7 @@ Explore **events** or **photo locations** on a map when geographic data is prese
 
 ### Administration
 
-**Administrators** can manage users and roles, and work with **backups** of person-related data. The app is designed to be run **self-hosted** (for example with Docker and PostgreSQL), with optional **OpenID Connect** integration (using **Keycloak**) if you want centralized identity instead of built-in accounts alone.
+**Administrators** can manage users and roles, and work with **backups** of person-related data. A **Settings** page lets administrators change image, document, video, email, and family tree options without editing config files or restarting. The app is designed to be run **self-hosted** (for example with Docker and PostgreSQL, though other databases work too), with optional **OpenID Connect** integration (using **Keycloak**) if you want centralized identity instead of built-in accounts alone.
 
 ---
 
@@ -78,8 +78,21 @@ services:
       - "7005:8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
+      # Database: Npgsql (PostgreSQL), SqlServer, MySql or Sqlite. See "Using a different database" below.
+      Database__Provider: Npgsql
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=kinnect;Username=postgres;Password=your_password"
       FileStorage__BasePath: /app/data
+
+      # Optional. Creates the first administrator the first time the app starts.
+      SeedAdmin__Email: your_email
+      SeedAdmin__Password: your_password
+      SeedAdmin__FirstName: Admin
+      SeedAdmin__LastName: User
+
+      # Optional. The settings below (images, documents, videos and email) are now managed on the
+      # Admin > Settings page. If you set them here, they are copied into the database the first
+      # time the app starts with an empty settings table, and after that the database wins.
+      # Changing them here later has no effect. Use the Settings page instead.
       ImageProcessing__AutoShrinkImages: "true"
       ImageProcessing__MaxWidth: "1920"
       ImageProcessing__MaxHeight: "1080"
@@ -92,7 +105,7 @@ services:
       DocumentProcessing__AutoShrinkDocuments: "true"
       VideoProcessing__AutoShrinkVideos: "true"
       VideoProcessing__ToolsPath: /usr/bin
-      VideoProcessing__OutputVideoSize: "Hd720"
+      VideoProcessing__OutputVideoSize: "Hd720" # Possible values: https://ffmpeg.xabe.net/docs/Xabe.FFmpeg.VideoSize.html
       VideoProcessing__Crf: "28"
       VideoProcessing__AudioBitrate: "128000"
       Smtp__Host: smtp.something.com
@@ -102,10 +115,12 @@ services:
       Smtp__Password: smtp_password
       Smtp__FromAddress: smtp_email
       Smtp__FromName: Kinnect
-      SeedAdmin__Email: your_email
-      SeedAdmin__Password: your_password
-      SeedAdmin__FirstName: Admin
-      SeedAdmin__LastName: User
+
+      # Optional. Sign in with Keycloak instead of built-in accounts.
+      # Authentication__Provider: Keycloak
+      # Authentication__Keycloak__Authority: https://keycloak.example.com/realms/home
+      # Authentication__Keycloak__ClientId: kinnect
+      # Authentication__Keycloak__ClientSecret: your_client_secret
     volumes:
       - /volume1/docker/kinnect:/app/data
     networks:
@@ -116,7 +131,31 @@ networks:
     external: true
 ```
 
-You can add postgres directly in the stack if you prefer, but I find that adding a separate postgres install for every app that needs it gets messy and wastes resources. I use one postgres stack for all apps that need it and I include pgadmin with it, so I can manage the databases myself. Here's an example:
+#### Settings
+
+Image, document, video, email, and family tree options (such as the largest number of generations the tree can show) live in the database and are managed by administrators on **Admin → Settings**. Installs that already have these values in `appsettings.json` or in docker compose environment variables keep working: the first time a section is needed and the database has nothing saved for it, the configured values are imported into the database. From then on the database is the source of truth.
+
+#### Using a different database
+
+Kinnect is not tied to PostgreSQL. Pick the provider with `Database__Provider` and give it a matching connection string in `ConnectionStrings__DefaultConnection`. The correct set of migrations is applied automatically on startup.
+
+| `Database__Provider` | Database | Example connection string |
+|----------------------|----------|---------------------------|
+| `Npgsql` (default) | PostgreSQL | `Host=db;Port=5432;Database=kinnect;Username=postgres;Password=your_password` |
+| `SqlServer` | Microsoft SQL Server | `Server=db;Database=Kinnect;User Id=sa;Password=your_password;TrustServerCertificate=True` |
+| `MySql` | MySQL / MariaDB | `Server=db;Port=3306;Database=kinnect;User=root;Password=your_password` |
+| `Sqlite` | SQLite (a single file, no database server) | `Data Source=/app/data/kinnect.db` |
+
+#### Registering and approving users
+
+New people register themselves from the sign-in page, but they cannot sign in straight away. Each new account starts locked until an administrator approves it:
+
+1. The person registers an account.
+2. An administrator opens **Admin → Users** and **links** the account to the matching person in the family tree (create the person first if they are not in the tree yet).
+3. The administrator then **approves** the account. Approve is only available once the account has been linked.
+
+After that the person can sign in and sees their own profile. If you use Keycloak instead of built-in accounts, user management happens in Keycloak.
+If you use PostgreSQL, you can add it directly in the stack if you prefer, but I find that adding a separate postgres install for every app that needs it gets messy and wastes resources. I use one postgres stack for all apps that need it and I include pgadmin with it, so I can manage the databases myself. Here's an example:
 
 ```yaml
 version: "3.9"
@@ -168,11 +207,11 @@ where `your_email_replace_at` is the `@` signed replaced by an underscore `_` fo
 ## Tech stack (overview)
 
 - **ASP.NET Core** web application (**.NET 10**)
-- **PostgreSQL** with **Entity Framework Core**
+- **Entity Framework Core** with your choice of database: **PostgreSQL**, **SQL Server**, **MySQL / MariaDB**, or **SQLite**
 - **ASP.NET Core Identity** (with optional **OpenID Connect** / Keycloak)
 - **Hangfire** for background jobs (e.g. media processing)
 - **Docker** support for the app and database
-- **Serilog** logging (including PostgreSQL sink options)
+- **Serilog** logging
 
 ---
 

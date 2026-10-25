@@ -1,15 +1,17 @@
 using System.Net;
 using System.Net.Mail;
-using Kinnect.Models;
-using Microsoft.Extensions.Options;
 
 namespace Kinnect.Services;
 
-public class EmailService(IOptions<SmtpOptions> options, ILogger<EmailService> logger) : IEmailService
+public class EmailService(ISettingsService settings, ILogger<EmailService> logger) : IEmailService
 {
     public async Task SendAsync(string toAddress, string subject, string body, CancellationToken cancellationToken = default)
     {
-        var opts = options.Value;
+        var opts = await settings.GetAsync<EmailSettings>(cancellationToken);
+        if (!opts.IsConfigured)
+        {
+            throw new InvalidOperationException("Email is not set up. An administrator can add the SMTP server and the From address on the Settings page.");
+        }
 
         using var client = new SmtpClient(opts.Host, opts.Port)
         {

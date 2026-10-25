@@ -15,7 +15,15 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<MessageNotification> MessageNotifications { get; set; }
 
+    public DbSet<Contact> Contacts { get; set; }
+
     public DbSet<Document> Documents { get; set; }
+
+    public DbSet<DocumentSettings> DocumentSettings { get; set; }
+
+    public DbSet<EmailSettings> EmailSettings { get; set; }
+
+    public DbSet<ImageSettings> ImageSettings { get; set; }
 
     public DbSet<DocumentTag> DocumentTags { get; set; }
 
@@ -43,7 +51,11 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<Tag> Tags { get; set; }
 
+    public DbSet<TreeSettings> TreeSettings { get; set; }
+
     public DbSet<VideoEvent> VideoEvents { get; set; }
+
+    public DbSet<VideoSettings> VideoSettings { get; set; }
 
     public DbSet<Video> Videos { get; set; }
 

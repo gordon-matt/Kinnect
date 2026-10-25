@@ -1,0 +1,271 @@
+@page "/admin/settings"
+@attribute [Authorize(Roles = Constants.Roles.Administrator)]
+@using Kinnect.Data.Entities
+
+@inject ISettingsService Settings
+@inject IHostEnvironment HostEnvironment
+@inject ILoggerFactory LoggerFactory
+@inject ToastService Toasts
+
+<PageTitle>Settings</PageTitle>
+<PageHeader Title="Settings" />
+
+<p class="kinnect-muted">
+    Kinnect reads these from the database. If a section has never been saved, the values from appsettings.json or the
+    docker compose environment are imported the first time they are needed, and after that the database wins.
+</p>
+
+@if (images is null || documents is null || videos is null || email is null || tree is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <div class="kinnect-stack">
+        <EditForm Model="images" OnValidSubmit="SaveImagesAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <h2>Images</h2>
+            <label class="nf-check"><InputCheckbox @bind-Value="images.AutoShrinkImages" /> Shrink photos when they are uploaded</label>
+            <div class="kinnect-pair">
+                <label class="nf-field">Max width (px) <InputNumber class="nf-input" @bind-Value="images.MaxWidth" /></label>
+                <label class="nf-field">Max height (px) <InputNumber class="nf-input" @bind-Value="images.MaxHeight" /></label>
+            </div>
+            <label class="nf-field">JPEG quality (1 to 100) <InputNumber class="nf-input" @bind-Value="images.Quality" /></label>
+            <div class="kinnect-pair">
+                <label class="nf-field">Thumbnail width (px) <InputNumber class="nf-input" @bind-Value="images.ThumbnailWidth" /></label>
+                <label class="nf-field">Thumbnail height (px) <InputNumber class="nf-input" @bind-Value="images.ThumbnailHeight" /></label>
+            </div>
+            <label class="nf-field">Thumbnail quality (1 to 100) <InputNumber class="nf-input" @bind-Value="images.ThumbnailQuality" /></label>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save image settings</button></div>
+        </EditForm>
+
+        <EditForm Model="documents" OnValidSubmit="SaveDocumentsAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <h2>Documents</h2>
+            <label class="nf-field">
+                Allowed file extensions
+                <InputText class="nf-input" @bind-Value="documents.AllowedExtensions" />
+                <small class="kinnect-muted">Comma separated, with the leading dot, for example .pdf,.jpg,.png</small>
+            </label>
+            <label class="nf-field">
+                Largest upload (MB)
+                <InputNumber class="nf-input" @bind-Value="documentMaxMegabytes" />
+            </label>
+            <label class="nf-check"><InputCheckbox @bind-Value="documents.AutoShrinkDocuments" /> Shrink uploaded images (PDF files are left alone)</label>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save document settings</button></div>
+        </EditForm>
+
+        <EditForm Model="videos" OnValidSubmit="SaveVideosAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <h2>Videos</h2>
+            <label class="nf-field">
+                FFmpeg tools folder
+                <InputText class="nf-input" @bind-Value="videos.ToolsPath" />
+                <small class="kinnect-muted">Folder holding ffmpeg and ffprobe. Leave empty to look in the usual places, then download a copy.</small>
+            </label>
+            <label class="nf-check"><InputCheckbox @bind-Value="videos.AutoShrinkVideos" /> Compress videos after they are uploaded</label>
+            <label class="nf-field">
+                Output size
+                <InputSelect class="nf-select" @bind-Value="videos.OutputVideoSize">
+                    @foreach (var size in VideoSizes)
+                    {
+                        <option value="@size">@size</option>
+                    }
+                </InputSelect>
+            </label>
+            <div class="kinnect-pair">
+                <label class="nf-field">
+                    Quality (CRF, 0 to 51)
+                    <InputNumber class="nf-input" @bind-Value="videos.Crf" />
+                    <small class="kinnect-muted">Lower is better quality and a bigger file. 18 to 28 is sensible.</small>
+                </label>
+                <label class="nf-field">
+                    Audio bitrate (kbps)
+                    <InputNumber class="nf-input" @bind-Value="audioKilobits" />
+                </label>
+            </div>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save video settings</button></div>
+        </EditForm>
+
+        <EditForm Model="email" OnValidSubmit="SaveEmailAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <h2>Email</h2>
+            <div class="kinnect-pair">
+                <label class="nf-field">SMTP host <InputText class="nf-input" @bind-Value="email.Host" /></label>
+                <label class="nf-field">Port <InputNumber class="nf-input" @bind-Value="email.Port" /></label>
+            </div>
+            <label class="nf-check"><InputCheckbox @bind-Value="email.EnableSsl" /> Use SSL / TLS</label>
+            <div class="kinnect-pair">
+                <label class="nf-field">Username <InputText class="nf-input" @bind-Value="email.Username" autocomplete="off" /></label>
+                <label class="nf-field">
+                    Password
+                    <InputText class="nf-input" type="password" @bind-Value="newPassword" autocomplete="new-password"
+                               placeholder="@(hasPassword ? "Saved. Type to replace it." : "")" />
+                </label>
+            </div>
+            @if (hasPassword)
+            {
+                <label class="nf-check"><InputCheckbox @bind-Value="removePassword" /> Remove the saved password</label>
+            }
+            <div class="kinnect-pair">
+                <label class="nf-field">From address <InputText class="nf-input" @bind-Value="email.FromAddress" /></label>
+                <label class="nf-field">From name <InputText class="nf-input" @bind-Value="email.FromName" /></label>
+            </div>
+            <small class="kinnect-muted">
+                The password is kept in the database as typed and is never shown again here.
+                @if (!email.IsConfigured)
+                {
+                    <text>Email is off until a host and a from address are saved.</text>
+                }
+            </small>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save email settings</button></div>
+        </EditForm>
+
+        <EditForm Model="tree" OnValidSubmit="SaveTreeAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <h2>Family tree</h2>
+            <label class="nf-field">
+                Most generations to show (1 to @TreeSettings.LargestMaxGenerations)
+                <InputNumber class="nf-input" @bind-Value="tree.MaxGenerations" />
+                <small class="kinnect-muted">Applies to ancestors and to descendants. Each person still picks their own number up to this limit.</small>
+            </label>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save tree settings</button></div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    private static readonly string[] VideoSizes = Enum.GetNames<Xabe.FFmpeg.VideoSize>();
+
+    private ImageSettings? images;
+    private DocumentSettings? documents;
+    private VideoSettings? videos;
+    private EmailSettings? email;
+    private TreeSettings? tree;
+
+    private string? newPassword;
+    private bool hasPassword;
+    private bool removePassword;
+
+    // The database holds bytes, the page asks in friendlier units.
+    private long documentMaxMegabytes
+    {
+        get => Math.Max(1, documents!.MaxFileSizeBytes / BytesPerMegabyte);
+        set => documents!.MaxFileSizeBytes = value * BytesPerMegabyte;
+    }
+
+    private int audioKilobits
+    {
+        get => videos!.AudioBitrate / 1000;
+        set => videos!.AudioBitrate = value * 1000;
+    }
+
+    private const long BytesPerMegabyte = 1024 * 1024;
+
+    protected override async Task OnInitializedAsync()
+    {
+        images = await Settings.GetAsync<ImageSettings>();
+        documents = await Settings.GetAsync<DocumentSettings>();
+        videos = await Settings.GetAsync<VideoSettings>();
+        email = await Settings.GetAsync<EmailSettings>();
+        tree = await Settings.GetAsync<TreeSettings>();
+        RememberPassword();
+    }
+
+    private void RememberPassword()
+    {
+        hasPassword = !string.IsNullOrEmpty(email!.Password);
+        newPassword = null;
+        removePassword = false;
+    }
+
+    private async Task SaveImagesAsync()
+    {
+        var result = await Settings.SaveAsync(images!);
+        if (result.IsSuccess)
+        {
+            images = result.Value;
+            Toasts.Success("Image settings saved.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+
+    private async Task SaveDocumentsAsync()
+    {
+        var result = await Settings.SaveAsync(documents!);
+        if (result.IsSuccess)
+        {
+            documents = result.Value;
+            Toasts.Success("Document settings saved.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+
+    private async Task SaveVideosAsync()
+    {
+        string? previousToolsPath = (await Settings.GetAsync<VideoSettings>()).ToolsPath;
+        var result = await Settings.SaveAsync(videos!);
+        if (!result.IsSuccess)
+        {
+            Toasts.ShowFailure(result);
+            return;
+        }
+
+        videos = result.Value;
+        if (!string.Equals(previousToolsPath, videos.ToolsPath, StringComparison.Ordinal))
+        {
+            // The tools are located once at startup, so look again for the new folder.
+            await FfmpegBootstrapper.EnsureConfiguredAsync(
+                videos.ToolsPath,
+                HostEnvironment,
+                LoggerFactory.CreateLogger("Ffmpeg"));
+        }
+
+        Toasts.Success("Video settings saved.");
+    }
+
+    private async Task SaveEmailAsync()
+    {
+        // Leaving the box blank keeps what is stored.
+        email!.Password = removePassword
+            ? null
+            : string.IsNullOrEmpty(newPassword) ? email.Password : newPassword;
+
+        var result = await Settings.SaveAsync(email);
+        if (result.IsSuccess)
+        {
+            email = result.Value;
+            RememberPassword();
+            Toasts.Success("Email settings saved.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+
+    private async Task SaveTreeAsync()
+    {
+        var result = await Settings.SaveAsync(tree!);
+        if (result.IsSuccess)
+        {
+            tree = result.Value;
+            Toasts.Success("Tree settings saved.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+}

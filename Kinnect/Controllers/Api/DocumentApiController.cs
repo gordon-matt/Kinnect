@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 
 namespace Kinnect.Controllers.Api;
 
@@ -10,7 +9,7 @@ public class DocumentApiController(
     IPersonService personService,
     IUserContextService userContextService,
     IFileStorageService fileStorageService,
-    IOptions<DocumentProcessingOptions> docOptions) : ControllerBase
+    ISettingsService settings) : ControllerBase
 {
     private static readonly HashSet<string> ImageExtensions =
         [".jpg", ".jpeg", ".png", ".gif", ".webp"];
@@ -45,7 +44,7 @@ public class DocumentApiController(
             return Unauthorized();
         }
 
-        var opts = docOptions.Value;
+        var opts = await settings.GetAsync<DocumentSettings>();
         string ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
         if (!opts.AllowedExtensionSet.Contains(ext))

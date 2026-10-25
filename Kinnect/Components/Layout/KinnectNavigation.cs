@@ -30,6 +30,8 @@ public sealed class KinnectNavigation(IUserContextService userContext) : IShellN
                         {
                             ["Theme"] = "netforge",
                             ["Class"] = "nf-nav-badge",
+                            // Keeps the user shown as online while they are on other pages.
+                            ["TrackPresence"] = true,
                         },
                     },
                     new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" },
@@ -42,6 +44,7 @@ public sealed class KinnectNavigation(IUserContextService userContext) : IShellN
             var adminItems = new List<ForgeNavItem>
             {
                 new() { Title = "Person backups", Href = "/admin/backups", Icon = "bi-archive" },
+                new() { Title = "Settings", Href = "/admin/settings", Icon = "bi-gear" },
                 new() { Title = "Logs", Href = "/logvue", Icon = "bi-journal-text", External = true },
                 new() { Title = "Jobs", Href = "/hangfire", Icon = "bi-clock-history", External = true },
             };

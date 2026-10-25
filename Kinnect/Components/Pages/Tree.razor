@@ -1,12 +1,17 @@
 @page "/tree"
 @attribute [Authorize]
 @using MyWebTree.Components
+@using System.Text.Json
+@using Kinnect.Data.Entities
 @using MyWebTree.Models
 
 @inject KinnectFamilyGraph Graph
 @inject IUserContextService Users
 @inject NavigationManager Nav
 @inject ToastService Toasts
+@inject ISettingsService Settings
+@inject IJSRuntime JS
+@inject ILogger<Tree> Logger
 
 <PageTitle>Family tree</PageTitle>
 <div class="kinnect-tree-page">
@@ -20,7 +25,7 @@
     </Actions>
 </PageHeader>
 
-@if (people is null)
+@if (people is null || !depthsLoaded)
 {
     <p>Loading the family…</p>
 }
@@ -33,6 +38,10 @@ else
                     FocusPersonId="@focusId"
                     HighlightedPersonId="@highlightId"
                     Editable="@editable"
+                    AncestryDepth="@depths.Ancestry"
+                    ProgenyDepth="@depths.Progeny"
+                    MaxGenerations="@maxGenerations"
+                    DepthsChanged="OnDepthsChangedAsync"
                     Height="calc(100vh - 12rem)"
                     Changed="OnChanged"
                     OnOpenPerson="OnOpen"
@@ -70,19 +79,75 @@ else
     private int? routedPerson;
     private bool routedSelectionApplied;
 
+    // The generations the tree opens with until the person's saved choice is read from the browser.
+    private const int DefaultDepth = 4;
+    private TreeDepths depths = new(DefaultDepth, DefaultDepth);
+    private int maxGenerations = TreeSettings.DefaultMaxGenerations;
+    private bool depthsLoaded;
+    private string? depthsKey;
+
     [SupplyParameterFromQuery(Name = "person")]
     public int? PersonId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         editable = Users.IsAdmin() || Users.IsEditor();
+        maxGenerations = (await Settings.GetAsync<TreeSettings>()).MaxGenerations;
+        depthsKey = $"kinnect.tree.depths.{Users.GetCurrentUserId() ?? "anonymous"}";
         NoteRoutedPerson();
         await ReloadAsync();
     }
 
     protected override async Task OnParametersSetAsync() => await FollowRoutedPersonAsync();
 
-    protected override async Task OnAfterRenderAsync(bool firstRender) => await FollowRoutedPersonAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Browser storage is out of reach while the page is prerendered, so the tree waits for this.
+            await LoadDepthsAsync();
+            depthsLoaded = true;
+            StateHasChanged();
+            return;
+        }
+
+        await FollowRoutedPersonAsync();
+    }
+
+    private async Task LoadDepthsAsync()
+    {
+        try
+        {
+            string? stored = await JS.InvokeAsync<string?>("localStorage.getItem", depthsKey);
+            if (!string.IsNullOrWhiteSpace(stored) && JsonSerializer.Deserialize<TreeDepths>(stored) is { } saved)
+            {
+                // The limit may have been lowered since it was saved.
+                depths = new TreeDepths(
+                    Math.Clamp(saved.Ancestry, 0, maxGenerations),
+                    Math.Clamp(saved.Progeny, 0, maxGenerations));
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JsonException or InvalidOperationException or JSDisconnectedException)
+        {
+            // Not being able to read the saved choice only means starting from the default.
+            Logger.LogDebug(ex, "Could not read the saved tree depths.");
+        }
+
+        depths = new TreeDepths(Math.Min(depths.Ancestry, maxGenerations), Math.Min(depths.Progeny, maxGenerations));
+    }
+
+    private async Task OnDepthsChangedAsync(TreeDepths changed)
+    {
+        depths = changed;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", depthsKey, JsonSerializer.Serialize(changed));
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Logger.LogDebug(ex, "Could not save the tree depths.");
+        }
+    }
 
     private void NoteRoutedPerson()
     {

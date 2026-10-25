@@ -149,6 +149,7 @@ internal static class ServiceCollectionExtensions
         public void KinnectAddServices()
         {
             services.AddHttpContextAccessor();
+            services.AddSingleton<ISettingsService, SettingsService>();
             services.AddScoped<IUserContextService, UserContextService>();
             services.AddScoped<IPersonService, PersonService>();
             services.AddScoped<IPersonEventService, PersonEventService>();
@@ -175,13 +176,6 @@ internal static class ServiceCollectionExtensions
             });
         }
 
-        public void KinnectAddImageProcessing(IConfiguration configuration)
-        {
-            services.Configure<ImageProcessingOptions>(configuration.GetSection("ImageProcessing"));
-            services.Configure<DocumentProcessingOptions>(configuration.GetSection("DocumentProcessing"));
-            services.Configure<VideoProcessingOptions>(configuration.GetSection("VideoProcessing"));
-            services.Configure<SmtpOptions>(configuration.GetSection("Smtp"));
-        }
 
         public void KinnectAddUserInfoService(IConfiguration configuration)
         {

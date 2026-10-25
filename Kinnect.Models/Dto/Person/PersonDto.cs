@@ -40,5 +40,7 @@ public class PersonDto
 
     public List<PersonLinkDto> Links { get; set; } = [];
 
+    public List<ContactDto> Contacts { get; set; } = [];
+
     public bool HasAccount => UserId != null;
 }
