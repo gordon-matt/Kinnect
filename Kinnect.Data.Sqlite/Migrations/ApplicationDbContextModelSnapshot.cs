@@ -122,6 +122,20 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.BackupSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KeepCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BackupSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.ChatMessage", b =>
                 {
                     b.Property<int>("Id")

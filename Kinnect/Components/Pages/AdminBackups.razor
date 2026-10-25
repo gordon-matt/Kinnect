@@ -27,7 +27,10 @@ else
         {
             <li>
                 <span>@file.FileName <small class="kinnect-muted">@file.CreatedUtc.ToLocalTime().ToString("g")</small></span>
-                <button class="nf-button nf-button-sm nf-button-danger" type="button" @onclick="() => RestoreAsync(file.FileName)">Restore</button>
+                <span class="kinnect-row">
+                    <button class="nf-button nf-button-sm nf-button-danger" type="button" @onclick="() => RestoreAsync(file.FileName)">Restore</button>
+                    <button class="nf-button nf-button-sm" type="button" @onclick="() => DeleteAsync(file.FileName)">Delete</button>
+                </span>
             </li>
         }
     </ul>
@@ -61,6 +64,20 @@ else
         if (result.IsSuccess)
         {
             Toasts.Success("Restored.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+
+    private async Task DeleteAsync(string fileName)
+    {
+        var result = await Backups.DeleteAsync(fileName);
+        if (result.IsSuccess)
+        {
+            Toasts.Success("Backup deleted.");
+            await LoadAsync();
         }
         else
         {

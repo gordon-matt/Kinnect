@@ -15,7 +15,7 @@
     docker compose environment are imported the first time they are needed, and after that the database wins.
 </p>
 
-@if (images is null || documents is null || videos is null || email is null || tree is null)
+@if (images is null || documents is null || videos is null || email is null || tree is null || backups is null)
 {
     <p>Loading…</p>
 }
@@ -138,7 +138,7 @@ else
             <div><button class="nf-button nf-button-primary" type="submit">Save email settings</button></div>
         </EditForm>
         }
-        else
+        else if (tab == "Family tree")
         {
         <EditForm Model="tree" OnValidSubmit="SaveTreeAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
@@ -151,11 +151,24 @@ else
             <div><button class="nf-button nf-button-primary" type="submit">Save tree settings</button></div>
         </EditForm>
         }
+        else if (tab == "Backups")
+        {
+        <EditForm Model="backups" OnValidSubmit="SaveBackupsAsync" class="kinnect-card kinnect-stack">
+            <DataAnnotationsValidator />
+            <label class="nf-field">
+                Person backups to keep (0 to 100)
+                <InputNumber class="nf-input" @bind-Value="backups.KeepCount" />
+                <small class="kinnect-muted">The newest files are kept. Zero keeps every backup. The weekly backup, and Back up now, remove older files before writing a new one.</small>
+            </label>
+            <ValidationSummary />
+            <div><button class="nf-button nf-button-primary" type="submit">Save backup settings</button></div>
+        </EditForm>
+        }
     </div>
 }
 
 @code {
-    private static readonly string[] Tabs = ["Images", "Documents", "Videos", "Email", "Family tree"];
+    private static readonly string[] Tabs = ["Images", "Documents", "Videos", "Email", "Family tree", "Backups"];
     private static readonly string[] VideoSizes = Enum.GetNames<Xabe.FFmpeg.VideoSize>();
 
     private string tab = Tabs[0];
@@ -165,6 +178,7 @@ else
     private VideoSettings? videos;
     private EmailSettings? email;
     private TreeSettings? tree;
+    private BackupSettings? backups;
 
     private string? newPassword;
     private bool hasPassword;
@@ -192,6 +206,7 @@ else
         videos = await Settings.GetAsync<VideoSettings>();
         email = await Settings.GetAsync<EmailSettings>();
         tree = await Settings.GetAsync<TreeSettings>();
+        backups = await Settings.GetAsync<BackupSettings>();
         RememberPassword();
     }
 
@@ -280,6 +295,20 @@ else
         {
             tree = result.Value;
             Toasts.Success("Tree settings saved.");
+        }
+        else
+        {
+            Toasts.ShowFailure(result);
+        }
+    }
+
+    private async Task SaveBackupsAsync()
+    {
+        var result = await Settings.SaveAsync(backups!);
+        if (result.IsSuccess)
+        {
+            backups = result.Value;
+            Toasts.Success("Backup settings saved.");
         }
         else
         {

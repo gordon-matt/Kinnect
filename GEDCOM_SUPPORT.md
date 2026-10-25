@@ -26,6 +26,8 @@ Not imported:
 
 Each of these becomes a life event, with the date (year, month, day when the parser can read it), the place name, a description, and the event note (4,000 characters). The description is the `TYPE` when the file has one, otherwise the text on the tag itself (`1 OCCU Clerk`, `1 EVEN` / `2 TYPE Enlisted`).
 
+`PLAC` / `MAP` / `LATI` / `LONG` is stored on the event, so it can be drawn on the event map. A place with no coordinates is looked up through Nominatim (one request a second) after import and again each day.
+
 `BIRT` `DEAT` `BURI` `CREM` `CHR` `BAPM` `BARM` `BASM` `BLES` `CHRA` `CONF` `FCOM` `ORDN` `ADOP` `NATU` `EMIG` `IMMI` `CENS` `PROB` `WILL` `GRAD` `RETI` `OCCU` `EDUC` `RELI` `RESI` `CAST` `DSCR` `IDNO` `NATI` `NCHI` `NMR` `PROP` `SSN` `TITL` `FACT`
 
 `EVEN` is the **Custom Event** type in the profile dropdown. The description is what kind of event it was.
@@ -40,7 +42,6 @@ Family events:
 Not imported on an event:
 
 - Cause (`CAUS`), age, agency, religion, and the event's own address
-- Map coordinates under `PLAC` / `MAP`. The event table has latitude and longitude columns; import does not fill them
 - Marriage, divorce, and engagement places
 - Source citations on the event
 

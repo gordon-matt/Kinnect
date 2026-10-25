@@ -19,6 +19,8 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<Document> Documents { get; set; }
 
+    public DbSet<BackupSettings> BackupSettings { get; set; }
+
     public DbSet<DocumentSettings> DocumentSettings { get; set; }
 
     public DbSet<EmailSettings> EmailSettings { get; set; }

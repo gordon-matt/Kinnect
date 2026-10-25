@@ -177,6 +177,13 @@ RecurringJob.AddOrUpdate<PersonBackupJob>(
     job => job.ExecuteAsync(CancellationToken.None),
     Cron.Weekly(DayOfWeek.Sunday, 3));
 
+RecurringJob.RemoveIfExists("daily-person-backup-retention");
+
+RecurringJob.AddOrUpdate<EventGeocodeJob>(
+    "daily-event-geocoding",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily(4));
+
 RecurringJob.AddOrUpdate<UnreadMessageEmailJob>(
     "hourly-unread-message-emails",
     job => job.ExecuteAsync(CancellationToken.None),

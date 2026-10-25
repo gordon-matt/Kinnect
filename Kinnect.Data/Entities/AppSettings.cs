@@ -2,7 +2,8 @@ namespace Kinnect.Data.Entities;
 
 /// <summary>
 /// Base for the settings tables (<see cref="ImageSettings"/>, <see cref="DocumentSettings"/>,
-/// <see cref="VideoSettings"/>, <see cref="EmailSettings"/>, <see cref="TreeSettings"/>). Each table holds one row.
+/// <see cref="VideoSettings"/>, <see cref="EmailSettings"/>, <see cref="TreeSettings"/>,
+/// <see cref="BackupSettings"/>). Each table holds one row.
 /// The settings are flat, so a shallow copy is a full copy.
 /// </summary>
 public abstract class AppSettings : BaseEntity<int>

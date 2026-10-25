@@ -1,4 +1,6 @@
+using Hangfire;
 using Kinnect.Data;
+using Kinnect.Services.Jobs;
 
 namespace Kinnect.Controllers.Api;
 
@@ -8,7 +10,8 @@ namespace Kinnect.Controllers.Api;
 public class GedcomApiController(
     IGedcomService gedcomService,
     IUserContextService users,
-    ApplicationDbContextBase database) : ControllerBase
+    ApplicationDbContextBase database,
+    IBackgroundJobClient jobs) : ControllerBase
 {
     [HttpPost("import")]
     [RequestSizeLimit(Constants.MaxUploadBytes)]
@@ -37,9 +40,13 @@ public class GedcomApiController(
 
         await using var stream = file.OpenReadStream();
         var result = await gedcomService.ImportAsync(stream, file.FileName);
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : Fail(string.Join("; ", result.Errors));
+        if (!result.IsSuccess)
+        {
+            return Fail(string.Join("; ", result.Errors));
+        }
+
+        jobs.Enqueue<EventGeocodeJob>(job => job.ExecuteAsync(CancellationToken.None));
+        return Ok(result.Value);
     }
 
     private static ContentResult Fail(string message) => new()

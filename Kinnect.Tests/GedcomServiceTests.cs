@@ -66,6 +66,35 @@ public class GedcomServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportAsync_PlaceMap_StoresCoordinates()
+    {
+        var (options, factory) = InMemoryDb.Create();
+        var sut = CreateSut(factory);
+
+        string ged = """
+            0 HEAD
+            1 GEDC
+            2 VERS 5.5.1
+            0 @I1@ INDI
+            1 NAME Jane /Roe/
+            1 BIRT
+            2 PLAC Boston, Massachusetts, USA
+            3 MAP
+            4 LATI N42.3601
+            4 LONG W71.0589
+            0 TRLR
+            """;
+
+        var result = await sut.ImportAsync(new MemoryStream(Encoding.UTF8.GetBytes(ged)));
+
+        Assert.True(result.IsSuccess);
+        await using var db = InMemoryDb.CreateContext(options);
+        var birth = await db.PersonEvents.SingleAsync();
+        Assert.Equal(42.3601, birth.Latitude!.Value, precision: 4);
+        Assert.Equal(-71.0589, birth.Longitude!.Value, precision: 4);
+    }
+
+    [Fact]
     public async Task ImportAsync_MinimalFile_ImportsIndividual()
     {
         var (options, factory) = InMemoryDb.Create();

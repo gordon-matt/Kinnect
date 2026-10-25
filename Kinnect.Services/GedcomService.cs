@@ -55,10 +55,7 @@ public partial class GedcomService(
                     sb.AppendLine($"2 DATE {FormatDate(birthEvt.Year, birthEvt.Month, birthEvt.Day)}");
                 }
 
-                if (!string.IsNullOrWhiteSpace(birthEvt.Place))
-                {
-                    sb.AppendLine($"2 PLAC {birthEvt.Place}");
-                }
+                WritePlace(sb, birthEvt.Place, birthEvt.Latitude, birthEvt.Longitude);
             }
 
             var deathEvt = eventsByPerson[person.Id].FirstOrDefault(e => e.EventType == PersonEventType.Death);
@@ -70,10 +67,7 @@ public partial class GedcomService(
                     sb.AppendLine($"2 DATE {FormatDate(deathEvt.Year, deathEvt.Month, deathEvt.Day)}");
                 }
 
-                if (!string.IsNullOrWhiteSpace(deathEvt.Place))
-                {
-                    sb.AppendLine($"2 PLAC {deathEvt.Place}");
-                }
+                WritePlace(sb, deathEvt.Place, deathEvt.Latitude, deathEvt.Longitude);
             }
 
             // These three are also stored as events. Write the profile field only when there is no event,
@@ -123,10 +117,7 @@ public partial class GedcomService(
                     sb.AppendLine($"2 DATE {FormatDate(evt.Year, evt.Month, evt.Day)}");
                 }
 
-                if (!string.IsNullOrWhiteSpace(evt.Place))
-                {
-                    sb.AppendLine($"2 PLAC {evt.Place}");
-                }
+                WritePlace(sb, evt.Place, evt.Latitude, evt.Longitude);
 
                 if (!string.IsNullOrWhiteSpace(evt.Description))
                 {
@@ -775,6 +766,7 @@ public partial class GedcomService(
         if (!hasBirtInEvents && individual.Birth != null)
         {
             var (year, month, day) = ParseDate(individual.Birth.Date);
+            var (birthLatitude, birthLongitude) = GedcomCoordinates.Read(individual.Birth.Place);
             var saved = await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
@@ -783,6 +775,8 @@ public partial class GedcomService(
                 Month = month,
                 Day = day,
                 Place = individual.Birth.Place?.Name,
+                Latitude = birthLatitude,
+                Longitude = birthLongitude,
                 CreatedAtUtc = DateTime.UtcNow
             });
 
@@ -794,6 +788,7 @@ public partial class GedcomService(
         if (!hasDeatInEvents && individual.Death != null)
         {
             var (year, month, day) = ParseDate(individual.Death.Date);
+            var (deathLatitude, deathLongitude) = GedcomCoordinates.Read(individual.Death.Place);
             var saved = await eventRepository.InsertAsync(new PersonEvent
             {
                 PersonId = personId,
@@ -802,6 +797,8 @@ public partial class GedcomService(
                 Month = month,
                 Day = day,
                 Place = individual.Death.Place?.Name,
+                Latitude = deathLatitude,
+                Longitude = deathLongitude,
                 CreatedAtUtc = DateTime.UtcNow
             });
 
@@ -832,6 +829,7 @@ public partial class GedcomService(
         }
 
         var (year, month, day) = ParseDate(source.Date);
+        var (latitude, longitude) = GedcomCoordinates.Read(source.Place);
         string? description = descriptionOverride;
         if (description is null)
         {
@@ -849,6 +847,8 @@ public partial class GedcomService(
             Month = month,
             Day = day,
             Place = source.Place?.Name,
+            Latitude = latitude,
+            Longitude = longitude,
             Description = description is null ? null : Truncate(description, 2000),
             Note = ResolveFirstNote(source.Notes, database) is string note ? Truncate(note, 4000) : null,
             CreatedAtUtc = DateTime.UtcNow
@@ -856,5 +856,21 @@ public partial class GedcomService(
 
         summary.EventsImported++;
         return saved;
+    }
+
+    private static void WritePlace(StringBuilder sb, string? place, double? latitude, double? longitude)
+    {
+        if (string.IsNullOrWhiteSpace(place) && (latitude is null || longitude is null))
+        {
+            return;
+        }
+
+        sb.AppendLine(string.IsNullOrWhiteSpace(place) ? "2 PLAC" : $"2 PLAC {place}");
+        if (latitude is double lat && longitude is double lng)
+        {
+            sb.AppendLine("3 MAP");
+            sb.AppendLine($"4 LATI {GedcomCoordinates.FormatLatitude(lat)}");
+            sb.AppendLine($"4 LONG {GedcomCoordinates.FormatLongitude(lng)}");
+        }
     }
 }

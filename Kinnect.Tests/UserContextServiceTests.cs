@@ -1,3 +1,4 @@
+using Kinnect.Services.Abstractions;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Kinnect.Tests;
@@ -129,6 +130,26 @@ public class UserContextServiceTests
     }
 
     [Fact]
+    public void GetCurrentUserId_SkipsACircuitClaimThatIsNotAnAccount()
+    {
+        var accessor = new HttpContextAccessor();
+        var httpIdentity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "admin@kinnect.local")],
+            authenticationType: "Test");
+        accessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(httpIdentity) };
+
+        var circuitIdentity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "not-an-account")],
+            authenticationType: "Test");
+        var sut = new UserContextService(
+            accessor,
+            new StubAuthenticationState(new ClaimsPrincipal(circuitIdentity)),
+            new StubAccountIds(claim => claim == "admin@kinnect.local" ? "account-id" : null));
+
+        Assert.Equal("account-id", sut.GetCurrentUserId());
+    }
+
+    [Fact]
     public void GetCurrentUserId_AcceptsTheSubClaim()
     {
         var accessor = new HttpContextAccessor();
@@ -140,6 +161,11 @@ public class UserContextServiceTests
         var sut = new UserContextService(accessor);
 
         Assert.Equal("keycloak-user", sut.GetCurrentUserId());
+    }
+
+    private sealed class StubAccountIds(Func<string, string?> resolve) : IAccountIdResolver
+    {
+        public string? Resolve(string claim) => resolve(claim);
     }
 
     private sealed class StubAuthenticationState(ClaimsPrincipal user) : AuthenticationStateProvider

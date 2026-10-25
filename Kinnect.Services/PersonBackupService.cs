@@ -8,6 +8,7 @@ namespace Kinnect.Services;
 public sealed class PersonBackupService(
     ApplicationDbContextBase db,
     IFileStorageService fileStorageService,
+    ISettingsService settings,
     ILogger<PersonBackupService> logger) : IPersonBackupService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -19,6 +20,8 @@ public sealed class PersonBackupService(
 
     public async Task ExportToNewFileAsync(CancellationToken cancellationToken = default)
     {
+        await RemoveOlderBackupsAsync(cancellationToken);
+
         string dir = ResolveBackupDirectory();
         Directory.CreateDirectory(dir);
 
@@ -93,6 +96,55 @@ public sealed class PersonBackupService(
             logger.LogInformation("Person tree backup written to {Path} ({Count} people, {SpouseCount} spouse links).",
                 path, doc.People.Count, doc.Spouses.Count);
         }
+    }
+
+    /// <summary>
+    /// Drops files beyond the keep count before a new backup is written, so the new file is the one that fills the last slot.
+    /// A keep count of 0 retains every file.
+    /// </summary>
+    private async Task RemoveOlderBackupsAsync(CancellationToken cancellationToken)
+    {
+        var backupSettings = await settings.GetAsync<BackupSettings>(cancellationToken);
+        if (backupSettings.KeepCount <= 0)
+        {
+            return;
+        }
+
+        string dir = ResolveBackupDirectory();
+        if (!Directory.Exists(dir))
+        {
+            return;
+        }
+
+        int retain = backupSettings.KeepCount - 1;
+        var extras = new DirectoryInfo(dir).GetFiles("person-backup-*.json")
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .Skip(retain)
+            .ToList();
+
+        foreach (var file in extras)
+        {
+            file.Delete();
+        }
+
+        if (extras.Count > 0 && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Removed {Count} old person backups before writing a new one. {Keep} will remain, including the new file.",
+                extras.Count,
+                backupSettings.KeepCount);
+        }
+    }
+
+    public Task<Result> DeleteAsync(string fileName, CancellationToken cancellationToken = default)
+    {
+        if (!TryResolveExistingBackupFile(fileName, out string? path, out string? error))
+        {
+            return Task.FromResult(Result.Invalid(new ValidationError(error ?? "Invalid backup file.")));
+        }
+
+        File.Delete(path!);
+        return Task.FromResult(Result.Success());
     }
 
     public async Task<Result<IReadOnlyList<PersonBackupFileDto>>> ListBackupsAsync(CancellationToken cancellationToken = default)

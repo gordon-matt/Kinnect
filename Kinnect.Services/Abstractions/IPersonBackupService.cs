@@ -10,4 +10,6 @@ public interface IPersonBackupService
     Task<Result<IReadOnlyList<PersonBackupFileDto>>> ListBackupsAsync(CancellationToken cancellationToken = default);
 
     Task<Result> RestoreFromFileAsync(string fileName, CancellationToken cancellationToken = default);
+
+    Task<Result> DeleteAsync(string fileName, CancellationToken cancellationToken = default);
 }

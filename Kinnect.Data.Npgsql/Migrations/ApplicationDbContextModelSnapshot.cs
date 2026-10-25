@@ -127,6 +127,22 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.BackupSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("KeepCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BackupSettings", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.ChatMessage", b =>
                 {
                     b.Property<int>("Id")

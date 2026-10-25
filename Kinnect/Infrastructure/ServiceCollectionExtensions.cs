@@ -68,7 +68,7 @@ internal static class ServiceCollectionExtensions
                     break;
             }
 
-            services.AddEasyChatz();
+            services.AddEasyChatz(options => options.SystemDisplayName = "Kinnect");
             services.AddHostedService<ChatHistoryImporter>();
             return services;
         }
@@ -150,6 +150,7 @@ internal static class ServiceCollectionExtensions
         {
             services.AddHttpContextAccessor();
             services.AddSingleton<ISettingsService, SettingsService>();
+            services.AddScoped<IAccountIdResolver, IdentityAccountIdResolver>();
             services.AddScoped<IUserContextService, UserContextService>();
             services.AddScoped<IPersonService, PersonService>();
             services.AddScoped<IPersonEventService, PersonEventService>();
@@ -166,6 +167,8 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<KinnectFamilyGraph>();
             services.AddScoped<PersonBackupJob>();
+            services.AddScoped<EventGeocodeJob>();
+            services.AddSingleton<NominatimPlaceLookup>();
             services.AddScoped<VideoTranscodeJob>();
             services.AddScoped<UnreadMessageEmailJob>();
             services.AddHttpClient("nominatim", client =>
