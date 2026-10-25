@@ -32,7 +32,7 @@ public class SettingsServiceTests
         Assert.Equal(55, images.Quality);
         Assert.Equal(1080, images.MaxHeight);
 
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         var stored = Assert.Single(db.ImageSettings);
         Assert.Equal(1000, stored.MaxWidth);
     }
@@ -41,7 +41,7 @@ public class SettingsServiceTests
     public async Task GetAsync_PrefersTheDatabaseOverConfiguration()
     {
         var (sut, options) = Create(new Dictionary<string, string?> { ["ImageProcessing:MaxWidth"] = "1000" });
-        await using (var db = InMemoryDb.CreateContext(options))
+        await using (var db = SqliteDb.CreateContext(options))
         {
             db.ImageSettings.Add(new ImageSettings { MaxWidth = 800 });
             await db.SaveChangesAsync();
@@ -50,7 +50,7 @@ public class SettingsServiceTests
         var images = await sut.GetAsync<ImageSettings>();
 
         Assert.Equal(800, images.MaxWidth);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Equal(800, Assert.Single(assertDb.ImageSettings).MaxWidth);
     }
 
@@ -86,7 +86,7 @@ public class SettingsServiceTests
         Assert.True((await sut.SaveAsync(again)).IsSuccess);
 
         Assert.Equal(6, (await sut.GetAsync<TreeSettings>()).MaxGenerations);
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         Assert.Equal(6, Assert.Single(db.TreeSettings).MaxGenerations);
     }
 
@@ -130,7 +130,7 @@ public class SettingsServiceTests
     private static (SettingsService Sut, DbContextOptions<ApplicationDbContext> Options) Create(
         Dictionary<string, string?>? configuration = null)
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var services = new ServiceCollection();
         services.AddSingleton<IDbContextFactory>(factory);
         services.AddScoped(typeof(IRepository<>), typeof(EntityFrameworkRepository<>));

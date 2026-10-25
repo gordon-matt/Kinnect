@@ -7,7 +7,7 @@ public class PersonServiceTests
     [Fact]
     public async Task CreateAsync_InsertsPerson()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = new PersonService(
             new EntityFrameworkRepository<Person>(factory),
             new EntityFrameworkRepository<PersonSpouse>(factory),
@@ -25,15 +25,15 @@ public class PersonServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Doe", result.Value.FamilyName);
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         Assert.Equal(1, await db.People.CountAsync());
     }
 
     [Fact]
     public async Task AddSpouseAsync_SamePerson_ReturnsInvalid()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var p = new Person
         {
             FamilyName = "A",
@@ -61,8 +61,8 @@ public class PersonServiceTests
     [Fact]
     public async Task GetSpousesForPersonAsync_ReturnsOtherSpouseDetails()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var a = new Person
         {
             FamilyName = "A",
@@ -112,8 +112,8 @@ public class PersonServiceTests
     [Fact]
     public async Task LinkUserAccountAsync_ReturnsConflict_WhenUserAlreadyLinked()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var p1 = new Person
         {
             FamilyName = "X",
@@ -148,10 +148,10 @@ public class PersonServiceTests
     }
 
     [Fact]
-    public async Task GetMapPinsAsync_ExcludesDeceasedByDeathEvent()
+    public async Task GetMapPinsAsync_ReturnsOnlyLivingPeopleWithCoordinates()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var alive = new Person
         {
             FamilyName = "A",
@@ -162,26 +162,26 @@ public class PersonServiceTests
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
         };
-        var dead = new Person
+        var deceased = new Person
         {
             FamilyName = "C",
             GivenNames = "D",
             IsMale = false,
+            IsDeceased = true,
             Latitude = 3,
             Longitude = 4,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
         };
-        db.People.AddRange(alive, dead);
-        await db.SaveChangesAsync();
-
-        db.PersonEvents.Add(new PersonEvent
+        var unplaced = new Person
         {
-            PersonId = dead.Id,
-            EventType = PersonEventType.Death,
-            Year = 2020,
-            CreatedAtUtc = DateTime.UtcNow
-        });
+            FamilyName = "E",
+            GivenNames = "F",
+            IsMale = true,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.AddRange(alive, deceased, unplaced);
         await db.SaveChangesAsync();
 
         var sut = new PersonService(
@@ -202,8 +202,8 @@ public class PersonServiceTests
     [Fact]
     public async Task UpdateAsync_OwnProfile_ClearsDeceasedAndSavesLinks()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -244,15 +244,15 @@ public class PersonServiceTests
         Assert.Equal("Site", link.Name);
         Assert.Equal("https://example.com", link.Url);
 
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.False((await assertDb.People.FindAsync(person.Id))!.IsDeceased);
     }
 
     [Fact]
     public async Task UpdateAsync_RejectsLinkThatIsNotHttp()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -284,8 +284,8 @@ public class PersonServiceTests
     [Fact]
     public async Task UpdateAsync_TrimsContactNameAndValueAndDropsEmptyRows()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -318,7 +318,7 @@ public class PersonServiceTests
         Assert.Equal("jane@example.com", result.Value.Contacts[0].Value);
         Assert.Equal("0400 000 000", result.Value.Contacts[1].Value);
 
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         var stored = await assertDb.Contacts.OrderBy(c => c.SortOrder).ToListAsync();
         Assert.Equal([ContactType.Email, ContactType.Mobile], stored.Select(c => c.Type));
         Assert.Equal(["jane@example.com", "0400 000 000"], stored.Select(c => c.Value));
@@ -327,8 +327,8 @@ public class PersonServiceTests
     [Fact]
     public async Task UpdateAsync_DropsAContactRowLeftBlank()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -354,8 +354,8 @@ public class PersonServiceTests
     [Fact]
     public async Task UpdateAsync_LeavesContactsAloneWhenNoneAreSent()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -389,8 +389,8 @@ public class PersonServiceTests
     [Fact]
     public async Task UnlinkUserAccountAsync_AllowsTheSignedInPersonToUnlink()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Kay",
@@ -405,7 +405,7 @@ public class PersonServiceTests
         var result = await CreateService(factory).UnlinkUserAccountAsync(person.Id, "admin");
 
         Assert.True(result.IsSuccess);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Null((await assertDb.People.SingleAsync()).UserId);
     }
 

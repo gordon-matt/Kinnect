@@ -1,7 +1,7 @@
 namespace Kinnect.Data;
 
 /// <summary>
-/// In-memory stand-in for the provider contexts. Tests never open a real database.
+/// Test stand-in for the provider contexts. Tests open a SQLite database.
 /// </summary>
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : ApplicationDbContextBase(options);

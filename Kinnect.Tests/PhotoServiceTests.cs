@@ -7,8 +7,8 @@ public class PhotoServiceTests
     [Fact]
     public async Task CreateAsync_WithTag_CreatesTagAndPhoto()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var uploader = new Person
         {
             FamilyName = "U",
@@ -37,15 +37,15 @@ public class PhotoServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Contains("Nature", result.Value.Tags);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Equal(1, await assertDb.Tags.CountAsync(t => t.Name == "Nature"));
     }
 
     [Fact]
     public async Task DeleteAsync_ReturnsForbidden_WhenLinkedUserMismatch()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var uploader = new Person
         {
             FamilyName = "A",

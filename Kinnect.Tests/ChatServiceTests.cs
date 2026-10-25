@@ -7,9 +7,9 @@ public class ChatServiceTests
     [Fact]
     public async Task CreateRoomAsync_ReturnsConflict_WhenNameExists()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
-        db.Users.Add(InMemoryDb.CreateUser("admin", "admin", "a@test.com"));
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        db.Users.Add(SqliteDb.CreateUser("admin", "admin", "a@test.com"));
         await db.SaveChangesAsync();
 
         db.ChatRooms.Add(new ChatRoom
@@ -35,9 +35,9 @@ public class ChatServiceTests
     [Fact]
     public async Task CreateRoomAsync_CreatesRoom()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
-        db.Users.Add(InMemoryDb.CreateUser("u1", "owner", "o@test.com"));
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        db.Users.Add(SqliteDb.CreateUser("u1", "owner", "o@test.com"));
         await db.SaveChangesAsync();
 
         var userInfo = new TestUserInfoService(new UserInfo("u1", "owner", "o@test.com"));
@@ -56,11 +56,11 @@ public class ChatServiceTests
     [Fact]
     public async Task CreatePrivateMessageAsync_StoresMessage()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Users.AddRange(
-            InMemoryDb.CreateUser("a", "alice", "a@test.com"),
-            InMemoryDb.CreateUser("b", "bob", "b@test.com"));
+            SqliteDb.CreateUser("a", "alice", "a@test.com"),
+            SqliteDb.CreateUser("b", "bob", "b@test.com"));
         await db.SaveChangesAsync();
 
         var userInfo = new TestUserInfoService(
@@ -76,18 +76,18 @@ public class ChatServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Hello", result.Value.Content);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Equal(1, await assertDb.ChatMessages.CountAsync());
     }
 
     [Fact]
     public async Task CreatePrivateMessageAsync_ReturnsInvalid_WhenEmpty()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Users.AddRange(
-            InMemoryDb.CreateUser("a", "a", "a@test.com"),
-            InMemoryDb.CreateUser("b", "b", "b@test.com"));
+            SqliteDb.CreateUser("a", "a", "a@test.com"),
+            SqliteDb.CreateUser("b", "b", "b@test.com"));
         await db.SaveChangesAsync();
 
         var userInfo = new TestUserInfoService(
@@ -107,11 +107,11 @@ public class ChatServiceTests
     [Fact]
     public async Task CreateRoomMessageAsync_ReturnsForbidden_ForAnnouncements_WhenUserIsNotAdmin()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Users.AddRange(
-            InMemoryDb.CreateUser("admin", "admin", "admin@test.com"),
-            InMemoryDb.CreateUser("u1", "user", "u1@test.com"));
+            SqliteDb.CreateUser("admin", "admin", "admin@test.com"),
+            SqliteDb.CreateUser("u1", "user", "u1@test.com"));
         db.ChatRooms.Add(new ChatRoom
         {
             Name = "Announcements",
@@ -138,9 +138,9 @@ public class ChatServiceTests
     [Fact]
     public async Task DeleteRoomAsync_ReturnsForbidden_ForAnnouncements_EvenForAdmin()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
-        db.Users.Add(InMemoryDb.CreateUser("admin", "admin", "admin@test.com"));
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        db.Users.Add(SqliteDb.CreateUser("admin", "admin", "admin@test.com"));
         db.ChatRooms.Add(new ChatRoom
         {
             Name = "Announcements",
@@ -165,11 +165,11 @@ public class ChatServiceTests
     [Fact]
     public async Task GetRoomsAsync_ReturnsAnnouncementsFirst()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Users.AddRange(
-            InMemoryDb.CreateUser("admin", "admin", "admin@test.com"),
-            InMemoryDb.CreateUser("u1", "user", "u1@test.com"));
+            SqliteDb.CreateUser("admin", "admin", "admin@test.com"),
+            SqliteDb.CreateUser("u1", "user", "u1@test.com"));
         db.ChatRooms.AddRange(
             new ChatRoom { Name = "General", AdminUserId = "u1", CreatedAtUtc = DateTime.UtcNow },
             new ChatRoom { Name = "Announcements", AdminUserId = "admin", CreatedAtUtc = DateTime.UtcNow },

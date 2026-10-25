@@ -7,8 +7,8 @@ public class VideoServiceTests
     [Fact]
     public async Task CreateAsync_WithTag_SyncsTags()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var uploader = new Person
         {
             FamilyName = "V",
@@ -42,7 +42,7 @@ public class VideoServiceTests
     [Fact]
     public async Task GetByIdAsync_ReturnsNotFound_WhenMissing()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = new VideoService(
             new EntityFrameworkRepository<Video>(factory),
             new EntityFrameworkRepository<Tag>(factory),

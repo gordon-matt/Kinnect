@@ -27,8 +27,8 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ExportAsync_ContainsIndividualAndBirth()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -68,7 +68,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_PlaceMap_StoresCoordinates()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         string ged = """
@@ -88,7 +88,7 @@ public class GedcomServiceTests : IDisposable
         var result = await sut.ImportAsync(new MemoryStream(Encoding.UTF8.GetBytes(ged)));
 
         Assert.True(result.IsSuccess);
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         var birth = await db.PersonEvents.SingleAsync();
         Assert.Equal(42.3601, birth.Latitude!.Value, precision: 4);
         Assert.Equal(-71.0589, birth.Longitude!.Value, precision: 4);
@@ -97,7 +97,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_MinimalFile_ImportsIndividual()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         string ged = """
@@ -115,14 +115,14 @@ public class GedcomServiceTests : IDisposable
 
         Assert.True(result.IsSuccess);
         Assert.True(result.Value.PeopleImported > 0 || result.Value.PeopleUpdated > 0);
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         Assert.NotEmpty(await db.People.ToListAsync());
     }
 
     [Fact]
     public async Task ImportAsync_StoresTheOriginalFileUnchanged()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
         byte[] bytes = Encoding.UTF8.GetBytes(SimpleGedcom("photos/a.png", withEventMedia: false));
 
@@ -130,7 +130,7 @@ public class GedcomServiceTests : IDisposable
         var result = await sut.ImportAsync(stream, "family.ged");
 
         Assert.True(result.IsSuccess);
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         var stored = Assert.Single(await db.GedcomFiles.ToListAsync());
         Assert.Equal("family.ged", stored.FileName);
         Assert.Equal(bytes.Length, stored.SizeBytes);
@@ -141,7 +141,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_PlainGedWithMediaReferences_ImportsNoPhotosAndExplainsWhy()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleGedcom("photos/a.png", withEventMedia: true)));
@@ -151,14 +151,14 @@ public class GedcomServiceTests : IDisposable
         Assert.Equal(0, result.Value.PhotosImported);
         Assert.Equal(2, result.Value.MediaMissing);
         Assert.Contains(result.Value.Warnings, w => w.Contains("upload a .zip", StringComparison.Ordinal));
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         Assert.Empty(await db.Photos.ToListAsync());
     }
 
     [Fact]
     public async Task ImportAsync_ZipWithMedia_ImportsPhotosLinksThemAndSetsProfilePicture()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         // The same image is used for the person and for her birth, so it must be stored once.
@@ -172,7 +172,7 @@ public class GedcomServiceTests : IDisposable
         Assert.Equal(1, result.Value.PhotosImported);
         Assert.Equal(0, result.Value.MediaMissing);
 
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         var person = await db.People.SingleAsync();
         var photo = await db.Photos.SingleAsync();
         Assert.Equal("Jane at home", photo.Title);
@@ -199,7 +199,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_ZipMissingAFile_ReportsItAndStillImportsThePerson()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         using var zip = CreateZip(("family.ged", Encoding.UTF8.GetBytes(SimpleGedcom("photos/gone.png", withEventMedia: false))));
@@ -210,14 +210,14 @@ public class GedcomServiceTests : IDisposable
         Assert.Equal(1, result.Value.PeopleImported);
         Assert.Equal(1, result.Value.MediaMissing);
         Assert.Contains(result.Value.Warnings, w => w.Contains("gone.png", StringComparison.Ordinal));
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         Assert.Empty(await db.Photos.ToListAsync());
     }
 
     [Fact]
     public async Task ImportAsync_NonImageAndWebLinks_AreSkipped()
     {
-        var (_, factory) = InMemoryDb.Create();
+        var (_, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         string ged = """
@@ -249,7 +249,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_ImportsUnknownSexNotesContactsAndCustomEvents()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         string ged = """
@@ -283,7 +283,7 @@ public class GedcomServiceTests : IDisposable
         var result = await sut.ImportAsync(stream, "people.ged");
 
         Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
-        await using var db = InMemoryDb.CreateContext(options);
+        await using var db = SqliteDb.CreateContext(options);
         var people = await db.People.ToListAsync();
         var kennedy = people.Single(person => person.FamilyName == "KENNEDY");
         Assert.Equal("John Fitzgerald", kennedy.GivenNames);
@@ -308,7 +308,7 @@ public class GedcomServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_ZipWithoutGedcom_Fails()
     {
-        var (_, factory) = InMemoryDb.Create();
+        var (_, factory) = SqliteDb.Create();
         var sut = CreateSut(factory);
 
         using var zip = CreateZip(("photos/a.png", CreatePng()));

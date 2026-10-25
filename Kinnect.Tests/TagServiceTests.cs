@@ -7,8 +7,8 @@ public class TagServiceTests
     [Fact]
     public async Task GetAllAsync_ReturnsTagsSortedByName()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Tags.AddRange(
             new Tag { Name = "Zebra" },
             new Tag { Name = "Alpha" });
@@ -25,8 +25,8 @@ public class TagServiceTests
     [Fact]
     public async Task SearchAsync_FiltersBySubstring()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         db.Tags.AddRange(new Tag { Name = "Family" }, new Tag { Name = "Travel" });
         await db.SaveChangesAsync();
 

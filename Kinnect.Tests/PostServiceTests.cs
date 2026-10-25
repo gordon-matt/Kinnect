@@ -12,8 +12,8 @@ public class PostServiceTests
     [Fact]
     public async Task CreateAsync_PersistsPost_WhenAuthorExists()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var author = new Person
         {
             FamilyName = "Writer",
@@ -33,14 +33,14 @@ public class PostServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Hello", result.Value.Content);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Equal(1, await assertDb.Posts.CountAsync());
     }
 
     [Fact]
     public async Task CreateAsync_ReturnsNotFound_WhenAuthorMissing()
     {
-        var (options, factory) = InMemoryDb.Create();
+        var (options, factory) = SqliteDb.Create();
         var sut = new PostService(
             new MappedEntityFrameworkRepository<PostDto, Post>(factory, new ExtensoEntityModelMapper<Post, PostDto>()),
             new EntityFrameworkRepository<Person>(factory));
@@ -53,8 +53,8 @@ public class PostServiceTests
     [Fact]
     public async Task DeleteAsync_ReturnsForbidden_WhenNotAuthorUser()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var author = new Person
         {
             FamilyName = "A",
@@ -89,8 +89,8 @@ public class PostServiceTests
     [Fact]
     public async Task GetByPersonAsync_ReturnsPostsNewestFirst()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var author = new Person
         {
             FamilyName = "A",

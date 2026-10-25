@@ -1,7 +1,7 @@
 namespace Kinnect.Tests.Infrastructure;
 
 /// <summary>
-/// Extenso <see cref="IDbContextFactory"/> backed by EF Core in-memory storage for tests.
+/// Extenso <see cref="IDbContextFactory"/> backed by SQLite for tests.
 /// </summary>
 public sealed class TestDbContextFactory(DbContextOptions<ApplicationDbContext> options) : IDbContextFactory
 {

@@ -335,7 +335,7 @@ else
                         </div>
                         <input class="nf-input" @bind="eventForm.Description" placeholder="Description" />
                         <input class="nf-input" @bind="eventForm.Place" placeholder="Place" />
-                        <PlaceSearch Label="Event place" Selected="OnEventPlace" />
+                        <PlaceSearch Label="Place search" Selected="OnEventPlace" />
                         <KinnectMap Mini="true" Pick="true" Pins="EventPins" Picked="OnEventMapPick" />
                         <div class="kinnect-row">
                             <button class="nf-button nf-button-primary" type="button" @onclick="SaveEventAsync">@(editingEventId is null ? "Add event" : "Save")</button>

@@ -7,8 +7,8 @@ public class PersonEventServiceTests
     [Fact]
     public async Task CreateAsync_SecondBirth_ReturnsInvalid()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -43,8 +43,8 @@ public class PersonEventServiceTests
     [Fact]
     public async Task CreateAsync_MarriageType_ReturnsInvalid_NotOnTimeline()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "Doe",
@@ -70,8 +70,8 @@ public class PersonEventServiceTests
     [Fact]
     public async Task GetByPersonAsync_ExcludesNonTimelineTypes()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "X",
@@ -94,7 +94,7 @@ public class PersonEventServiceTests
             new PersonEvent
             {
                 PersonId = person.Id,
-                EventType = PersonEventType.Occupation,
+                EventType = PersonEventType.Marriage,
                 Year = 2010,
                 CreatedAtUtc = DateTime.UtcNow
             });
@@ -115,8 +115,8 @@ public class PersonEventServiceTests
     [Fact]
     public async Task DeleteAsync_RemovesEvent()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var person = new Person
         {
             FamilyName = "A",
@@ -146,15 +146,15 @@ public class PersonEventServiceTests
         var del = await sut.DeleteAsync(evt.Id);
 
         Assert.True(del.IsSuccess);
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         Assert.Null(await assertDb.PersonEvents.FindAsync(evt.Id));
     }
 
     [Fact]
     public async Task CopyToCloseRelativesAsync_CopiesResidenceToSpouseChildAndSibling()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var father = Person("Adam", "Ward", true);
         var mother = Person("Eve", "Ward", false);
         db.People.AddRange(father, mother);
@@ -203,7 +203,7 @@ public class PersonEventServiceTests
         Assert.True(copied.IsSuccess);
         Assert.Equal(3, copied.Value);
 
-        await using var assertDb = InMemoryDb.CreateContext(options);
+        await using var assertDb = SqliteDb.CreateContext(options);
         var places = await assertDb.PersonEvents
             .Where(evt => evt.EventType == PersonEventType.Residence)
             .Select(evt => evt.PersonId)
@@ -223,8 +223,8 @@ public class PersonEventServiceTests
     [Fact]
     public async Task CopyToCloseRelativesAsync_RefusesRelativeOwnedBySomeoneElse()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var me = Person("Jane", "Ward", false);
         me.UserId = "me";
         var spouse = Person("Sam", "Ward", true);

@@ -7,9 +7,9 @@ public class AspNetIdentityUserInfoServiceTests
     [Fact]
     public async Task GetUserInfoAsync_ReturnsUsersFromIdentityTable()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
-        db.Users.Add(InMemoryDb.CreateUser("id-1", "alice", "alice@test.com"));
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        db.Users.Add(SqliteDb.CreateUser("id-1", "alice", "alice@test.com"));
         await db.SaveChangesAsync();
 
         var sut = new AspNetIdentityUserInfoService(factory);
@@ -23,10 +23,10 @@ public class AspNetIdentityUserInfoServiceTests
     [Fact]
     public async Task GetAllUsersAsync_ReturnsOrderedByUserName()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
-        db.Users.Add(InMemoryDb.CreateUser("2", "zebra", "z@test.com"));
-        db.Users.Add(InMemoryDb.CreateUser("1", "alpha", "a@test.com"));
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        db.Users.Add(SqliteDb.CreateUser("2", "zebra", "z@test.com"));
+        db.Users.Add(SqliteDb.CreateUser("1", "alpha", "a@test.com"));
         await db.SaveChangesAsync();
 
         var sut = new AspNetIdentityUserInfoService(factory);

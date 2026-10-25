@@ -7,8 +7,8 @@ public class DocumentServiceTests
     [Fact]
     public async Task CreateAsync_CreatesDocumentAndTags()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var uploader = new Person
         {
             FamilyName = "D",
@@ -42,8 +42,8 @@ public class DocumentServiceTests
     [Fact]
     public async Task GetByIdAsync_IncludesUploaderName()
     {
-        var (options, factory) = InMemoryDb.Create();
-        await using var db = InMemoryDb.CreateContext(options);
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
         var uploader = new Person
         {
             FamilyName = "Smith",
