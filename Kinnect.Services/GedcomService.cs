@@ -166,8 +166,6 @@ public partial class GedcomService(
                 {
                     dataset = packaged;
                     gedcomPath = uploadPath;
-                    archive.Dispose();
-                    archive = null;
                 }
                 else
                 {

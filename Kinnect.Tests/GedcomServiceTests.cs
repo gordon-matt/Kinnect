@@ -246,6 +246,61 @@ public class GedcomServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportAsync_GedcomXZip_ImportsPhotosFromThePackage()
+    {
+        var (options, factory) = SqliteDb.Create();
+        var sut = CreateSut(factory);
+
+        string json = """
+            {
+              "persons": [
+                {
+                  "id": "I1",
+                  "gender": { "type": "http://gedcomx.org/Female" },
+                  "names": [
+                    {
+                      "nameForms": [
+                        {
+                          "fullText": "Jane Roe",
+                          "parts": [
+                            { "type": "http://gedcomx.org/Given", "value": "Jane" },
+                            { "type": "http://gedcomx.org/Surname", "value": "Roe" }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "media": [ { "description": "#M1" } ]
+                }
+              ],
+              "sourceDescriptions": [
+                {
+                  "id": "M1",
+                  "resourceType": "http://gedcomx.org/DigitalArtifact",
+                  "mediaType": "image/png",
+                  "about": "media/a.png",
+                  "titles": [ { "value": "Jane at home" } ]
+                }
+              ]
+            }
+            """;
+        using var zip = CreateZip(
+            ("tree.json", Encoding.UTF8.GetBytes(json)),
+            ("media/a.png", CreatePng()));
+
+        var result = await sut.ImportAsync(zip, "kinnect.zip");
+
+        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.Equal(1, result.Value.PhotosImported);
+        Assert.Equal(0, result.Value.MediaMissing);
+        await using var db = SqliteDb.CreateContext(options);
+        var person = await db.People.SingleAsync();
+        var photo = await db.Photos.SingleAsync();
+        Assert.Equal("Jane at home", photo.Title);
+        Assert.NotNull(person.ProfileImagePath);
+    }
+
+    [Fact]
     public async Task ImportAsync_ZipMissingAFile_ReportsItAndStillImportsThePerson()
     {
         var (options, factory) = SqliteDb.Create();

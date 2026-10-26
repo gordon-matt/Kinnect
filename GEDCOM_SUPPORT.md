@@ -4,7 +4,7 @@ Kinnect can import a GEDCOM once, while the tree is still empty, from **Settings
 
 - GEDCOM 5.5, 5.5.1, 5.5.5, or 7.0 as a `.ged` or `.gedcom`
 - A `.zip` or `.gdz` (GEDZIP) that contains the GEDCOM and the files it points at. A `.gdz` file is a normal zip archive. To open one yourself, rename the extension to `.zip` and extract it with any zip tool
-- GEDCOM X as JSON, XML, or a `.gedx` package. People, names, facts, couples, parent–child links, sources, and notes that convert into GEDCOM are imported. Multimedia resources inside a GEDCOM X file are not copied into the photo, video, or document libraries
+- GEDCOM X as JSON, XML, or a zip (including a `.gedx` package). People, names, facts, couples, parent–child links, sources, and notes that convert into GEDCOM are imported. A zip that also holds the media files imports those pictures, videos, and documents. A JSON or XML file on its own does not include them
 
 The uploaded GEDCOM text is stored byte for byte (under the file-storage `gedcom` folder, which is not served). A `.zip` or `.gdz` stores the `.ged` inside it, not the archive. Export loads that text, updates the parts Kinnect keeps, and writes the version chosen on the export dialog. Tags Kinnect does not use stay in a GEDCOM download. A tree that was built in Kinnect, with no uploaded file, is written from scratch. GEDCOM X is converted on the way in and on the way out, so an export in that format is written from the Kinnect tree rather than by patching the uploaded JSON, XML, or package.
 

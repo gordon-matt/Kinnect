@@ -5,7 +5,7 @@
 namespace Kinnect.Data.Sql.Migrations
 {
     /// <inheritdoc />
-    public partial class MergeBioIntoNoteAndUseContactType : Migration
+    public partial class UpdatePeopleContactsAndMedia : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -67,11 +67,121 @@ namespace Kinnect.Data.Sql.Migrations
                 name: "Bio",
                 schema: "app",
                 table: "People");
+
+            migrationBuilder.AddColumn<string>(
+                name: "GedcomFileReference",
+                schema: "app",
+                table: "Videos",
+                type: "nvarchar(1000)",
+                maxLength: 1000,
+                nullable: true);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "IsMale",
+                schema: "app",
+                table: "People",
+                type: "bit",
+                nullable: true,
+                oldClrType: typeof(bool),
+                oldType: "bit");
+
+            migrationBuilder.AddColumn<string>(
+                name: "NamePrefix",
+                schema: "app",
+                table: "People",
+                type: "nvarchar(100)",
+                maxLength: 100,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "NameSuffix",
+                schema: "app",
+                table: "People",
+                type: "nvarchar(100)",
+                maxLength: 100,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Nickname",
+                schema: "app",
+                table: "People",
+                type: "nvarchar(100)",
+                maxLength: 100,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "GedcomFileReference",
+                schema: "app",
+                table: "Documents",
+                type: "nvarchar(1000)",
+                maxLength: 1000,
+                nullable: true);
+
+            migrationBuilder.CreateTable(
+                name: "BackupSettings",
+                schema: "app",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    KeepCount = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BackupSettings", x => x.Id);
+                });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "BackupSettings",
+                schema: "app");
+
+            migrationBuilder.DropColumn(
+                name: "GedcomFileReference",
+                schema: "app",
+                table: "Videos");
+
+            migrationBuilder.DropColumn(
+                name: "NamePrefix",
+                schema: "app",
+                table: "People");
+
+            migrationBuilder.DropColumn(
+                name: "NameSuffix",
+                schema: "app",
+                table: "People");
+
+            migrationBuilder.DropColumn(
+                name: "Nickname",
+                schema: "app",
+                table: "People");
+
+            migrationBuilder.DropColumn(
+                name: "GedcomFileReference",
+                schema: "app",
+                table: "Documents");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "IsMale",
+                schema: "app",
+                table: "People",
+                type: "bit",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "bit",
+                oldNullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Bio",
+                schema: "app",
+                table: "People",
+                type: "nvarchar(max)",
+                nullable: true);
+
             migrationBuilder.DropTable(
                 name: "Contacts",
                 schema: "app");
@@ -105,13 +215,6 @@ namespace Kinnect.Data.Sql.Migrations
                 schema: "app",
                 table: "Contacts",
                 columns: new[] { "PersonId", "SortOrder" });
-
-            migrationBuilder.AddColumn<string>(
-                name: "Bio",
-                schema: "app",
-                table: "People",
-                type: "nvarchar(max)",
-                nullable: true);
         }
     }
 }
