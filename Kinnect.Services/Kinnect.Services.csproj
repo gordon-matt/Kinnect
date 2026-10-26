@@ -1,10 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.1.0</Version>
+		<Version>1.2.0</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,21 +12,19 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="EasyChatz.Core" Version="1.1.0" />
+		<PackageReference Include="GedcomSharp" Version="1.0.0" />
 		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
 		<PackageReference Include="Ardalis.Result" Version="10.1.0" />
-		<ProjectReference Include="..\..\..\Libraries\GedcomSharp\GedcomSharp\GedcomSharp.csproj" />
 		<PackageReference Include="Keycloak.NETCore.Client" Version="2.0.0" />
 		<PackageReference Include="MetadataExtractor" Version="2.9.3" />
+		<PackageReference Include="MyWebTree.Core" Version="1.0.1" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 		<PackageReference Include="Xabe.FFmpeg" Version="6.1.1" />
 		<PackageReference Include="Xabe.FFmpeg.Downloader" Version="6.1.1" />
 	</ItemGroup>
 
 	<!-- TEMPORARY: local source references. Switch back to the EasyChatz.Core and MyWebTree.Core NuGet packages after the new versions are released. -->
-	<ItemGroup>
-		<ProjectReference Include="..\..\..\Components\EasyChatz\EasyChatz.Core\EasyChatz.Core.csproj" />
-		<ProjectReference Include="..\..\..\Components\MyWebTree\MyWebTree.Core\MyWebTree.Core.csproj" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />

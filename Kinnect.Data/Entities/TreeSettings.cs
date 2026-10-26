@@ -7,7 +7,7 @@ public class TreeSettings : AppSettings
 {
     public const int DefaultMaxGenerations = 8;
 
-    public const int LargestMaxGenerations = 20;
+    public const int LargestMaxGenerations = 50;
 
     public override string? ConfigurationSection => "Tree";
 

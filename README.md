@@ -24,7 +24,7 @@ Browse your family as an interactive chart—pan, zoom, and follow links between
 
 ### GEDCOM import (optional)
 
-If you already have a tree elsewhere, you can bring it in with a standard **GEDCOM** file (offered during onboarding when the database is empty and you have administrator access). Individuals, relationships, life events, contacts, and media are mapped into the app’s model. To bring in **photos, videos, and documents** as well, upload a `.zip` containing the `.ged` file and the folders those files live in. A plain `.ged` imports the tree without media. The uploaded GEDCOM is kept unchanged on the server. Export writes Kinnect's changes into a copy of that file, so tags Kinnect does not use stay in the download. [GEDCOM support](GEDCOM_SUPPORT.md) lists exactly what is imported and what is still left in the original file. **Import is entirely optional**—you can skip it and **build the tree from scratch** by adding people manually, one at a time, with the same end result: a tree you grow and maintain inside Kinnect. When the tree did come from a GEDCOM, the administrator has to link their account to someone already in that tree.
+If you already have a tree elsewhere, you can bring it in with a standard **GEDCOM** file (offered during onboarding when the database is empty and you have administrator access). Individuals, relationships, life events, contacts, and media are mapped into the app’s model. To bring in **photos, videos, and documents** as well, upload a `.zip` containing the `.ged` file and the folders those files live in. A plain `.ged` imports the tree without media. The uploaded GEDCOM is kept unchanged on the server. Export writes Kinnect's changes into a copy of that file, so tags Kinnect does not use stay in the download. Every effort is taken to preserve all of the data, but you should always keep a backup of your original GEDCOM files. [GEDCOM support](GEDCOM_SUPPORT.md) lists exactly what is imported and what is still left in the original file. **Import is entirely optional**—you can skip it and **build the tree from scratch** by adding people manually, one at a time, with the same end result: a tree you grow and maintain inside Kinnect. When the tree did come from a GEDCOM, the administrator has to link their account to someone already in that tree.
 
 ### Home feed
 
@@ -139,6 +139,8 @@ Image, document, video, email, and family tree options (such as the largest numb
 
 Kinnect is not tied to PostgreSQL. Pick the provider with `Database__Provider` and give it a matching connection string in `ConnectionStrings__DefaultConnection`. The correct set of migrations is applied automatically on startup.
 
+When the connection string points at a shared database server, create the database yourself before the first start. Kinnect creates the tables. It does not create the database, and startup fails with an error if that database is missing. A new, empty database with the name from the connection string is enough. SQLite creates its own file.
+
 | `Database__Provider` | Database | Example connection string |
 |----------------------|----------|---------------------------|
 | `Npgsql` (default) | PostgreSQL | `Host=db;Port=5432;Database=kinnect;Username=postgres;Password=your_password` |
@@ -155,7 +157,7 @@ New people register themselves from the sign-in page, but they cannot sign in st
 3. The administrator then **approves** the account. Approve is only available once the account has been linked.
 
 After that the person can sign in and sees their own profile. If you use Keycloak instead of built-in accounts, user management happens in Keycloak.
-If you use PostgreSQL, you can add it directly in the stack if you prefer, but I find that adding a separate postgres install for every app that needs it gets messy and wastes resources. I use one postgres stack for all apps that need it and I include pgadmin with it, so I can manage the databases myself. Here's an example:
+If you use PostgreSQL, you can add it directly in the stack if you prefer, but I find that adding a separate postgres install for every app that needs it gets messy and wastes resources. I use one postgres stack for all apps that need it and I include pgadmin with it, so I can manage the databases myself. Create an empty database named `kinnect` (or whatever name the connection string uses) before starting the app. You do not need to create any tables. Here's an example:
 
 ```yaml
 version: "3.9"
