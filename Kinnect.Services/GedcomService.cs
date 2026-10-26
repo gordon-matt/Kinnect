@@ -31,14 +31,9 @@ public partial class GedcomService(
         var staged = await StageMediaAsync(options, cancellationToken);
         var dataset = await BuildDatasetAsync(options, progress, staged, cancellationToken);
         string directory = Directory.CreateTempSubdirectory("kinnect-gedcom-export-").FullName;
-        await WriteExportAsync(dataset, options, staged, directory, cancellationToken);
-        bool package = staged.Count > 0;
-        string name = package ? "kinnect.gdz" : "kinnect.ged";
-        progress?.Report(new GedcomExportProgress(1, 1, name));
-        return new GedcomExportFile(
-            Path.Combine(directory, name),
-            name,
-            package ? "application/zip" : "application/x-gedcom");
+        var file = await WriteExportAsync(dataset, options, staged, directory, cancellationToken);
+        progress?.Report(new GedcomExportProgress(1, 1, file.DownloadName));
+        return file;
     }
 
     private async Task<List<StagedMedia>> StageMediaAsync(GedcomExportOptions options, CancellationToken cancellationToken)

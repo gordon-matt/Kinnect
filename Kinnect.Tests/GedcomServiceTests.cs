@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
+using Kinnect.Models.FamilyTree;
 using Kinnect.Tests.Infrastructure;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -63,6 +64,54 @@ public class GedcomServiceTests : IDisposable
         Assert.Contains("Doe", gedcom, StringComparison.Ordinal);
         Assert.Contains("BIRT", gedcom, StringComparison.Ordinal);
         Assert.Contains("London", gedcom, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExportFileAsync_GedcomXJson_WritesPeopleAndBirth()
+    {
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        var person = new Person
+        {
+            FamilyName = "Doe",
+            GivenNames = "John",
+            IsMale = true,
+            GedcomId = "@I1@",
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.People.Add(person);
+        await db.SaveChangesAsync();
+        db.PersonEvents.Add(new PersonEvent
+        {
+            PersonId = person.Id,
+            EventType = PersonEventType.Birth,
+            Year = 1980,
+            Month = 5,
+            Day = 15,
+            Place = "London",
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var export = GedcomExportOptions.WithoutMedia();
+        export.Version = "gedcomx-json";
+        var file = await CreateSut(factory).ExportFileAsync(export, progress: null);
+
+        try
+        {
+            string json = await File.ReadAllTextAsync(file.Path);
+            Assert.Equal("kinnect.json", file.DownloadName);
+            Assert.Contains("\"persons\"", json, StringComparison.Ordinal);
+            Assert.Contains("John", json, StringComparison.Ordinal);
+            Assert.Contains("Doe", json, StringComparison.Ordinal);
+            Assert.Contains("http://gedcomx.org/Birth", json, StringComparison.Ordinal);
+            Assert.Contains("London", json, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(file.Path)!, recursive: true);
+        }
     }
 
     [Fact]

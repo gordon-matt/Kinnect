@@ -25,6 +25,17 @@ public partial class GedcomService
 
     public async Task<string?> ImportedVersionAsync(CancellationToken cancellationToken = default)
     {
+        var file = await LatestStoredFileAsync();
+        if (file is null)
+        {
+            return null;
+        }
+
+        if (GedcomXFormat(file.FileName) is { } gedcomX)
+        {
+            return gedcomX;
+        }
+
         var dataset = await ReadStoredDatasetAsync(cancellationToken);
         return dataset?.Version switch
         {
@@ -376,8 +387,13 @@ public partial class GedcomService
         added.Structure.SetChildValue("DATE", FormatDate(year, month, day));
     }
 
-    private async Task WriteExportAsync(GedcomSharp.GedcomFile dataset, GedcomExportOptions options, IReadOnlyList<StagedMedia> staged, string directory, CancellationToken cancellationToken)
+    private async Task<GedcomExportFile> WriteExportAsync(GedcomSharp.GedcomFile dataset, GedcomExportOptions options, IReadOnlyList<StagedMedia> staged, string directory, CancellationToken cancellationToken)
     {
+        if (options.IsGedcomX)
+        {
+            return await WriteGedcomXAsync(dataset, options, staged, directory, cancellationToken);
+        }
+
         var writer = Writer(options, dataset);
         if (staged.Count == 0)
         {
@@ -387,17 +403,115 @@ public partial class GedcomService
                 throw new InvalidOperationException(string.Join(" ", bytes.ValidationErrors.Select(error => error.ErrorMessage)));
             }
 
-            await File.WriteAllBytesAsync(Path.Combine(directory, "kinnect.ged"), bytes.Value, cancellationToken);
-            return;
+            const string name = "kinnect.ged";
+            await File.WriteAllBytesAsync(Path.Combine(directory, name), bytes.Value, cancellationToken);
+            return new GedcomExportFile(Path.Combine(directory, name), name, "application/x-gedcom");
         }
 
-        await using var stream = File.Create(Path.Combine(directory, "kinnect.gdz"));
-        var entries = staged.DistinctBy(item => item.ZipPath).Select(item => GedzipFileEntry.FromPath(item.ZipPath, item.SourcePath));
-        var written = await writer.WriteGedzipAsync(dataset, stream, entries, cancellationToken);
-        if (!written.IsSuccess)
+        const string packageName = "kinnect.gdz";
+        await using (var stream = File.Create(Path.Combine(directory, packageName)))
         {
-            throw new InvalidOperationException(string.Join(" ", written.ValidationErrors.Select(error => error.ErrorMessage)));
+            var entries = staged.DistinctBy(item => item.ZipPath).Select(item => GedzipFileEntry.FromPath(item.ZipPath, item.SourcePath));
+            var written = await writer.WriteGedzipAsync(dataset, stream, entries, cancellationToken);
+            if (!written.IsSuccess)
+            {
+                throw new InvalidOperationException(string.Join(" ", written.ValidationErrors.Select(error => error.ErrorMessage)));
+            }
         }
+
+        return new GedcomExportFile(Path.Combine(directory, packageName), packageName, "application/zip");
+    }
+
+    /// <summary>GEDCOM X only follows pointers to shared multimedia records, so embedded objects become those records first.</summary>
+    private static void PromoteEmbeddedMedia(GedcomSharp.GedcomFile dataset)
+    {
+        var byPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        int next = 1;
+        foreach (var individual in dataset.Individuals.ToList())
+        {
+            foreach (var link in individual.MediaLinks.Where(item => !item.IsReference).ToList())
+            {
+                foreach (var file in link.Files.ToList())
+                {
+                    if (string.IsNullOrWhiteSpace(file.Path))
+                    {
+                        continue;
+                    }
+
+                    if (!byPath.TryGetValue(file.Path, out string? xref))
+                    {
+                        string candidate;
+                        do
+                        {
+                            candidate = $"M{next++}";
+                        }
+                        while (dataset.Contains(candidate));
+
+                        var record = dataset.AddMultimedia(file.Path, candidate);
+                        if (record.PrimaryFile is { } primary)
+                        {
+                            primary.Format = file.Format;
+                            primary.Title = file.Title;
+                        }
+
+                        string note = string.Join('\n', new[] { file.Structure.ChildValue("_DATE"), file.Structure.ChildValue("_TEXT") }.Where(part => !string.IsNullOrWhiteSpace(part)));
+                        if (note.Length > 0)
+                        {
+                            record.AddNote(note);
+                        }
+
+                        xref = candidate;
+                        byPath[file.Path] = xref;
+                    }
+
+                    individual.AddMediaLink(xref);
+                }
+
+                link.Structure.Remove();
+            }
+        }
+    }
+
+    private async Task<GedcomExportFile> WriteGedcomXAsync(GedcomSharp.GedcomFile dataset, GedcomExportOptions options, IReadOnlyList<StagedMedia> staged, string directory, CancellationToken cancellationToken)
+    {
+        PromoteEmbeddedMedia(dataset);
+        var document = GedcomSharp.GedcomX.GedcomXConverter.ToGedcomX(dataset);
+        var serializer = new GedcomSharp.GedcomX.GedcomXSerializer();
+        bool xml = options.Version == "gedcomx-xml";
+        if (staged.Count == 0)
+        {
+            string name = xml ? "kinnect.xml" : "kinnect.json";
+            await using var stream = File.Create(Path.Combine(directory, name));
+            if (xml)
+            {
+                await serializer.WriteXmlAsync(document, stream, cancellationToken);
+            }
+            else
+            {
+                await serializer.WriteJsonAsync(document, stream, cancellationToken);
+            }
+
+            return new GedcomExportFile(Path.Combine(directory, name), name, xml ? GedcomSharp.GedcomX.GedcomXTypes.XML_MEDIA_TYPE : GedcomSharp.GedcomX.GedcomXTypes.JSON_MEDIA_TYPE);
+        }
+
+        var package = new GedcomSharp.GedcomX.GedcomXFile();
+        package.Documents[xml ? "tree.xml" : "tree.json"] = document;
+        foreach (var item in staged.DistinctBy(item => item.ZipPath))
+        {
+            package.Resources[item.ZipPath] = await File.ReadAllBytesAsync(item.SourcePath, cancellationToken);
+        }
+
+        const string packageName = "kinnect.zip";
+        await using (var stream = File.Create(Path.Combine(directory, packageName)))
+        {
+            var written = await serializer.WriteFileAsync(package, stream, cancellationToken);
+            if (!written.IsSuccess)
+            {
+                throw new InvalidOperationException(string.Join(" ", written.ValidationErrors.Select(error => error.ErrorMessage).Concat(written.Errors)));
+            }
+        }
+
+        return new GedcomExportFile(Path.Combine(directory, packageName), packageName, "application/zip");
     }
 
     private static GedcomSharp.GedcomWriter Writer(GedcomExportOptions options, GedcomSharp.GedcomFile dataset) =>
@@ -411,14 +525,26 @@ public partial class GedcomService
     {
         "5.5" => GedcomVersion.V55,
         "5.5.5" => GedcomVersion.V555,
-        "7.0" => GedcomVersion.V70,
+        "7.0" or "gedcomx-json" or "gedcomx-xml" => GedcomVersion.V70,
         _ => GedcomVersion.V551,
     };
 
-    private async Task<GedcomSharp.GedcomFile?> ReadStoredDatasetAsync(CancellationToken cancellationToken)
+    private static string? GedcomXFormat(string? fileName) => Path.GetExtension(fileName).ToLowerInvariant() switch
+    {
+        ".json" or ".gedx" => "gedcomx-json",
+        ".xml" => "gedcomx-xml",
+        _ => null,
+    };
+
+    private async Task<GedcomFile?> LatestStoredFileAsync()
     {
         var files = (await gedcomFileRepository.FindAsync(new SearchOptions<GedcomFile>())).ToList();
-        var file = files.OrderByDescending(candidate => candidate.Id).FirstOrDefault();
+        return files.OrderByDescending(candidate => candidate.Id).FirstOrDefault();
+    }
+
+    private async Task<GedcomSharp.GedcomFile?> ReadStoredDatasetAsync(CancellationToken cancellationToken)
+    {
+        var file = await LatestStoredFileAsync();
         if (file is null)
         {
             return null;
@@ -435,7 +561,11 @@ public partial class GedcomService
         var read = new GedcomSharp.GedcomReader().Read(bytes, file.FileName);
         if (!read.IsSuccess)
         {
-            logger.LogWarning("The stored GEDCOM could not be read. A new file was written instead.");
+            if (GedcomXFormat(file.FileName) is null)
+            {
+                logger.LogWarning("The stored GEDCOM could not be read. A new file was written instead.");
+            }
+
             return null;
         }
 

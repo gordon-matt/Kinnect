@@ -7,10 +7,10 @@ public interface IGedcomService
     /// <summary>Exports the tree as GEDCOM text in <see cref="GedcomExportOptions.Version"/> (5.5.1 when called through <see cref="ExportAsync"/>).</summary>
     Task<string> ExportAsync();
 
-    /// <summary>The version of the stored import, such as 5.5.1 or 7.0, or null when the tree was not imported.</summary>
+    /// <summary>The version of the stored import, such as 5.5.1, 7.0, gedcomx-json or gedcomx-xml, or null when the tree was not imported.</summary>
     Task<string?> ImportedVersionAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Writes a .ged, or a .gdz (GEDZIP) package when photos, videos or documents are included.</summary>
+    /// <summary>Writes a .ged, GEDCOM X JSON or XML, or a .gdz / .zip package when photos, videos or documents are included.</summary>
     Task<GedcomExportFile> ExportFileAsync(
         GedcomExportOptions options,
         IProgress<GedcomExportProgress>? progress,

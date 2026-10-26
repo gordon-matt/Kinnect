@@ -19,8 +19,14 @@
                     <option value="5.5.1">GEDCOM 5.5.1</option>
                     <option value="5.5.5">GEDCOM 5.5.5</option>
                     <option value="7.0">GEDCOM 7.0</option>
+                    <option value="gedcomx-json">GEDCOM X (JSON)</option>
+                    <option value="gedcomx-xml">GEDCOM X (XML)</option>
                 </select>
             </label>
+            @if (options.IsGedcomX)
+            {
+                <p class="kinnect-muted">GEDCOM X is a conversion of the tree. Tags Kinnect does not use are not copied into it.</p>
+            }
             <div class="kinnect-checks">
                 <label class="nf-check"><input type="checkbox" @bind="options.Names" disabled="@running" /> Names and sex</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Notes" disabled="@running" /> Notes</label>
@@ -31,7 +37,11 @@
                 <label class="nf-check"><input type="checkbox" @bind="options.Videos" disabled="@running" /> Videos</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Documents" disabled="@running" /> Documents</label>
             </div>
-            @if (options.IncludesMedia)
+            @if (options.IncludesMedia && options.IsGedcomX)
+            {
+                <p class="kinnect-muted">Photos, videos and documents are packed with the GEDCOM X document into a zip file.</p>
+            }
+            else if (options.IncludesMedia)
             {
                 <p class="kinnect-muted">Photos, videos and documents are packed with the GEDCOM into a GEDZIP file (.gdz). That is a normal zip archive. To open it yourself, rename the extension to .zip and extract it with any zip tool.</p>
             }
@@ -50,7 +60,7 @@
         else
         {
             <p>The file is ready.</p>
-            <a class="nf-button nf-button-primary" href="@downloadUrl">Download</a>
+            <a class="nf-button nf-button-primary" href="@downloadUrl" download="@downloadName" data-enhance-nav="false">Download</a>
         }
     </div>
 </div>
@@ -69,6 +79,7 @@
     private int percent;
     private string label = "Preparing the export…";
     private string? downloadUrl;
+    private string? downloadName;
     private CancellationTokenSource? cancellation;
 
     private async Task ExportAsync()
@@ -89,6 +100,7 @@
             var file = await Gedcom.ExportFileAsync(options, progress, cancellation.Token);
             string token = Exports.Put(file);
             downloadUrl = $"/api/gedcom/export/{token}";
+            downloadName = file.DownloadName;
             percent = 100;
             label = file.DownloadName;
         }

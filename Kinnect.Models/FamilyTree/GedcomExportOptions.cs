@@ -19,10 +19,12 @@ public sealed class GedcomExportOptions
 
     public bool Documents { get; set; } = true;
 
-    /// <summary>GEDCOM version to write: 5.5, 5.5.1, 5.5.5 or 7.0. A different version from the imported file is converted.</summary>
+    /// <summary>GEDCOM 5.5, 5.5.1, 5.5.5 or 7.0, or GEDCOM X as <c>gedcomx-json</c> or <c>gedcomx-xml</c>.</summary>
     public string Version { get; set; } = "5.5.1";
 
     public bool IncludesMedia => Photos || Videos || Documents;
+
+    public bool IsGedcomX => Version is "gedcomx-json" or "gedcomx-xml";
 
     /// <summary>The text export used by tests: every fact, and no media files.</summary>
     public static GedcomExportOptions WithoutMedia() => new()
@@ -36,5 +38,5 @@ public sealed class GedcomExportOptions
 /// <summary>How far an export has got. <see cref="Completed"/> and <see cref="Total"/> drive the progress bar.</summary>
 public sealed record GedcomExportProgress(int Completed, int Total, string Label);
 
-/// <summary>A generated .ged, or a zip of that file plus the media that was included.</summary>
+/// <summary>A generated .ged, .json or .xml, or a zip (.gdz or .zip) when media files are included.</summary>
 public sealed record GedcomExportFile(string Path, string DownloadName, string ContentType);
