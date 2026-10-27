@@ -1,10 +1,10 @@
 ﻿global using Ardalis.Result;
-global using Heroicsoft.NetForge.Abstractions.Auth;
-global using IUserContextService = Kinnect.Services.Abstractions.IUserContextService;
 global using Ardalis.Result.AspNetCore;
 global using Extenso.Data.Entity;
+global using Heroicsoft.NetForge.Abstractions.Auth;
+global using Heroicsoft.NetForge.Components.Layout;
+global using Heroicsoft.NetForge.Components.Theming;
 global using Kinnect.Data.Entities;
-global using Kinnect.Models;
 global using Kinnect.Models.Dto;
 global using Kinnect.Models.Requests;
 global using Kinnect.Services;
@@ -12,3 +12,4 @@ global using Kinnect.Services.Abstractions;
 global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.EntityFrameworkCore;
+global using IUserContextService = Kinnect.Services.Abstractions.IUserContextService;

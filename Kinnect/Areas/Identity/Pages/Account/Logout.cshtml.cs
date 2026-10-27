@@ -1,7 +1,4 @@
-using Kinnect.Data.Entities;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kinnect.Areas.Identity.Pages.Account;
@@ -9,15 +6,7 @@ namespace Kinnect.Areas.Identity.Pages.Account;
 [AllowAnonymous]
 public class LogoutModel(SignInManager<ApplicationUser> signInManager, ILogger<LogoutModel> logger) : PageModel
 {
-    public IActionResult OnGet()
-    {
-        if (signInManager.IsSignedIn(User))
-        {
-            return Page();
-        }
-
-        return RedirectToPage("./Login");
-    }
+    public IActionResult OnGet() => signInManager.IsSignedIn(User) ? Page() : RedirectToPage("./Login");
 
     public async Task<IActionResult> OnPost()
     {

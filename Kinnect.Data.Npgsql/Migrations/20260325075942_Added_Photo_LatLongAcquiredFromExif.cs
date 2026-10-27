@@ -2,30 +2,23 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Kinnect.Data.Npgsql.Migrations
+namespace Kinnect.Data.Npgsql.Migrations;
+
+/// <inheritdoc />
+public partial class Added_Photo_LatLongAcquiredFromExif : Migration
 {
     /// <inheritdoc />
-    public partial class Added_Photo_LatLongAcquiredFromExif : Migration
-    {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<bool>(
-                name: "LatLongAcquiredFromExif",
-                schema: "app",
-                table: "Photos",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-        }
+    protected override void Up(MigrationBuilder migrationBuilder) => migrationBuilder.AddColumn<bool>(
+            name: "LatLongAcquiredFromExif",
+            schema: "app",
+            table: "Photos",
+            type: "boolean",
+            nullable: false,
+            defaultValue: false);
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "LatLongAcquiredFromExif",
-                schema: "app",
-                table: "Photos");
-        }
-    }
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.DropColumn(
+            name: "LatLongAcquiredFromExif",
+            schema: "app",
+            table: "Photos");
 }

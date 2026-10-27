@@ -1,0 +1,43 @@
+---
+description: Which of my other projects this repo depends on and where their source lives. Read before using or investigating any internal library/package.
+alwaysApply: false
+---
+
+Shared coding conventions live in Blueprint/.cursor/rules/conventions.mdc (absolute path: D:\Source\GitHub\Blueprint\.cursor\rules\conventions.mdc). Read it before writing or changing code.
+
+@../../Blueprint/.cursor/rules/conventions.mdc
+
+## Internal dependencies
+
+| Name | How it's consumed | Package ID and version | Source location |
+| --- | --- | --- | --- |
+| EasyChatz.AspNetCore | NuGet PackageReference | EasyChatz.AspNetCore 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Components | NuGet PackageReference | EasyChatz.Components 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Core | NuGet PackageReference | EasyChatz.Core 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Data.MySql | NuGet PackageReference | EasyChatz.Data.MySql 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Data.Npgsql | NuGet PackageReference | EasyChatz.Data.Npgsql 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Data.Sql | NuGet PackageReference | EasyChatz.Data.Sql 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| EasyChatz.Data.Sqlite | NuGet PackageReference | EasyChatz.Data.Sqlite 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
+| MyWebTree.Components | NuGet PackageReference | MyWebTree.Components 1.0.1 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
+| MyWebTree.Core | NuGet PackageReference | MyWebTree.Core 1.0.1 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
+| Extenso.Data.Entity | NuGet PackageReference | Extenso.Data.Entity 10.2.0 | `D:\Source\GitHub\Libraries\Extenso` (`..\..\Libraries\Extenso`) |
+| GedcomSharp | NuGet PackageReference | GedcomSharp 1.0.0 | `D:\Source\GitHub\Libraries\GedcomSharp` (`..\..\Libraries\GedcomSharp`) |
+| Heroicsoft.NetForge.Abstractions | ProjectReference | commented-out package 1.0.3 | `D:\Source\GitHub\Libraries\Heroicsoft.NetForge` (`..\..\Libraries\Heroicsoft.NetForge`) |
+| Heroicsoft.NetForge.Authentication | ProjectReference | commented-out package 1.0.3.1 | `D:\Source\GitHub\Libraries\Heroicsoft.NetForge` (`..\..\Libraries\Heroicsoft.NetForge`) |
+| Heroicsoft.NetForge.Components | ProjectReference | commented-out package 1.0.3 | `D:\Source\GitHub\Libraries\Heroicsoft.NetForge` (`..\..\Libraries\Heroicsoft.NetForge`) |
+| Heroicsoft.NetForge.Hangfire | ProjectReference | commented-out package 1.0.3 | `D:\Source\GitHub\Libraries\Heroicsoft.NetForge` (`..\..\Libraries\Heroicsoft.NetForge`) |
+| LogVue | ProjectReference | commented-out package 1.0.1 | `D:\Source\GitHub\Libraries\LogVue` (`..\..\Libraries\LogVue`) |
+| LogVue.Data.MySql | NuGet PackageReference | LogVue.Data.MySql 1.0.1 | `D:\Source\GitHub\Libraries\LogVue` (`..\..\Libraries\LogVue`) |
+| LogVue.Data.Npgsql | NuGet PackageReference | LogVue.Data.Npgsql 1.0.1 | `D:\Source\GitHub\Libraries\LogVue` (`..\..\Libraries\LogVue`) |
+| LogVue.Data.Sql | NuGet PackageReference | LogVue.Data.Sql 1.0.1 | `D:\Source\GitHub\Libraries\LogVue` (`..\..\Libraries\LogVue`) |
+| LogVue.Data.Sqlite | NuGet PackageReference | LogVue.Data.Sqlite 1.0.1 | `D:\Source\GitHub\Libraries\LogVue` (`..\..\Libraries\LogVue`) |
+
+## Unresolved
+
+None.
+
+## Reverse dependencies
+
+No other repo in this workspace consumes this one.
+
+When you need to understand an API, behavior, or bug in one of the internal packages above, read its source code at the listed location. Do NOT use reflection, decompilation, or inspect DLLs/NuGet cache. If a fix belongs in the library, say so rather than working around it in the consumer. Note that the consumer references a published package version, so local source may be newer than what the consumer actually uses; check the version.

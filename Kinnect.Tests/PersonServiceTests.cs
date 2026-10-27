@@ -281,6 +281,7 @@ public class PersonServiceTests
 
         Assert.Equal(ResultStatus.Invalid, result.Status);
     }
+
     [Fact]
     public async Task UpdateAsync_TrimsContactNameAndValueAndDropsEmptyRows()
     {

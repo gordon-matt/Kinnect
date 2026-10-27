@@ -1,8 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Kinnect.Data.Entities;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Kinnect.Areas.Identity.Pages.Account;

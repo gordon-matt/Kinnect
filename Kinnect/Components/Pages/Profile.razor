@@ -61,23 +61,23 @@ else
                 {
                     <EditForm Model="form" OnValidSubmit="SaveAsync" class="kinnect-card kinnect-stack">
                         <div class="kinnect-pair">
-                            <label class="nf-field">Prefix <InputText class="nf-input" @bind-Value="form.NamePrefix" /></label>
-                            <label class="nf-field">Suffix <InputText class="nf-input" @bind-Value="form.NameSuffix" /></label>
+                            <Field Label="Prefix"><InputText class="nf-input" @bind-Value="form.NamePrefix" /></Field>
+                            <Field Label="Suffix"><InputText class="nf-input" @bind-Value="form.NameSuffix" /></Field>
                         </div>
                         <div class="kinnect-pair">
-                            <label class="nf-field">Given names <InputText class="nf-input" @bind-Value="form.GivenNames" /></label>
-                            <label class="nf-field">Family name <InputText class="nf-input" @bind-Value="form.FamilyName" /></label>
+                            <Field Label="Given names"><InputText class="nf-input" @bind-Value="form.GivenNames" /></Field>
+                            <Field Label="Family name"><InputText class="nf-input" @bind-Value="form.FamilyName" /></Field>
                         </div>
-                        <label class="nf-field">Nickname <InputText class="nf-input" @bind-Value="form.Nickname" /></label>
+                        <Field Label="Nickname"><InputText class="nf-input" @bind-Value="form.Nickname" /></Field>
                         <div class="kinnect-switch" role="group" aria-label="Sex">
                             <button type="button" class="@(form.IsMale == true ? "is-active" : null)" aria-pressed="@(form.IsMale == true)" @onclick="() => form.IsMale = true">Male</button>
                             <button type="button" class="@(form.IsMale == false ? "is-active" : null)" aria-pressed="@(form.IsMale == false)" @onclick="() => form.IsMale = false">Female</button>
                             <button type="button" class="@(form.IsMale is null ? "is-active" : null)" aria-pressed="@(form.IsMale is null)" @onclick="() => form.IsMale = null">Unknown</button>
                         </div>
-                        <label class="nf-field">Occupation <InputText class="nf-input" @bind-Value="form.Occupation" /></label>
-                        <label class="nf-field">Education <InputText class="nf-input" @bind-Value="form.Education" /></label>
-                        <label class="nf-field">Religion <InputText class="nf-input" @bind-Value="form.Religion" /></label>
-                        <label class="nf-field">Notes <InputTextArea class="nf-textarea" @bind-Value="form.Note" /></label>
+                        <Field Label="Occupation"><InputText class="nf-input" @bind-Value="form.Occupation" /></Field>
+                        <Field Label="Education"><InputText class="nf-input" @bind-Value="form.Education" /></Field>
+                        <Field Label="Religion"><InputText class="nf-input" @bind-Value="form.Religion" /></Field>
+                        <Field Label="Notes"><InputTextArea class="nf-textarea" @bind-Value="form.Note" /></Field>
                         @if (!mine)
                         {
                             <label class="nf-check">
@@ -407,24 +407,16 @@ else
             </div>
             @if (drawer == DrawerKind.AddPhoto)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Add photo</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Add photo" OnClose="CloseDrawer">
                     <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                     <FileUpload Url="/api/photos" Accept="image/*" Label="Upload photo" Fields="@PhotoFields" Uploaded="OnUploaded" />
-                </aside>
+                </Drawer>
             }
             else if (drawer == DrawerKind.EditPhoto && editingPhoto is not null)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Edit photo</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
-                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
-                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Edit photo" OnClose="CloseDrawer">
+                    <Field Label="Title"><input class="nf-input" @bind="editTitle" /></Field>
+                    <Field Label="Description"><textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></Field>
                     <div class="kinnect-row">
                         <input class="nf-input" @bind="editYear" placeholder="Year" />
                         <select class="nf-select" @bind="editMonth">
@@ -442,7 +434,7 @@ else
                             }
                         </select>
                     </div>
-                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                    <Field Label="Tags"><input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></Field>
                     @if (editingPhoto.LatLongAcquiredFromExif)
                     {
                         <p class="kinnect-muted">Location comes from the photo and stays as @editingPhoto.Latitude, @editingPhoto.Longitude.</p>
@@ -465,7 +457,7 @@ else
                         }
                     </div>
                     <button type="button" class="nf-button nf-button-primary" @onclick="SavePhotoAsync">Save</button>
-                </aside>
+                </Drawer>
             }
         </div>
     }
@@ -522,25 +514,17 @@ else
             </div>
             @if (drawer == DrawerKind.AddVideo)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Add video</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Add video" OnClose="CloseDrawer">
                     <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                     <FileUpload Url="/api/videos" Accept="video/*" Label="Upload video" Fields="@VideoFields" Uploaded="OnUploaded" />
-                </aside>
+                </Drawer>
             }
             else if (drawer == DrawerKind.EditVideo && editingVideo is not null)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Edit video</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
-                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
-                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
-                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Edit video" OnClose="CloseDrawer">
+                    <Field Label="Title"><input class="nf-input" @bind="editTitle" /></Field>
+                    <Field Label="Description"><textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></Field>
+                    <Field Label="Tags"><input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></Field>
                     <p class="kinnect-lightbox-heading">Linked events</p>
                     <div class="kinnect-checks">
                         @foreach (var item in events)
@@ -552,7 +536,7 @@ else
                         }
                     </div>
                     <button type="button" class="nf-button nf-button-primary" @onclick="SaveVideoAsync">Save</button>
-                </aside>
+                </Drawer>
             }
         </div>
     }
@@ -598,29 +582,21 @@ else
             </ul>
             @if (drawer == DrawerKind.AddDocument)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Add document</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Add document" OnClose="CloseDrawer">
                     <input class="nf-input" @bind="mediaTitle" placeholder="Title" />
                     <textarea class="nf-textarea" rows="2" @bind="mediaDescription" placeholder="Description"></textarea>
                     <input class="nf-input" @bind="mediaTags" placeholder="Tags, comma-separated" />
                     <FileUpload Url="/api/documents" Label="Upload document" Fields="@DocumentFields" Uploaded="OnUploaded" />
-                </aside>
+                </Drawer>
             }
             else if (drawer == DrawerKind.EditDocument && editingDocument is not null)
             {
-                <aside class="kinnect-add-drawer kinnect-stack">
-                    <div class="kinnect-split">
-                        <h2>Edit document</h2>
-                        <button type="button" class="nf-icon-button" title="Close" @onclick="CloseDrawer"><Icon Name="x" /></button>
-                    </div>
-                    <label class="nf-field">Title <input class="nf-input" @bind="editTitle" /></label>
-                    <label class="nf-field">Description <textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></label>
-                    <label class="nf-field">Tags <input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></label>
+                <Drawer Inline BodyClass="kinnect-stack" Title="Edit document" OnClose="CloseDrawer">
+                    <Field Label="Title"><input class="nf-input" @bind="editTitle" /></Field>
+                    <Field Label="Description"><textarea class="nf-textarea" rows="2" @bind="editDescription"></textarea></Field>
+                    <Field Label="Tags"><input class="nf-input" @bind="editTags" placeholder="Comma-separated" /></Field>
                     <button type="button" class="nf-button nf-button-primary" @onclick="SaveDocumentAsync">Save</button>
-                </aside>
+                </Drawer>
             }
         </div>
     }

@@ -57,12 +57,15 @@ internal static class ServiceCollectionExtensions
                 case DatabaseProviders.Sqlite:
                     services.AddEasyChatzSqlite(configuration["EasyChatz:Sqlite"] ?? "Data Source=kinnect-chat.db");
                     break;
+
                 case DatabaseProviders.SqlServer:
                     services.AddEasyChatzSqlServer(Required(connectionString, provider));
                     break;
+
                 case DatabaseProviders.Npgsql:
                     services.AddEasyChatzNpgsql(Required(connectionString, provider));
                     break;
+
                 case DatabaseProviders.MySql:
                     services.AddEasyChatzMySql(Required(connectionString, provider));
                     break;
@@ -89,12 +92,15 @@ internal static class ServiceCollectionExtensions
                 case DatabaseProviders.Sqlite:
                     services.AddKinnectSqliteHangfire(configuration["Hangfire:SqlitePath"]);
                     break;
+
                 case DatabaseProviders.SqlServer:
                     services.AddKinnectSqlServerHangfire(Required(connectionString, provider));
                     break;
+
                 case DatabaseProviders.Npgsql:
                     services.AddKinnectNpgsqlHangfire(Required(connectionString, provider));
                     break;
+
                 case DatabaseProviders.MySql:
                     services.AddKinnectMySqlHangfire(Required(connectionString, provider));
                     break;
@@ -179,7 +185,6 @@ internal static class ServiceCollectionExtensions
                 client.Timeout = TimeSpan.FromSeconds(8);
             });
         }
-
 
         public void KinnectAddUserInfoService(IConfiguration configuration)
         {

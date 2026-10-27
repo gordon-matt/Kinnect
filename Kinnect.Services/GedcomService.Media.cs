@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using GedcomSharp.Model;
-using GedcomTags = GedcomSharp.GedcomTags;
 using Kinnect.Models.FamilyTree;
+using GedcomTags = GedcomSharp.GedcomTags;
 
 namespace Kinnect.Services;
 
@@ -200,13 +200,13 @@ public partial class GedcomService
         }
 
         string extension = Path.GetExtension(entryName);
-        GedcomMediaKind kind = imageExtensions.Contains(extension)
+        var kind = imageExtensions.Contains(extension)
             ? GedcomMediaKind.Photo
             : videoExtensions.Contains(extension) ? GedcomMediaKind.Video : GedcomMediaKind.Document;
 
         try
         {
-            ImportedMedia media = kind switch
+            var media = kind switch
             {
                 GedcomMediaKind.Photo => await ImportPhotoAsync(request, context, entryName, uploaderId),
                 GedcomMediaKind.Video => await ImportVideoAsync(request, context, entryName, uploaderId),

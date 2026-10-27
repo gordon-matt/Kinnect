@@ -1,7 +1,6 @@
 using Extenso.Data.Entity;
 using Hangfire;
 using Hangfire.Storage.SQLite;
-using Kinnect.Data;
 using LogVue.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;

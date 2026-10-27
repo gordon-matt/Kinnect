@@ -2,7 +2,6 @@ using System.Transactions;
 using Extenso.Data.Entity;
 using Hangfire;
 using Hangfire.Storage.MySql;
-using Kinnect.Data;
 using LogVue.Data.MySql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

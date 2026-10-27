@@ -2,47 +2,46 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Kinnect.Data.Npgsql.Migrations
+namespace Kinnect.Data.Npgsql.Migrations;
+
+/// <inheritdoc />
+public partial class ModifyChatEntitiesSchema : Migration
 {
     /// <inheritdoc />
-    public partial class ModifyChatEntitiesSchema : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.RenameTable(
-                name: "ChatRooms",
-                schema: "chat",
-                newName: "ChatRooms",
-                newSchema: "app");
+        migrationBuilder.RenameTable(
+            name: "ChatRooms",
+            schema: "chat",
+            newName: "ChatRooms",
+            newSchema: "app");
 
-            migrationBuilder.RenameTable(
-                name: "ChatMessages",
-                schema: "chat",
-                newName: "ChatMessages",
-                newSchema: "app");
+        migrationBuilder.RenameTable(
+            name: "ChatMessages",
+            schema: "chat",
+            newName: "ChatMessages",
+            newSchema: "app");
 
-            migrationBuilder.DropSchema(
-                name: "chat");
-        }
+        migrationBuilder.DropSchema(
+            name: "chat");
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.EnsureSchema(
-                name: "chat");
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.EnsureSchema(
+            name: "chat");
 
-            migrationBuilder.RenameTable(
-                name: "ChatRooms",
-                schema: "app",
-                newName: "ChatRooms",
-                newSchema: "chat");
+        migrationBuilder.RenameTable(
+            name: "ChatRooms",
+            schema: "app",
+            newName: "ChatRooms",
+            newSchema: "chat");
 
-            migrationBuilder.RenameTable(
-                name: "ChatMessages",
-                schema: "app",
-                newName: "ChatMessages",
-                newSchema: "chat");
-        }
+        migrationBuilder.RenameTable(
+            name: "ChatMessages",
+            schema: "app",
+            newName: "ChatMessages",
+            newSchema: "chat");
     }
 }

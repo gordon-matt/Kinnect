@@ -172,7 +172,7 @@ public class FileStorageService(IConfiguration configuration, ISettingsService s
         }
 
         char[] invalid = Path.GetInvalidFileNameChars();
-        var chars = value.ToCharArray();
+        char[] chars = value.ToCharArray();
         for (int i = 0; i < chars.Length; i++)
         {
             if (Array.IndexOf(invalid, chars[i]) >= 0 || chars[i] == '/' || chars[i] == '\\')

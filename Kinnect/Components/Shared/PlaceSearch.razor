@@ -2,9 +2,8 @@
 @inject IHttpClientFactory Http
 
 <div class="kinnect-stack">
-    <label class="nf-field">@Label
-        <input class="nf-input" placeholder="Search a place" @bind="query" @bind:event="oninput" @onkeyup="SearchAsync" />
-    </label>
+    <Field Label="@Label"><input class="nf-input" placeholder="Search a place" @bind="query" @bind:event="oninput" @onkeyup="SearchAsync" />
+    </Field>
     @if (hits.Count > 0)
     {
         <div class="kinnect-list">

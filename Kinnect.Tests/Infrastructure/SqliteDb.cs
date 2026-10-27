@@ -10,7 +10,7 @@ namespace Kinnect.Tests.Infrastructure;
 /// </summary>
 public static class SqliteDb
 {
-    private static readonly ConditionalWeakTable<DbContextOptions, SqliteConnection> KeepAlive = new();
+    private static readonly ConditionalWeakTable<DbContextOptions, SqliteConnection> KeepAlive = [];
 
     public static (DbContextOptions<ApplicationDbContext> Options, TestDbContextFactory Factory) Create()
     {

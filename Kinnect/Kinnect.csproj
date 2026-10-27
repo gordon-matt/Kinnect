@@ -33,30 +33,29 @@
 		<PackageReference Include="EasyChatz.Data.Sql" Version="1.1.0" />
 		<PackageReference Include="EasyChatz.Data.Sqlite" Version="1.1.0" />
 		<PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
-		<PackageReference Include="Heroicsoft.NetForge.Abstractions" Version="1.0.3" />
-		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.0.3.1" />
-		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.0.3" />
-		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.0.3" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
-		<PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.13" />
-		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
-		<PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.13" />
+		<PackageReference Include="Heroicsoft.NetForge.Abstractions" Version="1.1.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.1.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.1.1" />
+		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.1.0" />
+		<PackageReference Include="LogVue" Version="1.1.1" />
+		<PackageReference Include="LogVue.Providers.Serilog" Version="1.1.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
+		<PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.14" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.14" />
 		<PackageReference Include="LeafletForBlazor" Version="4.0.8.88" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
-		<PackageReference Include="LogVue" Version="1.0.1" />
 		<PackageReference Include="MyWebTree.Components" Version="1.0.1" />
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
 	</ItemGroup>
-
-	<!-- TEMPORARY: local source references while EasyChatz (mentions, presence) and MyWebTree (generation settings) are tested. Switch back to the NuGet packages after the new versions are released. -->
 
 	<ItemGroup>
 		<ProjectReference Include="..\Kinnect.Data\Kinnect.Data.csproj" />
@@ -67,5 +66,4 @@
 		<ProjectReference Include="..\Kinnect.Models\Kinnect.Models.csproj" />
 		<ProjectReference Include="..\Kinnect.Services\Kinnect.Services.csproj" />
 	</ItemGroup>
-
 </Project>

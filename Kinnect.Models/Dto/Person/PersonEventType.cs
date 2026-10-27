@@ -101,15 +101,9 @@ public static class PersonEventType
         [Custom] = "Custom Event",
     };
 
-    public static string GetLabel(string type)
-    {
-        if (string.IsNullOrWhiteSpace(type))
-        {
-            return "Custom Event";
-        }
-
-        return Labels.TryGetValue(type, out string? label) ? label : $"Custom Event ({type})";
-    }
+    public static string GetLabel(string type) => string.IsNullOrWhiteSpace(type)
+            ? "Custom Event"
+            : Labels.TryGetValue(type, out string? label) ? label : $"Custom Event ({type})";
 
     /// <summary>
     /// A custom event stored before the original tag was kept on <see cref="Custom"/> may have that tag in the

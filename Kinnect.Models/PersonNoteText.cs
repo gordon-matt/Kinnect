@@ -19,11 +19,6 @@ public static class PersonNoteText
             _ => null,
         };
 
-        if (merged is null || merged.Length <= MaxLength)
-        {
-            return merged;
-        }
-
-        return merged[..MaxLength];
+        return merged is null || merged.Length <= MaxLength ? merged : merged[..MaxLength];
     }
 }

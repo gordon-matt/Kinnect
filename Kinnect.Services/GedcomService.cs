@@ -1,8 +1,8 @@
 using GedcomSharp.Model;
-using GedcomTags = GedcomSharp.GedcomTags;
 using Kinnect.Models.FamilyTree;
 using GedcomDate = GedcomSharp.Values.GedcomDate;
 using GedcomSex = GedcomSharp.Values.GedcomSex;
+using GedcomTags = GedcomSharp.GedcomTags;
 
 namespace Kinnect.Services;
 
@@ -108,7 +108,6 @@ public partial class GedcomService(
             staged.Add(new StagedMedia(personId, source, zipPath, title, form, date, text));
         }
     }
-
 
     private static (string? Date, string? Text) ExportCaption(string? description, short? year, byte? month, byte? day)
     {
@@ -279,20 +278,11 @@ public partial class GedcomService(
         individual.Events.FirstOrDefault(fact => fact.Tag == tag);
 
     /// <summary>A fact's text is the TYPE (classification) when there is one, and otherwise the value on the tag itself.</summary>
-    private static string? FactValue(GedcomEvent? fact)
-    {
-        if (fact is null)
-        {
-            return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(fact.Type))
-        {
-            return fact.Type;
-        }
-
-        return string.IsNullOrWhiteSpace(fact.Value) || fact.Value == "Y" ? null : fact.Value;
-    }
+    private static string? FactValue(GedcomEvent? fact) => fact is null
+            ? null
+            : !string.IsNullOrWhiteSpace(fact.Type)
+            ? fact.Type
+            : string.IsNullOrWhiteSpace(fact.Value) || fact.Value == "Y" ? null : fact.Value;
 
     private static string FormatDate(short? year, byte? month, byte? day)
     {
@@ -319,12 +309,9 @@ public partial class GedcomService(
 
         // A parsed date keeps a partial precision (year only, or year and month). Anything that did not parse
         // is read from the original text, which still holds forms such as "ABT 1850".
-        if (date.Start is { Year: > 0 } start)
-        {
-            return ((short)start.Year, (byte?)start.Month, (byte?)start.Day);
-        }
-
-        return ParseDateString(date.OriginalText ?? date.ToString());
+        return date.Start is { Year: > 0 } start
+            ? ((short? Year, byte? Month, byte? Day))((short)start.Year, (byte?)start.Month, (byte?)start.Day)
+            : ParseDateString(date.OriginalText ?? date.ToString());
     }
 
     private static (short? Year, byte? Month, byte? Day) ParseDateString(string? dateString)
@@ -402,7 +389,6 @@ public partial class GedcomService(
 
         return null;
     }
-
 
     private async Task ImportFamilyAsync(
         FamilyRecord family,
@@ -592,12 +578,7 @@ public partial class GedcomService(
     private static string? NamePart(string? value)
     {
         string trimmed = value?.Trim() ?? string.Empty;
-        if (trimmed.Length == 0)
-        {
-            return null;
-        }
-
-        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
+        return trimmed.Length == 0 ? null : trimmed.Length <= 100 ? trimmed : trimmed[..100];
     }
 
     /// <summary>
@@ -612,12 +593,7 @@ public partial class GedcomService(
 
         string spaced = System.Text.RegularExpressions.Regex.Replace(given.Trim(), @"\s*,\s*", " ");
         spaced = System.Text.RegularExpressions.Regex.Replace(spaced, @"\s+", " ").Trim();
-        if (spaced.Length == 0)
-        {
-            return "Unknown";
-        }
-
-        return spaced.Length <= 200 ? spaced : spaced[..200];
+        return spaced.Length == 0 ? "Unknown" : spaced.Length <= 200 ? spaced : spaced[..200];
     }
 
     /// <summary>The person's own notes, joined. Event notes stay on the events.</summary>
@@ -643,17 +619,7 @@ public partial class GedcomService(
         }
 
         var (year, month, day) = ParseDate(source.Date);
-        if (year.HasValue || month.HasValue || day.HasValue || !string.IsNullOrWhiteSpace(source.PlaceName))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(source.Type) || (!string.IsNullOrWhiteSpace(source.Value) && source.Value != "Y"))
-        {
-            return false;
-        }
-
-        return FirstNote(source.Notes) is null;
+        return !year.HasValue && !month.HasValue && !day.HasValue && string.IsNullOrWhiteSpace(source.PlaceName) && string.IsNullOrWhiteSpace(source.Type) && (string.IsNullOrWhiteSpace(source.Value) || source.Value == "Y") && FirstNote(source.Notes) is null;
     }
 
     private async Task ImportContactsAsync(IndividualRecord individual, int personId, bool replaceExisting)
@@ -814,13 +780,10 @@ public partial class GedcomService(
         var (year, month, day) = ParseDate(source.Date);
         var (latitude, longitude) = GedcomCoordinates.Read(source.Place);
         string? description = descriptionOverride;
-        if (description is null)
-        {
-            // OCCU Clerk stores the value on the tag. EVEN / TYPE Enlisted stores it on TYPE.
-            description = !string.IsNullOrWhiteSpace(source.Type)
-                ? source.Type
-                : string.IsNullOrWhiteSpace(source.Value) || source.Value == "Y" ? null : source.Value;
-        }
+        // OCCU Clerk stores the value on the tag. EVEN / TYPE Enlisted stores it on TYPE.
+        description ??= !string.IsNullOrWhiteSpace(source.Type)
+            ? source.Type
+            : string.IsNullOrWhiteSpace(source.Value) || source.Value == "Y" ? null : source.Value;
 
         var saved = await eventRepository.InsertAsync(new PersonEvent
         {
@@ -840,5 +803,4 @@ public partial class GedcomService(
         summary.EventsImported++;
         return saved;
     }
-
 }

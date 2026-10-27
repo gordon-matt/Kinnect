@@ -1,8 +1,8 @@
 using GedcomSharp.Gedzip;
 using GedcomSharp.Model;
 using Kinnect.Models.FamilyTree;
-using GedcomStructure = GedcomSharp.GedcomStructure;
 using GedcomSex = GedcomSharp.Values.GedcomSex;
+using GedcomStructure = GedcomSharp.GedcomStructure;
 using GedcomVersion = GedcomSharp.GedcomVersion;
 
 namespace Kinnect.Services;
@@ -56,12 +56,9 @@ public partial class GedcomService
     {
         var dataset = await BuildDatasetAsync(options, progress, staged, cancellationToken);
         var written = Writer(options, dataset).WriteToString(dataset);
-        if (!written.IsSuccess)
-        {
-            throw new InvalidOperationException(string.Join(" ", written.ValidationErrors.Select(error => error.ErrorMessage).Concat(written.Errors)));
-        }
-
-        return written.Value;
+        return !written.IsSuccess
+            ? throw new InvalidOperationException(string.Join(" ", written.ValidationErrors.Select(error => error.ErrorMessage).Concat(written.Errors)))
+            : written.Value;
     }
 
     private async Task<GedcomSharp.GedcomFile> BuildDatasetAsync(
@@ -153,9 +150,9 @@ public partial class GedcomService
     {
         var name = individual.PrimaryName ?? individual.AddName(person.GivenNames, person.FamilyName);
         string wanted = PersonalName.FormatValue(person.GivenNames, person.FamilyName);
-        var split = PersonalName.Split(name.FullValue);
-        bool givenSame = (name.Structure.ChildValue("GIVN") is { } given ? GivenNamesFrom(given) : split.Given) == person.GivenNames;
-        bool surnameSame = string.Equals((name.Structure.ChildValue("SURN") ?? split.Surname)?.Trim(), person.FamilyName, StringComparison.Ordinal);
+        var (Given, Surname, Suffix) = PersonalName.Split(name.FullValue);
+        bool givenSame = (name.Structure.ChildValue("GIVN") is { } given ? GivenNamesFrom(given) : Given) == person.GivenNames;
+        bool surnameSame = string.Equals((name.Structure.ChildValue("SURN") ?? Surname)?.Trim(), person.FamilyName, StringComparison.Ordinal);
         if (!givenSame || !surnameSame)
         {
             name.FullValue = wanted;
@@ -332,10 +329,7 @@ public partial class GedcomService
             string? wifeXref = wife is null ? null : XrefKey(FormatXref(wife.GedcomId, wife.Id));
             var family = dataset.Families.FirstOrDefault(candidate =>
                 SameXref(candidate.HusbandXref, husbandXref) && SameXref(candidate.WifeXref, wifeXref));
-            if (family is null)
-            {
-                family = dataset.AddFamily(dataset.Find<IndividualRecord>(husbandXref), dataset.Find<IndividualRecord>(wifeXref));
-            }
+            family ??= dataset.AddFamily(dataset.Find<IndividualRecord>(husbandXref), dataset.Find<IndividualRecord>(wifeXref));
 
             kept.Add(family.Structure);
             SetFamilyDate(family, "MARR", spouse.MarriageYear, spouse.MarriageMonth, spouse.MarriageDay);
@@ -589,25 +583,7 @@ public partial class GedcomService
         return tag;
     }
 
-    private static bool SameDate((short? Year, byte? Month, byte? Day) parsed, short? year, byte? month, byte? day)
-    {
-        if (parsed.Year != year)
-        {
-            return false;
-        }
-
-        if (parsed.Month is null && month is 1 && day is 1)
-        {
-            return true;
-        }
-
-        if (parsed.Month == month && parsed.Day is null && day is 1)
-        {
-            return true;
-        }
-
-        return parsed.Month == month && parsed.Day == day;
-    }
+    private static bool SameDate((short? Year, byte? Month, byte? Day) parsed, short? year, byte? month, byte? day) => parsed.Year == year && ((parsed.Month is null && month is 1 && day is 1) || (parsed.Month == month && parsed.Day is null && day is 1) || (parsed.Month == month && parsed.Day == day));
 
     private static string SingleLine(string value) =>
         value.Replace("\r\n", " ").Replace('\n', ' ').Replace('\r', ' ').Trim();

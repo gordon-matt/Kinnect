@@ -16,9 +16,9 @@
 			ship an EF Core 10 build, so we use MySql.EntityFrameworkCore (10.0.x targets EF
 			Core 10 / .NET 10) instead.
 		-->
-		<PackageReference Include="LogVue.Data.MySql" Version="1.0.1" />
+		<PackageReference Include="LogVue.Data.MySql" Version="1.1.1" />
 		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>

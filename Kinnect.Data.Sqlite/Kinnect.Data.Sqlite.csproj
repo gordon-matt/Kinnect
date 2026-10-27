@@ -11,9 +11,9 @@
 		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
 		<PackageReference Include="Hangfire.NetCore" Version="1.8.25" />
 		<PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.3" />
-		<PackageReference Include="LogVue.Data.Sqlite" Version="1.0.1" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+		<PackageReference Include="LogVue.Data.Sqlite" Version="1.1.1" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>

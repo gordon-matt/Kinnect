@@ -1,5 +1,4 @@
 using Extenso.Data.Entity;
-using Kinnect.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 

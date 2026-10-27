@@ -30,7 +30,7 @@ public class VideoProcessingService(
             outputPath,
             outputSize);
 
-        IConversion conversion = await FFmpeg.Conversions.FromSnippet.ChangeSize(inputPath, outputPath, outputSize);
+        var conversion = await FFmpeg.Conversions.FromSnippet.ChangeSize(inputPath, outputPath, outputSize);
         conversion.SetOverwriteOutput(true);
         conversion.AddParameter("-noautorotate", ParameterPosition.PreInput);
         conversion.AddParameter("-c:v libx264");

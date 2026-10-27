@@ -4,7 +4,6 @@ using EasyChatz.Services;
 using Kinnect.Data;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Kinnect.Infrastructure;
 

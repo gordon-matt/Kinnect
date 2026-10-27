@@ -55,7 +55,7 @@ public class FeedServiceTests
         var result = await sut.GetFeedAsync(page: 1, pageSize: 10);
 
         Assert.True(result.IsSuccess);
-        var types = result.Value.Select(f => f.Type).ToArray();
+        string[] types = result.Value.Select(f => f.Type).ToArray();
         Assert.Equal(["photo", "post", "video"], types);
     }
 }

@@ -1,13 +1,9 @@
 using Autofac;
-using EasyChatz;
 using Autofac.Extensions.DependencyInjection;
-using ChatMessage = EasyChatz.Data.Entities.ChatMessage;
-using ChatRoom = EasyChatz.Data.Entities.ChatRoom;
-using MessageNotification = EasyChatz.Data.Entities.MessageNotification;
+using EasyChatz;
 using Hangfire;
 using Heroicsoft.NetForge.Abstractions.Navigation;
 using Heroicsoft.NetForge.Components;
-using Heroicsoft.NetForge.Components.Shell;
 using Heroicsoft.NetForge.Hangfire;
 using Kinnect.Components;
 using Kinnect.Data;
@@ -18,18 +14,15 @@ using LogVue;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
+using ChatMessage = EasyChatz.Data.Entities.ChatMessage;
+using ChatRoom = EasyChatz.Data.Entities.ChatRoom;
 using Constants = Kinnect.Constants;
+using MessageNotification = EasyChatz.Data.Entities.MessageNotification;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.Limits.MaxRequestBodySize = Constants.MaxUploadBytes;
-});
-builder.Services.Configure<FormOptions>(options =>
-{
-    options.MultipartBodyLengthLimit = Constants.MaxUploadBytes;
-});
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = Constants.MaxUploadBytes);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = Constants.MaxUploadBytes);
 
 builder.Services.AddLogVue(options =>
     builder.Configuration.GetSection(LogVueOptions.SectionName).Bind(options));
@@ -66,10 +59,7 @@ builder.Services.AddNetForgeComponents(ui =>
     ui.AccentColorDark = "#2dd4bf";
 });
 
-builder.Services.ConfigureNetForgeToastSounds(sounds =>
-{
-    sounds.EnableSounds = true;
-});
+builder.Services.ConfigureNetForgeToastSounds(sounds => sounds.EnableSounds = true);
 
 builder.Services.Configure<ForgeShellOptions>(shell =>
 {

@@ -3,52 +3,48 @@ using MySql.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
-namespace Kinnect.Data.MySql.Migrations
+namespace Kinnect.Data.MySql.Migrations;
+
+/// <inheritdoc />
+public partial class AddPersonLinks : Migration
 {
     /// <inheritdoc />
-    public partial class AddPersonLinks : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.CreateTable(
-                name: "PersonLinks",
-                schema: "app",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    PersonId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
-                    Url = table.Column<string>(type: "varchar(2000)", unicode: false, maxLength: 2000, nullable: false),
-                    SortOrder = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PersonLinks", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_PersonLinks_People_PersonId",
-                        column: x => x.PersonId,
-                        principalSchema: "app",
-                        principalTable: "People",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
+        migrationBuilder.CreateTable(
+            name: "PersonLinks",
+            schema: "app",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "int", nullable: false)
+                    .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                PersonId = table.Column<int>(type: "int", nullable: false),
+                Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
+                Url = table.Column<string>(type: "varchar(2000)", unicode: false, maxLength: 2000, nullable: false),
+                SortOrder = table.Column<int>(type: "int", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_PersonLinks", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_PersonLinks_People_PersonId",
+                    column: x => x.PersonId,
+                    principalSchema: "app",
+                    principalTable: "People",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("MySQL:Charset", "utf8mb4");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_PersonLinks_PersonId_SortOrder",
-                schema: "app",
-                table: "PersonLinks",
-                columns: new[] { "PersonId", "SortOrder" });
-        }
-
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropTable(
-                name: "PersonLinks",
-                schema: "app");
-        }
+        migrationBuilder.CreateIndex(
+            name: "IX_PersonLinks_PersonId_SortOrder",
+            schema: "app",
+            table: "PersonLinks",
+            columns: new[] { "PersonId", "SortOrder" });
     }
+
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.DropTable(
+            name: "PersonLinks",
+            schema: "app");
 }

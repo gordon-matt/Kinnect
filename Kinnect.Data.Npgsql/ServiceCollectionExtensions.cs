@@ -1,6 +1,5 @@
 using Hangfire;
 using Hangfire.PostgreSql;
-using Kinnect.Data;
 using LogVue.Data.Npgsql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

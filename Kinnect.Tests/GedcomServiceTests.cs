@@ -11,7 +11,10 @@ public class GedcomServiceTests : IDisposable
 {
     private readonly string basePath = Path.Combine(Path.GetTempPath(), "kinnect-gedcom-tests-" + Guid.NewGuid());
 
-    public GedcomServiceTests() => Directory.CreateDirectory(basePath);
+    public GedcomServiceTests()
+    {
+        Directory.CreateDirectory(basePath);
+    }
 
     public void Dispose()
     {

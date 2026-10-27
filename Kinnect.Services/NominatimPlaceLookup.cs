@@ -19,7 +19,7 @@ public sealed class NominatimPlaceLookup(IHttpClientFactory httpClientFactory)
         await Gate.WaitAsync(cancellationToken);
         try
         {
-            TimeSpan wait = nextRequestUtc - DateTime.UtcNow;
+            var wait = nextRequestUtc - DateTime.UtcNow;
             if (wait > TimeSpan.Zero)
             {
                 await Task.Delay(wait, cancellationToken);

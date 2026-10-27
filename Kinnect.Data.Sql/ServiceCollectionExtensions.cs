@@ -1,7 +1,6 @@
 using Extenso.Data.Entity;
 using Hangfire;
 using Hangfire.SqlServer;
-using Kinnect.Data;
 using LogVue.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

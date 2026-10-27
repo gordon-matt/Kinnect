@@ -37,15 +37,15 @@ else
             <DataAnnotationsValidator />
             <label class="nf-check"><InputCheckbox @bind-Value="images.AutoShrinkImages" /> Shrink photos when they are uploaded</label>
             <div class="kinnect-pair">
-                <label class="nf-field">Max width (px) <InputNumber class="nf-input" @bind-Value="images.MaxWidth" /></label>
-                <label class="nf-field">Max height (px) <InputNumber class="nf-input" @bind-Value="images.MaxHeight" /></label>
+                <Field Label="Max width (px)"><InputNumber class="nf-input" @bind-Value="images.MaxWidth" /></Field>
+                <Field Label="Max height (px)"><InputNumber class="nf-input" @bind-Value="images.MaxHeight" /></Field>
             </div>
-            <label class="nf-field">JPEG quality (1 to 100) <InputNumber class="nf-input" @bind-Value="images.Quality" /></label>
+            <Field Label="JPEG quality (1 to 100)"><InputNumber class="nf-input" @bind-Value="images.Quality" /></Field>
             <div class="kinnect-pair">
-                <label class="nf-field">Thumbnail width (px) <InputNumber class="nf-input" @bind-Value="images.ThumbnailWidth" /></label>
-                <label class="nf-field">Thumbnail height (px) <InputNumber class="nf-input" @bind-Value="images.ThumbnailHeight" /></label>
+                <Field Label="Thumbnail width (px)"><InputNumber class="nf-input" @bind-Value="images.ThumbnailWidth" /></Field>
+                <Field Label="Thumbnail height (px)"><InputNumber class="nf-input" @bind-Value="images.ThumbnailHeight" /></Field>
             </div>
-            <label class="nf-field">Thumbnail quality (1 to 100) <InputNumber class="nf-input" @bind-Value="images.ThumbnailQuality" /></label>
+            <Field Label="Thumbnail quality (1 to 100)"><InputNumber class="nf-input" @bind-Value="images.ThumbnailQuality" /></Field>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save image settings</button></div>
         </EditForm>
@@ -54,15 +54,11 @@ else
         {
         <EditForm Model="documents" OnValidSubmit="SaveDocumentsAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <label class="nf-field">
-                Allowed file extensions
-                <InputText class="nf-input" @bind-Value="documents.AllowedExtensions" />
+            <Field Label="Allowed file extensions"><InputText class="nf-input" @bind-Value="documents.AllowedExtensions" />
                 <small class="kinnect-muted">Comma separated, with the leading dot, for example .pdf,.jpg,.png</small>
-            </label>
-            <label class="nf-field">
-                Largest upload (MB)
-                <InputNumber class="nf-input" @bind-Value="documentMaxMegabytes" />
-            </label>
+            </Field>
+            <Field Label="Largest upload (MB)"><InputNumber class="nf-input" @bind-Value="documentMaxMegabytes" />
+            </Field>
             <label class="nf-check"><InputCheckbox @bind-Value="documents.AutoShrinkDocuments" /> Shrink uploaded images (PDF files are left alone)</label>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save document settings</button></div>
@@ -72,31 +68,23 @@ else
         {
         <EditForm Model="videos" OnValidSubmit="SaveVideosAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <label class="nf-field">
-                FFmpeg tools folder
-                <InputText class="nf-input" @bind-Value="videos.ToolsPath" />
+            <Field Label="FFmpeg tools folder"><InputText class="nf-input" @bind-Value="videos.ToolsPath" />
                 <small class="kinnect-muted">Folder holding ffmpeg and ffprobe. Leave empty to look in the usual places, then download a copy.</small>
-            </label>
+            </Field>
             <label class="nf-check"><InputCheckbox @bind-Value="videos.AutoShrinkVideos" /> Compress videos after they are uploaded</label>
-            <label class="nf-field">
-                Output size
-                <InputSelect class="nf-select" @bind-Value="videos.OutputVideoSize">
+            <Field Label="Output size"><InputSelect class="nf-select" @bind-Value="videos.OutputVideoSize">
                     @foreach (var size in VideoSizes)
                     {
                         <option value="@size">@size</option>
                     }
                 </InputSelect>
-            </label>
+            </Field>
             <div class="kinnect-pair">
-                <label class="nf-field">
-                    Quality (CRF, 0 to 51)
-                    <InputNumber class="nf-input" @bind-Value="videos.Crf" />
+                <Field Label="Quality (CRF, 0 to 51)"><InputNumber class="nf-input" @bind-Value="videos.Crf" />
                     <small class="kinnect-muted">Lower is better quality and a bigger file. 18 to 28 is sensible.</small>
-                </label>
-                <label class="nf-field">
-                    Audio bitrate (kbps)
-                    <InputNumber class="nf-input" @bind-Value="audioKilobits" />
-                </label>
+                </Field>
+                <Field Label="Audio bitrate (kbps)"><InputNumber class="nf-input" @bind-Value="audioKilobits" />
+                </Field>
             </div>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save video settings</button></div>
@@ -107,25 +95,23 @@ else
         <EditForm Model="email" OnValidSubmit="SaveEmailAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
             <div class="kinnect-pair">
-                <label class="nf-field">SMTP host <InputText class="nf-input" @bind-Value="email.Host" /></label>
-                <label class="nf-field">Port <InputNumber class="nf-input" @bind-Value="email.Port" /></label>
+                <Field Label="SMTP host"><InputText class="nf-input" @bind-Value="email.Host" /></Field>
+                <Field Label="Port"><InputNumber class="nf-input" @bind-Value="email.Port" /></Field>
             </div>
             <label class="nf-check"><InputCheckbox @bind-Value="email.EnableSsl" /> Use SSL / TLS</label>
             <div class="kinnect-pair">
-                <label class="nf-field">Username <InputText class="nf-input" @bind-Value="email.Username" autocomplete="off" /></label>
-                <label class="nf-field">
-                    Password
-                    <InputText class="nf-input" type="password" @bind-Value="newPassword" autocomplete="new-password"
+                <Field Label="Username"><InputText class="nf-input" @bind-Value="email.Username" autocomplete="off" /></Field>
+                <Field Label="Password"><InputText class="nf-input" type="password" @bind-Value="newPassword" autocomplete="new-password"
                                placeholder="@(hasPassword ? "Saved. Type to replace it." : "")" />
-                </label>
+                </Field>
             </div>
             @if (hasPassword)
             {
                 <label class="nf-check"><InputCheckbox @bind-Value="removePassword" /> Remove the saved password</label>
             }
             <div class="kinnect-pair">
-                <label class="nf-field">From address <InputText class="nf-input" @bind-Value="email.FromAddress" /></label>
-                <label class="nf-field">From name <InputText class="nf-input" @bind-Value="email.FromName" /></label>
+                <Field Label="From address"><InputText class="nf-input" @bind-Value="email.FromAddress" /></Field>
+                <Field Label="From name"><InputText class="nf-input" @bind-Value="email.FromName" /></Field>
             </div>
             <small class="kinnect-muted">
                 The password is kept in the database as typed and is never shown again here.
@@ -142,11 +128,12 @@ else
         {
         <EditForm Model="tree" OnValidSubmit="SaveTreeAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <label class="nf-field">
-                Most generations to show (1 to @TreeSettings.LargestMaxGenerations)
-                <InputNumber class="nf-input" @bind-Value="tree.MaxGenerations" />
+            <Field>
+<LabelContent>Most generations to show (1 to @TreeSettings.LargestMaxGenerations)</LabelContent>
+<ChildContent><InputNumber class="nf-input" @bind-Value="tree.MaxGenerations" />
                 <small class="kinnect-muted">Applies to ancestors and to descendants. Each person still picks their own number up to this limit.</small>
-            </label>
+            </ChildContent>
+</Field>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save tree settings</button></div>
         </EditForm>
@@ -155,11 +142,9 @@ else
         {
         <EditForm Model="backups" OnValidSubmit="SaveBackupsAsync" class="kinnect-card kinnect-stack">
             <DataAnnotationsValidator />
-            <label class="nf-field">
-                Person backups to keep (0 to 100)
-                <InputNumber class="nf-input" @bind-Value="backups.KeepCount" />
+            <Field Label="Person backups to keep (0 to 100)"><InputNumber class="nf-input" @bind-Value="backups.KeepCount" />
                 <small class="kinnect-muted">The newest files are kept. Zero keeps every backup. The weekly backup, and Back up now, remove older files before writing a new one.</small>
-            </label>
+            </Field>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save backup settings</button></div>
         </EditForm>

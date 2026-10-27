@@ -117,22 +117,11 @@ public class PersonEventService(
             copied++;
         }
 
-        if (copied > 0)
-        {
-            return Result.Success(copied);
-        }
-
-        if (denied > 0)
-        {
-            return Result.Forbidden();
-        }
-
-        if (duplicates > 0)
-        {
-            return Result.Success(0);
-        }
-
-        return Result.Invalid(new ValidationError("Choose a spouse, parent, sibling, or child."));
+        return copied > 0
+            ? Result.Success(copied)
+            : denied > 0
+            ? (Result<int>)Result.Forbidden()
+            : duplicates > 0 ? Result.Success(0) : (Result<int>)Result.Invalid(new ValidationError("Choose a spouse, parent, sibling, or child."));
     }
 
     public async Task<Result<IReadOnlyList<CloseRelativeDto>>> GetCloseRelativesAsync(int personId)
@@ -191,27 +180,13 @@ public class PersonEventService(
                 return "Spouse";
             }
 
-            if (other.Id == fatherId)
-            {
-                return "Father";
-            }
-
-            if (other.Id == motherId)
-            {
-                return "Mother";
-            }
-
-            if (other.FatherId == personId || other.MotherId == personId)
-            {
-                return "Child";
-            }
-
-            if ((fatherId != null && other.FatherId == fatherId) || (motherId != null && other.MotherId == motherId))
-            {
-                return "Sibling";
-            }
-
-            return null;
+            return other.Id == fatherId
+                ? "Father"
+                : other.Id == motherId
+                ? "Mother"
+                : other.FatherId == personId || other.MotherId == personId
+                ? "Child"
+                : (fatherId != null && other.FatherId == fatherId) || (motherId != null && other.MotherId == motherId) ? "Sibling" : null;
         }
     }
 
@@ -317,21 +292,13 @@ public class PersonEventService(
         return Result.Success(evt.ToDto());
     }
 
-    private async Task<bool> HasSingleInstanceConflictAsync(int personId, string eventType, int? excludingEventId = null)
-    {
-        if (!PersonEventType.IsSingleInstanceTimelineEventType(eventType))
-        {
-            return false;
-        }
-
-        return await eventRepository.ExistsAsync(e =>
-            e.PersonId == personId &&
-            e.EventType == eventType &&
-            (
-                !excludingEventId.HasValue ||
-                e.Id != excludingEventId.Value
-            ));
-    }
+    private async Task<bool> HasSingleInstanceConflictAsync(int personId, string eventType, int? excludingEventId = null) => PersonEventType.IsSingleInstanceTimelineEventType(eventType) && await eventRepository.ExistsAsync(e =>
+                                                                                                                                      e.PersonId == personId &&
+                                                                                                                                      e.EventType == eventType &&
+                                                                                                                                      (
+                                                                                                                                          !excludingEventId.HasValue ||
+                                                                                                                                          e.Id != excludingEventId.Value
+                                                                                                                                      ));
 
     private async Task<bool> HasSameEventAsync(int personId, PersonEvent source)
     {

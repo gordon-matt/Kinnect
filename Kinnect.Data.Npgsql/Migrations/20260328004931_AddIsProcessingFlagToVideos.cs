@@ -2,30 +2,23 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Kinnect.Data.Npgsql.Migrations
+namespace Kinnect.Data.Npgsql.Migrations;
+
+/// <inheritdoc />
+public partial class AddIsProcessingFlagToVideos : Migration
 {
     /// <inheritdoc />
-    public partial class AddIsProcessingFlagToVideos : Migration
-    {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<bool>(
-                name: "IsProcessing",
-                schema: "app",
-                table: "Videos",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-        }
+    protected override void Up(MigrationBuilder migrationBuilder) => migrationBuilder.AddColumn<bool>(
+            name: "IsProcessing",
+            schema: "app",
+            table: "Videos",
+            type: "boolean",
+            nullable: false,
+            defaultValue: false);
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "IsProcessing",
-                schema: "app",
-                table: "Videos");
-        }
-    }
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.DropColumn(
+            name: "IsProcessing",
+            schema: "app",
+            table: "Videos");
 }

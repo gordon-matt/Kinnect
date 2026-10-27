@@ -1,4 +1,3 @@
-
 namespace Kinnect.Controllers.Api;
 
 [ApiController]

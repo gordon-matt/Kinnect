@@ -28,12 +28,7 @@ public sealed class SettingsService(
         await gate.WaitAsync(cancellationToken);
         try
         {
-            if (cache.TryGetValue(typeof(T), out cached))
-            {
-                return (T)cached.Copy();
-            }
-
-            return await LoadAsync<T>(cancellationToken);
+            return cache.TryGetValue(typeof(T), out cached) ? (T)cached.Copy() : await LoadAsync<T>(cancellationToken);
         }
         finally
         {

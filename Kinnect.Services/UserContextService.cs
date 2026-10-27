@@ -45,12 +45,7 @@ public class UserContextService(
     private ClaimsPrincipal? Principal()
     {
         var circuitUser = CircuitUser();
-        if (circuitUser?.Identity?.IsAuthenticated == true)
-        {
-            return circuitUser;
-        }
-
-        return httpContextAccessor.HttpContext?.User;
+        return circuitUser?.Identity?.IsAuthenticated == true ? circuitUser : (httpContextAccessor.HttpContext?.User);
     }
 
     private string? ResolveId()
@@ -64,12 +59,7 @@ public class UserContextService(
 
         var httpUser = httpContextAccessor.HttpContext?.User;
         string? httpId = AccountId(httpUser);
-        if (httpUser?.Identity?.IsAuthenticated == true && httpId is not null)
-        {
-            return httpId;
-        }
-
-        return null;
+        return httpUser?.Identity?.IsAuthenticated == true && httpId is not null ? httpId : null;
     }
 
     /// <summary>
@@ -106,12 +96,7 @@ public class UserContextService(
             // Already completed on an established circuit. Reading it here keeps the circuit's
             // state; hopping to another thread can observe a provider that was never given a user.
             var pending = authenticationState.GetAuthenticationStateAsync();
-            if (!pending.IsCompleted)
-            {
-                return null;
-            }
-
-            return pending.GetAwaiter().GetResult().User;
+            return !pending.IsCompleted ? null : pending.GetAwaiter().GetResult().User;
         }
         catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
         {

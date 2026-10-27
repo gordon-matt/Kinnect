@@ -219,7 +219,9 @@ public partial class ChatService(
             .ToList();
 
         if (partnerLatest.Count == 0)
+        {
             return Result.Success(Enumerable.Empty<ChatPrivateConversationTargetDto>());
+        }
 
         var partnerIds = partnerLatest.Select(x => x.PartnerId).ToList();
         var userInfo = await userInfoService.GetUserInfoAsync(partnerIds);
@@ -390,15 +392,7 @@ public partial class ChatService(
         });
     }
 
-    private static string SanitizeMessage(string content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            return string.Empty;
-        }
-
-        return StripHtmlRegex().Replace(content, string.Empty).Trim();
-    }
+    private static string SanitizeMessage(string content) => string.IsNullOrWhiteSpace(content) ? string.Empty : StripHtmlRegex().Replace(content, string.Empty).Trim();
 
     [GeneratedRegex(@"<.*?>")]
     private static partial Regex StripHtmlRegex();

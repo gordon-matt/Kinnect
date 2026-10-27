@@ -1,6 +1,5 @@
 using EasyChatz.Data;
 using Kinnect.Data;
-using Microsoft.EntityFrameworkCore;
 using ChatMessage = EasyChatz.Data.Entities.ChatMessage;
 using ChatRoom = EasyChatz.Data.Entities.ChatRoom;
 using MessageNotification = EasyChatz.Data.Entities.MessageNotification;

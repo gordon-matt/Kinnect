@@ -54,11 +54,7 @@ else
                     Changed="OnChanged"
                     OnOpenPerson="OnOpen"
                     OpenPersonText="View Profile" />
-        <aside class="kinnect-people-drawer @(showPeople ? "is-open" : null)" aria-hidden="@(!showPeople)">
-            <div class="kinnect-split">
-                <h2>People</h2>
-                <button type="button" class="nf-icon-button" title="Close" @onclick="() => showPeople = false"><Heroicsoft.NetForge.Components.Icon Name="x" /></button>
-            </div>
+        <Drawer Inline Side="DrawerSide.Start" Persistent Open="showPeople" Title="People" OnClose="() => showPeople = false">
             <div class="kinnect-list">
                 @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
@@ -71,7 +67,7 @@ else
                     </button>
                 }
             </div>
-        </aside>
+        </Drawer>
     </div>
 }
 </div>

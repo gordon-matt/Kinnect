@@ -1,4 +1,3 @@
-using Kinnect.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kinnect.Data.Npgsql;

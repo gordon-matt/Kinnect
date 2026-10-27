@@ -38,10 +38,10 @@ public class PersonService(
 
     public async Task<Result<PersonDto>> CreateAsync(PersonEditRequest request, string? userId = null)
     {
-        var links = NormalizeLinks(request.Links);
-        if (links.Errors.Count > 0)
+        var (Errors, Links) = NormalizeLinks(request.Links);
+        if (Errors.Count > 0)
         {
-            return Result<PersonDto>.Invalid(links.Errors);
+            return Result<PersonDto>.Invalid(Errors);
         }
         var contacts = NormalizeContacts(request.Contacts);
         if (contacts.Errors.Count > 0)
@@ -71,9 +71,9 @@ public class PersonService(
             UpdatedAtUtc = DateTime.UtcNow
         });
 
-        if (links.Links is not null)
+        if (Links is not null)
         {
-            await ReplaceLinksAsync(person.Id, links.Links);
+            await ReplaceLinksAsync(person.Id, Links);
         }
 
         if (contacts.Contacts is not null)
@@ -442,10 +442,10 @@ public class PersonService(
             return Result.Forbidden();
         }
 
-        var links = NormalizeLinks(request.Links);
-        if (links.Errors.Count > 0)
+        var (Errors, Links) = NormalizeLinks(request.Links);
+        if (Errors.Count > 0)
         {
-            return Result<PersonDto>.Invalid(links.Errors);
+            return Result<PersonDto>.Invalid(Errors);
         }
         var contacts = NormalizeContacts(request.Contacts);
         if (contacts.Errors.Count > 0)
@@ -478,9 +478,9 @@ public class PersonService(
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
-        if (links.Links is not null)
+        if (Links is not null)
         {
-            await ReplaceLinksAsync(person.Id, links.Links);
+            await ReplaceLinksAsync(person.Id, Links);
         }
 
         if (contacts.Contacts is not null)
@@ -818,11 +818,6 @@ public class PersonService(
     private static string? CleanNamePart(string? value)
     {
         string trimmed = value?.Trim() ?? string.Empty;
-        if (trimmed.Length == 0)
-        {
-            return null;
-        }
-
-        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
+        return trimmed.Length == 0 ? null : trimmed.Length <= 100 ? trimmed : trimmed[..100];
     }
 }

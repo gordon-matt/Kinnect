@@ -115,15 +115,7 @@ public sealed class KinnectFamilyGraph(
         };
     }
 
-    private async Task<Result> RemoveAsync(string? personId, string userId)
-    {
-        if (!int.TryParse(personId, out int id))
-        {
-            return Result.Success();
-        }
-
-        return await people.DeleteAsync(id, userId);
-    }
+    private async Task<Result> RemoveAsync(string? personId, string userId) => !int.TryParse(personId, out int id) ? Result.Success() : await people.DeleteAsync(id, userId);
 
     private async Task<Result> UnlinkAsync(FamilyTreeChange change)
     {
@@ -144,17 +136,14 @@ public sealed class KinnectFamilyGraph(
         }
 
         var parent = await personRepository.FindOneAsync(right);
-        if (parent?.FatherId == left || parent?.MotherId == left)
-        {
-            return await people.UpdateParentsAsync(
+        return parent?.FatherId == left || parent?.MotherId == left
+            ? await people.UpdateParentsAsync(
                 right,
                 parent.FatherId == left ? null : parent.FatherId,
                 parent.MotherId == left ? null : parent.MotherId,
                 userContext.GetCurrentUserId()!,
-                userContext.IsAdmin());
-        }
-
-        return await people.RemoveSpouseAsync(left, right);
+                userContext.IsAdmin())
+            : await people.RemoveSpouseAsync(left, right);
     }
 
     private async Task<Result> UpdateOneAsync(FamilyTreeChange change, string userId, bool isAdmin, bool isEditor)
@@ -166,12 +155,7 @@ public sealed class KinnectFamilyGraph(
         }
 
         var result = await SaveFieldsAsync(card, id, userId, isAdmin, isEditor);
-        if (!result.IsSuccess)
-        {
-            return result;
-        }
-
-        return await SyncVitalsAsync(id, card);
+        return !result.IsSuccess ? result : await SyncVitalsAsync(id, card);
     }
 
     private async Task<Result> AddOneAsync(FamilyTreeChange change, string userId, bool isAdmin, bool isEditor)
@@ -302,17 +286,11 @@ public sealed class KinnectFamilyGraph(
         };
 
         var updated = await people.UpdateAsync(id, request, userId, isAdmin, isEditor);
-        if (!updated.IsSuccess)
-        {
-            return Plain(updated);
-        }
-
-        if (image != existing.ProfileImagePath && image is not null)
-        {
-            return await people.UpdateProfileImageAsync(id, image, userId, isAdmin, isEditor);
-        }
-
-        return Result.Success();
+        return !updated.IsSuccess
+            ? Plain(updated)
+            : image != existing.ProfileImagePath && image is not null
+            ? await people.UpdateProfileImageAsync(id, image, userId, isAdmin, isEditor)
+            : Result.Success();
     }
 
     private async Task<Result> SyncParentsAsync(
@@ -394,12 +372,7 @@ public sealed class KinnectFamilyGraph(
     {
         var stored = (await events.GetByPersonAsync(personId)).Value?.ToList() ?? [];
         var birth = await UpsertVitalAsync(personId, stored, PersonEventType.Birth, card.BirthDate, card.BirthPlace);
-        if (!birth.IsSuccess)
-        {
-            return birth;
-        }
-
-        return await UpsertVitalAsync(personId, stored, PersonEventType.Death, card.DeathDate, card.DeathPlace);
+        return !birth.IsSuccess ? birth : await UpsertVitalAsync(personId, stored, PersonEventType.Death, card.DeathDate, card.DeathPlace);
     }
 
     private async Task<Result> UpsertVitalAsync(
@@ -485,15 +458,7 @@ public sealed class KinnectFamilyGraph(
         return (father, mother);
     }
 
-    private static PartialDate? ToPartial(PersonEvent? vital)
-    {
-        if (vital?.Year is not short year)
-        {
-            return null;
-        }
-
-        return PartialDate.TryCreate(year, vital.Month, vital.Day, out var date) ? date : null;
-    }
+    private static PartialDate? ToPartial(PersonEvent? vital) => vital?.Year is not short year ? null : PartialDate.TryCreate(year, vital.Month, vital.Day, out var date) ? date : null;
 
     private static Result Plain<T>(Result<T> result) =>
         result.IsSuccess ? Result.Success() : Result.Error(string.Join(" ", result.Errors));

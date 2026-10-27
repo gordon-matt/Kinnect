@@ -1,5 +1,3 @@
-using Extenso.Data.Entity;
-using Kinnect.Models.Dto;
 using Kinnect.Services.Mapping;
 using Kinnect.Tests.Infrastructure;
 
@@ -7,7 +5,10 @@ namespace Kinnect.Tests;
 
 public class PostServiceTests
 {
-    static PostServiceTests() => KinnectMappingRegistration.Register();
+    static PostServiceTests()
+    {
+        KinnectMappingRegistration.Register();
+    }
 
     [Fact]
     public async Task CreateAsync_PersistsPost_WhenAuthorExists()
