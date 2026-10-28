@@ -72,12 +72,13 @@ else
                 <small class="kinnect-muted">Folder holding ffmpeg and ffprobe. Leave empty to look in the usual places, then download a copy.</small>
             </Field>
             <label class="nf-check"><InputCheckbox @bind-Value="videos.AutoShrinkVideos" /> Compress videos after they are uploaded</label>
-            <Field Label="Output size"><InputSelect class="nf-select" @bind-Value="videos.OutputVideoSize">
+            <Field Label="Maximum size"><InputSelect class="nf-select" @bind-Value="videos.OutputVideoSize">
                     @foreach (var size in VideoSizes)
                     {
                         <option value="@size">@size</option>
                     }
                 </InputSelect>
+                <small class="kinnect-muted">Videos already inside this size stay as they are. A sideways one is turned upright and kept when the new file is not much larger. Bigger videos are shrunk to fit, and that result is discarded if it is not smaller than the original.</small>
             </Field>
             <div class="kinnect-pair">
                 <Field Label="Quality (CRF, 0 to 51)"><InputNumber class="nf-input" @bind-Value="videos.Crf" />

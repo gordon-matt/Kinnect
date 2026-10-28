@@ -7,7 +7,7 @@ namespace Kinnect.Services;
 
 public partial class GedcomService
 {
-    /// <summary>Formats the image pipeline (ImageSharp) can decode. PDFs, audio and video are not photos.</summary>
+    /// <summary>Formats the image pipeline can decode. PDFs, audio and video are not photos.</summary>
     private static readonly HashSet<string> imageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp",

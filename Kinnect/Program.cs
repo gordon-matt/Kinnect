@@ -139,11 +139,8 @@ app.UseStaticFiles();
     string uploadPath = app.Configuration.GetValue<string>("FileStorage:BasePath")
         ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
     Directory.CreateDirectory(uploadPath);
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
-        RequestPath = "/uploads"
-    });
+    var uploads = app.Services.GetRequiredService<IUploadStreamGate>();
+    app.UseUploadFiles(uploadPath, uploads);
 }
 
 app.UseRouting();

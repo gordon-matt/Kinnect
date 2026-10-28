@@ -8,6 +8,8 @@ using EasyChatz.Services;
 using Hangfire;
 using Heroicsoft.NetForge.Abstractions.Data;
 using Heroicsoft.NetForge.Authentication;
+using Heroicsoft.NetForge.Drawing;
+using Heroicsoft.NetForge.Video;
 using Kinnect.Data.MySql;
 using Kinnect.Data.Npgsql;
 using Kinnect.Data.Sql;
@@ -154,6 +156,8 @@ internal static class ServiceCollectionExtensions
 
         public void KinnectAddServices()
         {
+            services.AddNetForgeDrawing();
+            services.AddNetForgeVideo();
             services.AddHttpContextAccessor();
             services.AddSingleton<ISettingsService, SettingsService>();
             services.AddScoped<IAccountIdResolver, IdentityAccountIdResolver>();
@@ -168,6 +172,7 @@ internal static class ServiceCollectionExtensions
             services.AddScoped<IFeedService, FeedService>();
             services.AddScoped<IGedcomService, GedcomService>();
             services.AddSingleton<GedcomExportStore>();
+            services.AddSingleton<IUploadStreamGate, UploadStreamGate>();
             services.AddSingleton<IFileStorageService, FileStorageService>();
             services.AddScoped<IVideoProcessingService, VideoProcessingService>();
             services.AddScoped<IPersonBackupService, PersonBackupService>();

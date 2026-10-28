@@ -2,8 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using Kinnect.Models.FamilyTree;
 using Kinnect.Tests.Infrastructure;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using Heroicsoft.NetForge.Drawing;
 
 namespace Kinnect.Tests;
 
@@ -617,10 +616,20 @@ public class GedcomServiceTests : IDisposable
 
     private static byte[] CreatePng()
     {
-        using var image = new Image<Rgba32>(40, 30);
-        using var output = new MemoryStream();
-        image.SaveAsPng(output);
-        return output.ToArray();
+        var bgra = new byte[40 * 30 * 4];
+        for (int i = 0; i < bgra.Length; i += 4)
+        {
+            bgra[i] = 128;
+            bgra[i + 1] = 128;
+            bgra[i + 2] = 128;
+            bgra[i + 3] = 255;
+        }
+
+        return new ImageProcessor()
+            .EncodeBgraAsync(bgra, 40, 30, new ImageEncode(RasterFormat.Png))
+            .GetAwaiter()
+            .GetResult()
+            .Bytes;
     }
 }
 

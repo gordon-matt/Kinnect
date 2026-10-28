@@ -32,22 +32,43 @@ public sealed class VideoTranscodeJob(
 
         try
         {
-            await videoProcessingService.CompressAsync(fullInputPath, tempOutputPath);
+            var transcoded = await videoProcessingService.CompressAsync(fullInputPath, tempOutputPath);
 
-            if (File.Exists(fullInputPath))
+            if (transcoded.FileReplaced && File.Exists(tempOutputPath))
             {
-                File.Delete(fullInputPath);
+                string finalPath = Path.ChangeExtension(fullInputPath, ".mp4");
+
+                if (!string.Equals(finalPath, fullInputPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Move(tempOutputPath, finalPath, overwrite: true);
+
+                    if (File.Exists(fullInputPath))
+                    {
+                        File.Delete(fullInputPath);
+                    }
+                }
+                else
+                {
+                    File.Delete(fullInputPath);
+                    File.Move(tempOutputPath, finalPath);
+                }
+
+                string dir = Path.GetDirectoryName(video.FilePath)!.Replace('\\', '/');
+                string nameNoExt = Path.GetFileNameWithoutExtension(video.FilePath);
+                video.FilePath = $"{dir}/{nameNoExt}.mp4";
             }
-
-            File.Move(tempOutputPath, fullInputPath);
-
-            string dir = Path.GetDirectoryName(video.FilePath)!.Replace('\\', '/');
-            string nameNoExt = Path.GetFileNameWithoutExtension(video.FilePath);
-            video.FilePath = $"{dir}/{nameNoExt}.mp4";
+            else if (File.Exists(tempOutputPath))
+            {
+                File.Delete(tempOutputPath);
+            }
 
             if (logger.IsEnabled(LogLevel.Information))
             {
-                logger.LogInformation("VideoTranscodeJob: finished compression for video {VideoId}.", videoId);
+                logger.LogInformation(
+                    transcoded.FileReplaced
+                        ? "VideoTranscodeJob: replaced video {VideoId} with a smaller file."
+                        : "VideoTranscodeJob: left video {VideoId} unchanged.",
+                    videoId);
             }
         }
         catch (Exception ex)

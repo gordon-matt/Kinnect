@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Net.Mail;
 using Microsoft.Extensions.DependencyInjection;
-using Xabe.FFmpeg;
+using Heroicsoft.NetForge.Video;
 
 namespace Kinnect.Services;
 
@@ -185,7 +185,7 @@ public sealed class SettingsService(
                 errors.Add(new ValidationError(nameof(DocumentSettings.AllowedExtensions), "Allow at least one file extension."));
                 break;
 
-            case VideoSettings videos when !Enum.TryParse<VideoSize>(videos.OutputVideoSize, ignoreCase: true, out _):
+            case VideoSettings videos when !VideoSizes.IsKnown(videos.OutputVideoSize):
                 errors.Add(new ValidationError(
                     nameof(VideoSettings.OutputVideoSize),
                     $"'{videos.OutputVideoSize}' is not a video size FFmpeg knows. Try Hd720 or Hd1080."));

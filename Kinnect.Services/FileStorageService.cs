@@ -1,22 +1,54 @@
+using Heroicsoft.NetForge.Drawing;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
 using Directory = System.IO.Directory;
 
 namespace Kinnect.Services;
 
-public class FileStorageService(IConfiguration configuration, ISettingsService settings) : IFileStorageService
+public class FileStorageService(
+    IConfiguration configuration,
+    ISettingsService settings,
+    IImageProcessor? images = null,
+    ILogger<FileStorageService>? logger = null,
+    IUploadStreamGate? streams = null) : IFileStorageService
 {
+    private readonly IImageProcessor processor = images ?? new ImageProcessor();
+
     private string BasePath => configuration["FileStorage:BasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
-    public void DeleteFile(string relativePath)
+    public async Task<bool> DeleteFileAsync(string relativePath, CancellationToken cancellationToken = default)
     {
-        string fullPath = Path.Combine(BasePath, relativePath);
-        if (File.Exists(fullPath))
+        string fullPath = Path.GetFullPath(Path.Combine(BasePath, relativePath));
+
+        using UploadRevocation? revocation = streams?.Revoke(fullPath);
+        if (revocation is { ClosedReads: > 0 })
         {
-            File.Delete(fullPath);
+            logger?.LogInformation(
+                "Closed {Count} active reads of {Path} before deleting it",
+                revocation.ClosedReads,
+                fullPath);
+        }
+
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (ex is (IOException or UnauthorizedAccessException) && attempt < 5)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+            }
+            catch (Exception ex) when (ex is (IOException or UnauthorizedAccessException))
+            {
+                logger?.LogWarning(ex, "Could not delete {Path} because it is still open", fullPath);
+                return false;
+            }
         }
     }
 
@@ -79,34 +111,25 @@ public class FileStorageService(IConfiguration configuration, ISettingsService s
         string mainFull = Path.Combine(BasePath, mainRelative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(mainFull)!);
 
-        using var mainImage = await Image.LoadAsync(buffer);
+        byte[] mainBytes = await ReencodeJpegAsync(buffer, opts.MaxWidth, opts.MaxHeight, opts.Quality, opts.AutoShrinkImages);
+        await File.WriteAllBytesAsync(mainFull, mainBytes);
 
-        if (opts.AutoShrinkImages && (mainImage.Width > opts.MaxWidth || mainImage.Height > opts.MaxHeight))
+        // Thumbnail is a second resize of the original buffer, not of the shrunk photo.
+        var thumbnail = await processor.ResizeAsync(buffer, new ImageTransform
         {
-            mainImage.Mutate(x => x.Resize(new ResizeOptions
-            {
-                Mode = ResizeMode.Max,
-                Size = new Size(opts.MaxWidth, opts.MaxHeight)
-            }));
-        }
-
-        await mainImage.SaveAsync(mainFull, new JpegEncoder { Quality = opts.Quality });
-
-        // Generate thumbnail
-        buffer.Position = 0;
-        using var thumbImage = await Image.LoadAsync(buffer);
-        thumbImage.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Mode = ResizeMode.Max,
-            Size = new Size(opts.ThumbnailWidth, opts.ThumbnailHeight)
-        }));
+            Width = opts.ThumbnailWidth,
+            Height = opts.ThumbnailHeight,
+            Mode = ImageScaleMode.Max,
+            Format = RasterFormat.Jpeg,
+            Quality = opts.ThumbnailQuality,
+        });
 
         string thumbName = $"thumb_{Guid.NewGuid()}.jpg";
         string thumbRelative = Path.Combine(safeUserId, category, "thumbnails", thumbName).Replace('\\', '/');
         string thumbFull = Path.Combine(BasePath, thumbRelative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(thumbFull)!);
 
-        await thumbImage.SaveAsync(thumbFull, new JpegEncoder { Quality = opts.ThumbnailQuality });
+        await File.WriteAllBytesAsync(thumbFull, thumbnail.Bytes);
 
         return (mainRelative, thumbRelative, latitude, longitude);
     }
@@ -147,20 +170,33 @@ public class FileStorageService(IConfiguration configuration, ISettingsService s
         string full = Path.Combine(BasePath, relative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(full)!);
 
-        using var image = await Image.LoadAsync(buffer);
-
-        if (opts.AutoShrinkImages && (image.Width > opts.MaxWidth || image.Height > opts.MaxHeight))
-        {
-            image.Mutate(x => x.Resize(new ResizeOptions
-            {
-                Mode = ResizeMode.Max,
-                Size = new Size(opts.MaxWidth, opts.MaxHeight)
-            }));
-        }
-
-        await image.SaveAsync(full, new JpegEncoder { Quality = opts.Quality });
+        byte[] encoded = await ReencodeJpegAsync(buffer, opts.MaxWidth, opts.MaxHeight, opts.Quality, opts.AutoShrinkImages);
+        await File.WriteAllBytesAsync(full, encoded);
 
         return (relative, latitude, longitude);
+    }
+
+    /// <summary>
+    /// Always re-encodes to JPEG. When <paramref name="shrinkWhenLarger"/> is set and either side
+    /// exceeds the box, the photo is fitted with <see cref="ImageScaleMode.Max"/>; otherwise the
+    /// original pixel size is kept so a smaller image is not enlarged.
+    /// </summary>
+    private async Task<byte[]> ReencodeJpegAsync(Stream buffer, int maxWidth, int maxHeight, int quality, bool shrinkWhenLarger)
+    {
+        var info = await processor.TryIdentifyAsync(buffer)
+            ?? throw new RasterDecodeException("The file is not a valid image.");
+
+        bool shrink = shrinkWhenLarger && (info.Width > maxWidth || info.Height > maxHeight);
+        var processed = await processor.ResizeAsync(buffer, new ImageTransform
+        {
+            Width = shrink ? maxWidth : info.Width,
+            Height = shrink ? maxHeight : info.Height,
+            Mode = ImageScaleMode.Max,
+            Format = RasterFormat.Jpeg,
+            Quality = quality,
+        });
+
+        return processed.Bytes;
     }
 
     /// <summary>Replaces characters that are invalid in file path segments (e.g. Keycloak subjects with '|').</summary>

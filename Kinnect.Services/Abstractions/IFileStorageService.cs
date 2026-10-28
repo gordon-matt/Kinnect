@@ -2,7 +2,11 @@ namespace Kinnect.Services.Abstractions;
 
 public interface IFileStorageService
 {
-    void DeleteFile(string relativePath);
+    /// <summary>
+    /// Deletes the file. Returns false when it is still open after a short wait, so the caller can
+    /// keep the database row instead of leaving an orphan on disk.
+    /// </summary>
+    Task<bool> DeleteFileAsync(string relativePath, CancellationToken cancellationToken = default);
 
     string GetBaseUploadPath();
 

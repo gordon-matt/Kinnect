@@ -22,7 +22,10 @@ public class VideoSettings : AppSettings
     public bool AutoShrinkVideos { get; set; } = true;
 
     /// <summary>
-    /// Name of an FFmpeg size preset, such as <c>Hd720</c>. Kept as text so this project does not need FFmpeg.
+    /// Maximum picture size, such as <c>Hd720</c> (1280×720). A video already inside that box is kept
+    /// as uploaded, except a sideways one, which is turned upright when that does not make the file much larger.
+    /// A larger one is shrunk to fit, and the result is discarded if it is not a smaller file.
+    /// Kept as text so this project does not need FFmpeg.
     /// </summary>
     [Required, StringLength(MaxOutputVideoSizeLength)]
     public string OutputVideoSize { get; set; } = "Hd720";

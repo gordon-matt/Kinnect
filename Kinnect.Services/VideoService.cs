@@ -4,7 +4,9 @@ public class VideoService(
     IRepository<Video> videoRepository,
     IRepository<Tag> tagRepository,
     IRepository<VideoTag> videoTagRepository,
-    IRepository<VideoEvent> videoEventRepository) : IVideoService
+    IRepository<VideoEvent> videoEventRepository,
+    IFileStorageService fileStorage,
+    ILogger<VideoService> logger) : IVideoService
 {
     public async Task<Result<VideoDto>> CreateAsync(
         string title,
@@ -69,7 +71,19 @@ public class VideoService(
             return Result.Forbidden();
         }
 
+        if (!await fileStorage.DeleteFileAsync(video.FilePath))
+        {
+            logger.LogWarning("Left video {VideoId} in place because {Path} is still open", video.Id, video.FilePath);
+            return Result.Error("The video file is still open in another program, so it could not be removed.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(video.ThumbnailPath))
+        {
+            await fileStorage.DeleteFileAsync(video.ThumbnailPath);
+        }
+
         await videoRepository.DeleteAsync(video);
+        logger.LogInformation("Deleted video {VideoId} for user {UserId}", video.Id, currentUserId);
         return Result.Success();
     }
 

@@ -1643,6 +1643,12 @@ else
             return;
         }
 
+        if (selectedVideo?.Id == video.Id)
+        {
+            selectedVideo = null;
+            await InvokeAsync(StateHasChanged);
+        }
+
         var result = await Videos.DeleteAsync(video.Id, userId, Users.IsAdmin());
         Notify(result, "Video deleted.");
         if (result.IsSuccess)
