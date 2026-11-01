@@ -66,12 +66,12 @@ builder.Services.Configure<ForgeShellOptions>(shell =>
     shell.Brand = "Kinnect";
     shell.LogoUrl = "img/Logo.png";
     shell.LogoDarkUrl = "img/Logo.png";
+    shell.MarkUrl = "img/Icon.png";
     shell.SearchPlaceholder = "Search people";
     shell.NavigationPlacement = ForgeNavigationPlacement.Topbar;
     shell.UserMenuItems.Add(new ForgeNavItem { Title = "My profile", Href = "/me", Icon = "bi-person" });
 });
-
-builder.Services.AddScoped<IShellNavigation, Kinnect.Components.Layout.KinnectNavigation>();
+builder.Services.AddScoped<IShellNavigation, KinnectNavigation>();
 
 builder.Services.KinnectAddAuthentication(builder.Configuration, useKeycloak);
 builder.Services.AddKinnectChat(builder.Configuration);

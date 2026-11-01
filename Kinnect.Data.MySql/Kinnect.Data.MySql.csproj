@@ -4,7 +4,7 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.2.0</Version>
+		<Version>1.2.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -16,7 +16,7 @@
 			ship an EF Core 10 build, so we use MySql.EntityFrameworkCore (10.0.x targets EF
 			Core 10 / .NET 10) instead.
 		-->
-		<PackageReference Include="LogVue.Data.MySql" Version="1.1.1" />
+		<PackageReference Include="LogVue.Data.MySql" Version="1.1.2" />
 		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>

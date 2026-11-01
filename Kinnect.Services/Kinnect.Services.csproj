@@ -4,7 +4,7 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.2.0</Version>
+		<Version>1.2.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -18,8 +18,8 @@
 		<PackageReference Include="EasyChatz.Core" Version="1.1.0" />
 		<PackageReference Include="GedcomSharp" Version="1.0.0" />
 		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
-		<PackageReference Include="Heroicsoft.NetForge.Drawing" Version="1.1.0" />
-		<PackageReference Include="Heroicsoft.NetForge.Video" Version="1.1.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Drawing" Version="1.2.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Video" Version="1.2.0" />
 		<PackageReference Include="Keycloak.NETCore.Client" Version="2.0.0" />
 		<PackageReference Include="MetadataExtractor" Version="2.9.3" />
 		<PackageReference Include="MyWebTree.Core" Version="1.0.1" />

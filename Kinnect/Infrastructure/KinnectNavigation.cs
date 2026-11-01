@@ -1,7 +1,7 @@
 using EasyChatz.Components;
 using Heroicsoft.NetForge.Abstractions.Navigation;
 
-namespace Kinnect.Components.Layout;
+namespace Kinnect.Infrastructure;
 
 public sealed class KinnectNavigation(IUserContextService userContext) : IShellNavigation
 {
@@ -44,8 +44,8 @@ public sealed class KinnectNavigation(IUserContextService userContext) : IShellN
             {
                 new() { Title = "Person backups", Href = "/admin/backups", Icon = "bi-archive" },
                 new() { Title = "Settings", Href = "/admin/settings", Icon = "bi-gear" },
-                new() { Title = "Logs", Href = "/logvue", Icon = "bi-journal-text", External = true },
-                new() { Title = "Jobs", Href = "/hangfire", Icon = "bi-clock-history", External = true },
+                new() { Title = "Logs", Href = "/logvue", Icon = "bi-journal-text" },
+                new() { Title = "Jobs", Href = "/hangfire", Icon = "bi-clock-history", External = true }
             };
             if (!Constants.UseKeyCloak)
             {

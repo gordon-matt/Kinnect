@@ -12,7 +12,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UserSecretsId>aspnet-Kinnect-2a96d4b7-af17-411d-87aa-36a68600b70f</UserSecretsId>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-		<Version>1.2.0</Version>
+		<Version>1.2.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -33,12 +33,12 @@
 		<PackageReference Include="EasyChatz.Data.Sql" Version="1.1.0" />
 		<PackageReference Include="EasyChatz.Data.Sqlite" Version="1.1.0" />
 		<PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
-		<PackageReference Include="Heroicsoft.NetForge.Abstractions" Version="1.1.0" />
-		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.1.0" />
-		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.1.1" />
-		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.1.0" />
-		<PackageReference Include="LogVue" Version="1.1.1" />
-		<PackageReference Include="LogVue.Providers.Serilog" Version="1.1.1" />
+		<PackageReference Include="Heroicsoft.NetForge.Abstractions" Version="1.2.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Authentication" Version="1.2.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Components" Version="1.2.0" />
+		<PackageReference Include="Heroicsoft.NetForge.Hangfire" Version="1.2.0" />
+		<PackageReference Include="LogVue" Version="1.1.2" />
+		<PackageReference Include="LogVue.Providers.Serilog" Version="1.1.2" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
 		<PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.14" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
