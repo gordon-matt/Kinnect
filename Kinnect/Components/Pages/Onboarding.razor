@@ -43,7 +43,13 @@
                     @foreach (var person in FilteredPeople)
                     {
                         <li>
-                            <span>@person.GivenNames @person.FamilyName</span>
+                            <span class="kinnect-person-label">
+                                <span>@person.GivenNames @person.FamilyName</span>
+                                @if (lifespans.TryGetValue(person.Id, out string? life) && life.Length > 0)
+                                {
+                                    <small class="kinnect-muted">@life</small>
+                                }
+                            </span>
                             <button class="nf-button nf-button-sm" type="button" @onclick="() => LinkAsync(person.Id)">This is me</button>
                         </li>
                     }
@@ -114,13 +120,22 @@
     private bool importedTree;
     private string personFilter = string.Empty;
     private List<Person> unlinked = [];
+    private Dictionary<int, string> lifespans = [];
     private GedcomImportResult? importResult;
 
     private IEnumerable<Person> FilteredPeople =>
         string.IsNullOrWhiteSpace(personFilter)
             ? unlinked
             : unlinked.Where(person =>
-                $"{person.GivenNames} {person.FamilyName}".Contains(personFilter.Trim(), StringComparison.OrdinalIgnoreCase));
+            {
+                string text = $"{person.GivenNames} {person.FamilyName}";
+                if (lifespans.TryGetValue(person.Id, out string? life) && life.Length > 0)
+                {
+                    text = $"{text} {life}";
+                }
+
+                return text.Contains(personFilter.Trim(), StringComparison.OrdinalIgnoreCase);
+            });
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,9 +154,10 @@
         bool any = await Database.People.AnyAsync();
         importedTree = await Database.GedcomFiles.AnyAsync();
         canImport = Users.IsAdmin() && !any;
-        unlinked = any
-            ? await Database.People.Where(p => p.UserId == null).OrderBy(p => p.GivenNames).ToListAsync()
-            : [];
+        if (any)
+        {
+            await LoadUnlinkedAsync();
+        }
     }
 
     private async Task CreateAsync()
@@ -199,15 +215,52 @@
             importResult = null;
         }
 
-        unlinked = await Database.People
-            .Where(person => person.UserId == null)
-            .OrderBy(person => person.GivenNames)
-            .ThenBy(person => person.FamilyName)
-            .ToListAsync();
+        await LoadUnlinkedAsync();
         importedTree = await Database.GedcomFiles.AnyAsync();
         canImport = Users.IsAdmin() && !await Database.People.AnyAsync();
         Toasts.Success(unlinked.Count == 0
             ? "Import complete."
             : "Import complete. Choose your name.");
+    }
+
+    /// <summary>
+    /// People with no account yet, with the same year span the family tree shows: a birth year, or birth and death
+    /// years, so two people with the same name can be told apart.
+    /// </summary>
+    private async Task LoadUnlinkedAsync()
+    {
+        unlinked = await Database.People
+            .Where(person => person.UserId == null)
+            .OrderBy(person => person.GivenNames)
+            .ThenBy(person => person.FamilyName)
+            .ToListAsync();
+
+        if (unlinked.Count == 0)
+        {
+            lifespans = [];
+            return;
+        }
+
+        var ids = unlinked.Select(person => person.Id).ToList();
+        var vitals = await Database.PersonEvents
+            .Where(evt => ids.Contains(evt.PersonId)
+                && (evt.EventType == PersonEventType.Birth || evt.EventType == PersonEventType.Death)
+                && evt.Year != null)
+            .ToListAsync();
+
+        lifespans = unlinked.ToDictionary(person => person.Id, person => FormatLifespan(vitals, person.Id));
+    }
+
+    private static string FormatLifespan(IReadOnlyList<PersonEvent> vitals, int personId)
+    {
+        short? birth = vitals.FirstOrDefault(evt => evt.PersonId == personId && evt.EventType == PersonEventType.Birth)?.Year;
+        short? death = vitals.FirstOrDefault(evt => evt.PersonId == personId && evt.EventType == PersonEventType.Death)?.Year;
+        if (birth is null && death is null)
+        {
+            return string.Empty;
+        }
+
+        string born = birth?.ToString() ?? string.Empty;
+        return death is null ? born : $"{born} – {death}";
     }
 }
