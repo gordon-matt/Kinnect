@@ -101,6 +101,8 @@ html {
 .kinnect-list > :last-child { border-bottom: 0; }
 .kinnect-list > button:hover,
 .kinnect-list > li:hover { background: var(--nf-hover); }
+.kinnect-person-label { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.kinnect-unlinked { flex: none; color: var(--nf-muted); }
 .kinnect-progress { height: 8px; border-radius: 999px; background: var(--nf-surface-2); overflow: hidden; }
 .kinnect-progress > span { display: block; height: 100%; background: var(--nf-accent); }
 

@@ -415,6 +415,18 @@ public class ParentSetService(
         }
 
         var viewer = Viewer;
+        if (request.Type == ParentageType.Birth)
+        {
+            var otherBirth = data.SetsOf(child.Id).FirstOrDefault(set => set.Id != replacing?.Id && set.Type == ParentageType.Birth);
+            if (otherBirth is not null)
+            {
+                // A hidden birth set is refused with the same words as any other hidden clash, so its existence stays private.
+                return ParentSetAccess.CanSee(otherBirth.Visibility, viewer, child.UserId)
+                    ? ($"{child.GivenNames} already has birth parents.", ResultStatus.Conflict)
+                    : (Hidden, ResultStatus.Conflict);
+            }
+        }
+
         var duplicate = data.SetsOf(child.Id).FirstOrDefault(set =>
             set.Id != replacing?.Id
             && set.Type == request.Type

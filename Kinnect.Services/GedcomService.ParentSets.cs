@@ -89,11 +89,21 @@ public partial class GedcomService
             foreach (var link in CollectParentLinks(individual))
             {
                 var imported = ResolveParentLink(dataset, link, byXref, childId, who, validator, accepted, context);
-                if (imported is not null)
+                if (imported is null)
                 {
-                    accepted.Add(imported);
-                    validator.Add(childId, imported.Members.Select(member => member.PersonId));
+                    continue;
                 }
+
+                // A person has one set of birth parents. A second birth family in the file, or one that differs from
+                // birth parents already stored, is reported and left out. The same parents are an update, not a second set.
+                if (imported.Type == ParentageType.Birth && IsAnotherBirthSet(childId, imported, accepted, storedSets, storedMembers))
+                {
+                    context.Warn($"{who}: skipped the birth link to family {imported.Link.FamilyXref}. A person can only have one set of birth parents.");
+                    continue;
+                }
+
+                accepted.Add(imported);
+                validator.Add(childId, imported.Members.Select(member => member.PersonId));
             }
 
             if (accepted.Count > 0)
@@ -155,6 +165,29 @@ public partial class GedcomService
         }
 
         return links;
+    }
+
+    /// <summary>
+    /// True when this birth link is not the child's one birth set: another birth set was already accepted from this
+    /// file, or a different set of birth parents is already stored.
+    /// </summary>
+    private static bool IsAnotherBirthSet(
+        int childId,
+        ImportedSet imported,
+        List<ImportedSet> accepted,
+        List<ParentSet> storedSets,
+        ILookup<int, ParentSetMember> storedMembers)
+    {
+        if (accepted.Any(other => other.Type == ParentageType.Birth))
+        {
+            return true;
+        }
+
+        var wanted = imported.Members.Select(member => member.PersonId).Order().ToList();
+        return storedSets.Any(set =>
+            set.ChildPersonId == childId
+            && set.Type == ParentageType.Birth
+            && !storedMembers[set.Id].Select(member => member.ParentPersonId).Order().SequenceEqual(wanted));
     }
 
     /// <summary>

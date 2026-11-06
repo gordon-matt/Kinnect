@@ -149,6 +149,23 @@ public class ParentSetServiceTests
     }
 
     [Fact]
+    public async Task AddAsync_SecondBirthSet_ReturnsConflict()
+    {
+        var (options, factory) = SqliteDb.Create();
+        var child = await AddPersonAsync(options, "Jane", false);
+        var birthFather = await AddPersonAsync(options, "Adam", true);
+        var other = await AddPersonAsync(options, "Gus", true);
+        var sut = TestParentSets.Create(factory);
+        await sut.AddAsync(child.Id, new ParentSetRequest { FatherId = birthFather.Id });
+
+        var result = await sut.AddAsync(child.Id, new ParentSetRequest { FatherId = other.Id });
+
+        Assert.Equal(ResultStatus.Conflict, result.Status);
+        Assert.Contains("birth parents", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
+        Assert.Single(await sut.GetForChildAsync(child.Id));
+    }
+
+    [Fact]
     public async Task AddAsync_SameParentsTwice_ReturnsConflict()
     {
         var (options, factory) = SqliteDb.Create();

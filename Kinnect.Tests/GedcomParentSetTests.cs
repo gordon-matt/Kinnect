@@ -134,6 +134,30 @@ public class GedcomParentSetTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_ASecondBirthFamily_IsSkipped()
+    {
+        var (options, _, result) = await ImportAsync(File551("""
+            0 @I4@ INDI
+            1 NAME Jane /Ward/
+            1 FAMC @F1@
+            2 PEDI birth
+            1 FAMC @F2@
+            2 PEDI birth
+            0 @F1@ FAM
+            1 HUSB @I1@
+            1 WIFE @I2@
+            1 CHIL @I4@
+            0 @F2@ FAM
+            1 HUSB @I3@
+            1 WIFE @I5@
+            1 CHIL @I4@
+            """));
+
+        Assert.Equal(["Birth*:Adam/Eve"], await DescribeSetsAsync(options, "Jane"));
+        Assert.Contains(result.Warnings, warning => warning.Contains("one set of birth parents", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Import_FamcWithoutPedi_IsABirthSet()
     {
         var (options, _, _) = await ImportAsync(File551("""

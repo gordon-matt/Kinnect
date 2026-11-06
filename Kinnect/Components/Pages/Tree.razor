@@ -62,7 +62,18 @@ else
                 @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
                     <button type="button" @onclick="() => CenterAsync(person.Id)">
-                        <span>@person.DisplayName</span>
+                        <span class="kinnect-person-label">
+                            @if (IsUnlinked(person))
+                            {
+                                <svg class="nf-icon kinnect-unlinked" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Not linked to anyone">
+                                    <title>Not linked to anyone</title>
+                                    <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2" />
+                                    <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
+                                    <path d="M4.5 4.5 19.5 19.5" />
+                                </svg>
+                            }
+                            <span>@person.DisplayName</span>
+                        </span>
                         @if (person.Lifespan.Length > 0)
                         {
                             <small class="kinnect-muted">@person.Lifespan</small>
@@ -243,6 +254,13 @@ else
         focusId ??= snapshot.FocusPersonId;
         highlightId = snapshot.FocusPersonId;
     }
+
+    /// <summary>A person with no parents, spouse or children. Hidden links do not count, because this list only holds what the viewer can see.</summary>
+    private static bool IsUnlinked(PersonData person) =>
+        person.Parents.Count == 0
+        && person.ParentSets.Count == 0
+        && person.Spouses.Count == 0
+        && person.Children.Count == 0;
 
     private async Task CenterAsync(string personId)
     {
