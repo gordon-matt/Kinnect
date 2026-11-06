@@ -11,6 +11,7 @@ public class PersonService(
     IRepository<PersonEvent> eventRepository,
     IRepository<PersonLink> linkRepository,
     IRepository<Contact> contactRepository,
+    IParentSetService parentSets,
     UserManager<ApplicationUser>? accounts = null) : IPersonService
 {
     private const int MaxContacts = 20;
@@ -59,8 +60,6 @@ public class PersonService(
             IsMale = request.IsMale,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
-            FatherId = request.FatherId,
-            MotherId = request.MotherId,
             Occupation = request.Occupation,
             Education = request.Education,
             Religion = request.Religion,
@@ -92,6 +91,8 @@ public class PersonService(
             return Result.NotFound("Person not found.");
         }
 
+        // A parent's memberships are restricted, not cascaded, so they go first. The person's own sets cascade.
+        await parentSets.DetachParentAsync(id);
         await personRepository.DeleteAsync(person);
         return Result.Success();
     }
@@ -131,23 +132,12 @@ public class PersonService(
         var peopleList = people.ToList();
         var spouseList = spouses.ToList();
 
+        // Lineage policy: this follows the primary set of parents the viewer can see (see ParentGraph).
+        var lineage = await parentSets.LoadGraphAsync();
         var data = peopleList.Select(p =>
         {
-            var parentIds = new List<string>();
-            if (p.FatherId.HasValue)
-            {
-                parentIds.Add(p.FatherId.Value.ToString());
-            }
-
-            if (p.MotherId.HasValue)
-            {
-                parentIds.Add(p.MotherId.Value.ToString());
-            }
-
-            var childIds = peopleList
-                .Where(c => c.FatherId == p.Id || c.MotherId == p.Id)
-                .Select(c => c.Id.ToString())
-                .ToList();
+            var parentIds = lineage.ParentsOf(p.Id).Select(id => id.ToString()).ToList();
+            var childIds = lineage.ChildrenOf(p.Id).Select(id => id.ToString()).ToList();
 
             var spouseIds = spouseList
                 .Where(s => s.PersonId == p.Id || s.SpouseId == p.Id)
@@ -370,8 +360,6 @@ public class PersonService(
         person.IsMale = snapshot.IsMale;
         person.Latitude = snapshot.Latitude;
         person.Longitude = snapshot.Longitude;
-        person.FatherId = snapshot.FatherId;
-        person.MotherId = snapshot.MotherId;
         person.Occupation = snapshot.Occupation;
         person.Education = snapshot.Education;
         person.Religion = snapshot.Religion;
@@ -468,8 +456,6 @@ public class PersonService(
         person.IsMale = request.IsMale;
         person.Latitude = request.Latitude;
         person.Longitude = request.Longitude;
-        person.FatherId = request.FatherId;
-        person.MotherId = request.MotherId;
         person.Occupation = request.Occupation;
         person.Education = request.Education;
         person.Religion = request.Religion;
@@ -489,46 +475,6 @@ public class PersonService(
         }
 
         return Result.Success(await WithDetailsAsync(person));
-    }
-
-    public async Task<Result> UpdateParentsAsync(int id, int? fatherId, int? motherId, string currentUserId, bool isAdmin = false)
-    {
-        if (fatherId.HasValue && fatherId == id)
-        {
-            return Result.Invalid(new ValidationError("Father cannot be the same person."));
-        }
-
-        if (motherId.HasValue && motherId == id)
-        {
-            return Result.Invalid(new ValidationError("Mother cannot be the same person."));
-        }
-
-        if (fatherId.HasValue && motherId.HasValue && fatherId == motherId)
-        {
-            return Result.Invalid(new ValidationError("Father and mother must be different people."));
-        }
-
-        var person = await personRepository.FindOneAsync(id);
-        if (person is null)
-        {
-            return Result.NotFound("Person not found.");
-        }
-
-        if (!isAdmin &&
-            person.UserId is not null &&
-            person.UserId != currentUserId)
-        {
-            return Result.Forbidden();
-        }
-
-        await SaveVersionAsync(person, currentUserId);
-
-        person.FatherId = fatherId;
-        person.MotherId = motherId;
-        person.UpdatedAtUtc = DateTime.UtcNow;
-
-        await personRepository.UpdateAsync(person);
-        return Result.Success();
     }
 
     public async Task<Result> UpdateProfileImageAsync(int id, string imagePath, string currentUserId, bool isAdmin = false, bool isEditorOrAbove = false)
@@ -619,8 +565,6 @@ public class PersonService(
             IsMale = person.IsMale,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
-            FatherId = person.FatherId,
-            MotherId = person.MotherId,
             Occupation = person.Occupation,
             Education = person.Education,
             Religion = person.Religion,

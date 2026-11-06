@@ -7,6 +7,7 @@ namespace Kinnect.Controllers.Api;
 [Authorize]
 public class PersonApiController(
     IPersonService personService,
+    IParentSetService parentSetService,
     IUserContextService userContextService,
     IUserInfoService userInfoService,
     IEmailService emailService) : ControllerBase
@@ -59,7 +60,7 @@ public class PersonApiController(
         string? userId = userContextService.GetCurrentUserId();
         return userId is null
             ? Result.Unauthorized()
-            : await personService.UpdateParentsAsync(id, request.FatherId, request.MotherId, userId, isAdmin: true);
+            : await parentSetService.SetBirthParentsAsync(id, request.FatherId, request.MotherId);
     }
 
     [TranslateResultToActionResult]

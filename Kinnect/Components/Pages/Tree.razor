@@ -48,6 +48,9 @@ else
                     ShowSiblings="@view.ShowSiblings"
                     Lineage="@view.Lineage"
                     Orientation="@view.Orientation"
+                    BloodRelativesOnly="@view.BloodRelativesOnly"
+                    ActiveParentSets="@activeSets"
+                    ActiveParentSetsChanged="OnActiveSetsChangedAsync"
                     MaxGenerations="@maxGenerations"
                     ViewChanged="OnViewChangedAsync"
                     Height="calc(100vh - 12rem)"
@@ -96,6 +99,11 @@ else
     private bool viewLoaded;
     private string? viewKey;
 
+    // Which family is drawn for a person who has more than one (adopted, birth, foster). It is only a view, so it is
+    // remembered in this browser like the toolbar choices, and the sets in it are only ones this user can already see.
+    private IReadOnlyDictionary<string, string> activeSets = new Dictionary<string, string>();
+    private string? setsKey;
+
     [SupplyParameterFromQuery(Name = "person")]
     public int? PersonId { get; set; }
 
@@ -104,6 +112,7 @@ else
         editable = Users.IsAdmin() || Users.IsEditor();
         maxGenerations = (await Settings.GetAsync<TreeSettings>()).MaxGenerations;
         viewKey = $"kinnect.tree.view.{Users.GetCurrentUserId() ?? "anonymous"}";
+        setsKey = $"kinnect.tree.sets.{Users.GetCurrentUserId() ?? "anonymous"}";
         NoteRoutedPerson();
         await ReloadAsync();
     }
@@ -133,6 +142,12 @@ else
             {
                 // Earlier builds only remembered the generation counts, under another key.
                 stored = await JS.InvokeAsync<string?>("localStorage.getItem", viewKey!.Replace(".view.", ".depths.", StringComparison.Ordinal));
+            }
+
+            string? storedSets = await JS.InvokeAsync<string?>("localStorage.getItem", setsKey);
+            if (!string.IsNullOrWhiteSpace(storedSets) && JsonSerializer.Deserialize<Dictionary<string, string>>(storedSets) is { } remembered)
+            {
+                activeSets = remembered;
             }
 
             if (!string.IsNullOrWhiteSpace(stored) && JsonSerializer.Deserialize<TreeView>(stored) is { } saved)
@@ -166,6 +181,19 @@ else
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
         {
             Logger.LogDebug(ex, "Could not save the tree view.");
+        }
+    }
+
+    private async Task OnActiveSetsChangedAsync(IReadOnlyDictionary<string, string> chosen)
+    {
+        activeSets = chosen;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", setsKey, JsonSerializer.Serialize(chosen));
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Logger.LogDebug(ex, "Could not save the chosen families.");
         }
     }
 

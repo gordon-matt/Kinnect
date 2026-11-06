@@ -109,7 +109,7 @@ public partial class GedcomService
 
         if (options.Families)
         {
-            ApplyFamilies(dataset, people, spouses);
+            ApplyFamilies(dataset, people, spouses, await parentSets.LoadGraphAsync(publicOnly: !options.IncludeHiddenParentSets));
         }
 
         return dataset;
@@ -308,59 +308,6 @@ public partial class GedcomService
             {
                 file.AddChild("_TEXT", item.Text);
             }
-        }
-    }
-
-    private static void ApplyFamilies(GedcomSharp.GedcomFile dataset, List<Person> people, List<PersonSpouse> spouses)
-    {
-        var kept = new HashSet<GedcomStructure>();
-        foreach (var spouse in spouses)
-        {
-            var first = people.FirstOrDefault(person => person.Id == spouse.PersonId);
-            var second = people.FirstOrDefault(person => person.Id == spouse.SpouseId);
-            var husband = first?.IsMale == true ? first : second?.IsMale == true ? second : first;
-            var wife = husband == first ? second : first;
-            if (husband is null && wife is null)
-            {
-                continue;
-            }
-
-            string? husbandXref = husband is null ? null : XrefKey(FormatXref(husband.GedcomId, husband.Id));
-            string? wifeXref = wife is null ? null : XrefKey(FormatXref(wife.GedcomId, wife.Id));
-            var family = dataset.Families.FirstOrDefault(candidate =>
-                SameXref(candidate.HusbandXref, husbandXref) && SameXref(candidate.WifeXref, wifeXref));
-            family ??= dataset.AddFamily(dataset.Find<IndividualRecord>(husbandXref), dataset.Find<IndividualRecord>(wifeXref));
-
-            kept.Add(family.Structure);
-            SetFamilyDate(family, "MARR", spouse.MarriageYear, spouse.MarriageMonth, spouse.MarriageDay);
-            SetFamilyDate(family, "DIV", spouse.DivorceYear, spouse.DivorceMonth, spouse.DivorceDay);
-            if (spouse.HasEngagement || spouse.EngagementYear is not null)
-            {
-                SetFamilyDate(family, "ENGA", spouse.EngagementYear, spouse.EngagementMonth, spouse.EngagementDay);
-            }
-
-            var childXrefs = people
-                .Where(person => husband is not null && wife is not null && ((person.FatherId == husband.Id && person.MotherId == wife.Id) || (person.FatherId == wife.Id && person.MotherId == husband.Id)))
-                .Select(person => XrefKey(FormatXref(person.GedcomId, person.Id)))
-                .ToList();
-            foreach (var link in family.Structure.ChildrenWithTag("CHIL").Where(link => !childXrefs.Any(xref => SameXref(link.Pointer, xref))).ToList())
-            {
-                link.Remove();
-            }
-
-            foreach (string childXref in childXrefs)
-            {
-                var child = dataset.Find<IndividualRecord>(childXref);
-                if (child is not null && !family.ChildXrefs.Any(xref => SameXref(xref, childXref)))
-                {
-                    dataset.AddChildToFamily(family, child);
-                }
-            }
-        }
-
-        foreach (var family in dataset.Families.Where(family => !kept.Contains(family.Structure)).ToList())
-        {
-            dataset.Remove(family.Structure);
         }
     }
 

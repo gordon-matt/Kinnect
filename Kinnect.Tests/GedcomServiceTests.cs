@@ -566,6 +566,9 @@ public class GedcomServiceTests : IDisposable
             new EntityFrameworkRepository<Video>(factory),
             new EntityFrameworkRepository<Contact>(factory),
             new EntityFrameworkRepository<GedcomFile>(factory),
+            new EntityFrameworkRepository<ParentSet>(factory),
+            new EntityFrameworkRepository<ParentSetMember>(factory),
+            TestParentSets.Create(factory),
             new FileStorageService(config, new TestSettingsService()),
             NullLogger<GedcomService>.Instance);
     }

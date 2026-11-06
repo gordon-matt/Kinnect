@@ -17,7 +17,7 @@ namespace Kinnect.Data.Npgsql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -496,6 +496,75 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.ToTable("MessageNotifications", "app");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.ParentSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChildPersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte?>("Day")
+                        .HasColumnType("smallint");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<byte?>("Month")
+                        .HasColumnType("smallint");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("integer");
+
+                    b.Property<short?>("Year")
+                        .HasColumnType("smallint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildPersonId");
+
+                    b.ToTable("ParentSets", "app");
+                });
+
+            modelBuilder.Entity("Kinnect.Data.Entities.ParentSetMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ParentPersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParentSetId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentPersonId");
+
+                    b.HasIndex("ParentSetId", "ParentPersonId")
+                        .IsUnique();
+
+                    b.HasIndex("ParentSetId", "Role")
+                        .IsUnique();
+
+                    b.ToTable("ParentSetMembers", "app");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Person", b =>
                 {
                     b.Property<int>("Id")
@@ -515,9 +584,6 @@ namespace Kinnect.Data.Npgsql.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<int?>("FatherId")
-                        .HasColumnType("integer");
 
                     b.Property<string>("GedcomId")
                         .HasMaxLength(50)
@@ -539,9 +605,6 @@ namespace Kinnect.Data.Npgsql.Migrations
 
                     b.Property<double?>("Longitude")
                         .HasColumnType("double precision");
-
-                    b.Property<int?>("MotherId")
-                        .HasColumnType("integer");
 
                     b.Property<string>("NamePrefix")
                         .HasMaxLength(100)
@@ -578,10 +641,6 @@ namespace Kinnect.Data.Npgsql.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FatherId");
-
-                    b.HasIndex("MotherId");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -1243,21 +1302,34 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Navigation("Message");
                 });
 
-            modelBuilder.Entity("Kinnect.Data.Entities.Person", b =>
+            modelBuilder.Entity("Kinnect.Data.Entities.ParentSet", b =>
                 {
-                    b.HasOne("Kinnect.Data.Entities.Person", "Father")
-                        .WithMany("ChildrenAsFather")
-                        .HasForeignKey("FatherId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.HasOne("Kinnect.Data.Entities.Person", "Child")
+                        .WithMany("ParentSets")
+                        .HasForeignKey("ChildPersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.HasOne("Kinnect.Data.Entities.Person", "Mother")
-                        .WithMany("ChildrenAsMother")
-                        .HasForeignKey("MotherId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("Child");
+                });
 
-                    b.Navigation("Father");
+            modelBuilder.Entity("Kinnect.Data.Entities.ParentSetMember", b =>
+                {
+                    b.HasOne("Kinnect.Data.Entities.Person", "ParentPerson")
+                        .WithMany("ParentSetMemberships")
+                        .HasForeignKey("ParentPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Navigation("Mother");
+                    b.HasOne("Kinnect.Data.Entities.ParentSet", "ParentSet")
+                        .WithMany("Members")
+                        .HasForeignKey("ParentSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ParentPerson");
+
+                    b.Navigation("ParentSet");
                 });
 
             modelBuilder.Entity("Kinnect.Data.Entities.PersonEvent", b =>
@@ -1522,17 +1594,22 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Navigation("Videos");
                 });
 
+            modelBuilder.Entity("Kinnect.Data.Entities.ParentSet", b =>
+                {
+                    b.Navigation("Members");
+                });
+
             modelBuilder.Entity("Kinnect.Data.Entities.Person", b =>
                 {
-                    b.Navigation("ChildrenAsFather");
-
-                    b.Navigation("ChildrenAsMother");
-
                     b.Navigation("Contacts");
 
                     b.Navigation("Events");
 
                     b.Navigation("Links");
+
+                    b.Navigation("ParentSetMemberships");
+
+                    b.Navigation("ParentSets");
 
                     b.Navigation("PersonPhotos");
 

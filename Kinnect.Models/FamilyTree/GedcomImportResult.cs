@@ -8,6 +8,9 @@ public class GedcomImportResult
 
     public int RelationshipsImported { get; set; }
 
+    /// <summary>New sets of parents, each one a birth, adopted or foster link. Links that were skipped are listed in <see cref="Warnings"/>.</summary>
+    public int ParentSetsImported { get; set; }
+
     public int EventsImported { get; set; }
 
     /// <summary>Photos created from the image files in the upload (one per distinct file).</summary>

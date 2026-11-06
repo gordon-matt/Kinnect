@@ -24,10 +24,6 @@ public class PersonEditRequest
 
     public double? Longitude { get; set; }
 
-    public int? FatherId { get; set; }
-
-    public int? MotherId { get; set; }
-
     public string? Occupation { get; set; }
 
     public string? Education { get; set; }

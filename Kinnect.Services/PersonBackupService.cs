@@ -29,6 +29,8 @@ public sealed class PersonBackupService(
         var spouses = await db.PersonSpouses.AsNoTracking().ToListAsync(cancellationToken);
         var links = await db.PersonLinks.AsNoTracking().OrderBy(link => link.SortOrder).ThenBy(link => link.Id).ToListAsync(cancellationToken);
         var contacts = await db.Contacts.AsNoTracking().OrderBy(contact => contact.SortOrder).ThenBy(contact => contact.Id).ToListAsync(cancellationToken);
+        var parentSets = await db.ParentSets.AsNoTracking().OrderBy(set => set.Id).ToListAsync(cancellationToken);
+        var parentMembers = (await db.ParentSetMembers.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(member => member.ParentSetId);
 
         var doc = new PersonTreeBackupDocument
         {
@@ -46,8 +48,6 @@ public sealed class PersonBackupService(
                 ProfileImagePath = p.ProfileImagePath,
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
-                FatherId = p.FatherId,
-                MotherId = p.MotherId,
                 Occupation = p.Occupation,
                 Education = p.Education,
                 Religion = p.Religion,
@@ -87,6 +87,21 @@ public sealed class PersonBackupService(
                 Type = contact.Type,
                 Value = contact.Value,
                 SortOrder = contact.SortOrder
+            }).ToList(),
+            ParentSets = parentSets.Select(set => new ParentSetBackupEntry
+            {
+                ChildPersonId = set.ChildPersonId,
+                Type = set.Type,
+                IsPrimary = set.IsPrimary,
+                Year = set.Year,
+                Month = set.Month,
+                Day = set.Day,
+                Visibility = set.Visibility,
+                Members = parentMembers[set.Id].OrderBy(member => member.Role).Select(member => new ParentSetMemberBackupEntry
+                {
+                    ParentPersonId = member.ParentPersonId,
+                    Role = member.Role
+                }).ToList()
             }).ToList()
         };
 
@@ -190,7 +205,7 @@ public sealed class PersonBackupService(
             return Result.Error("Could not read or parse the backup file.");
         }
 
-        if (doc is null || doc.SchemaVersion is < 1 or > 5)
+        if (doc is null || doc.SchemaVersion is < 1 or > 6)
         {
             return Result.Invalid(new ValidationError("Unsupported or empty backup file."));
         }
@@ -230,8 +245,6 @@ public sealed class PersonBackupService(
                 entity.ProfileImagePath = entry.ProfileImagePath;
                 entity.Latitude = entry.Latitude;
                 entity.Longitude = entry.Longitude;
-                entity.FatherId = ValidParent(entry.FatherId, existingIds);
-                entity.MotherId = ValidParent(entry.MotherId, existingIds);
                 entity.Occupation = entry.Occupation;
                 entity.Education = entry.Education;
                 entity.Religion = entry.Religion;
@@ -325,6 +338,8 @@ public sealed class PersonBackupService(
                 await db.SaveChangesAsync(cancellationToken);
             }
 
+            await RestoreParentSetsAsync(doc, existingIds, cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
 
             int peopleTouched = doc.People.Count(e => existingIds.Contains(e.Id));
@@ -393,6 +408,66 @@ public sealed class PersonBackupService(
         return true;
     }
 
-    private static int? ValidParent(int? id, HashSet<int> existingIds) =>
-        id.HasValue && existingIds.Contains(id.Value) ? id : null;
+    /// <summary>
+    /// Puts back who parented whom for the people in the backup. A file before schema 6 only knew a father and a mother,
+    /// which become one primary birth set. People who are not in the backup keep the sets they have.
+    /// </summary>
+    private async Task RestoreParentSetsAsync(PersonTreeBackupDocument doc, HashSet<int> existingIds, CancellationToken cancellationToken)
+    {
+        var restored = doc.People.Select(person => person.Id).Where(existingIds.Contains).ToList();
+        await db.ParentSetMembers.Where(member => restored.Contains(member.ParentSet.ChildPersonId)).ExecuteDeleteAsync(cancellationToken);
+        await db.ParentSets.Where(set => restored.Contains(set.ChildPersonId)).ExecuteDeleteAsync(cancellationToken);
+
+        var entries = new List<ParentSetBackupEntry>();
+        if (doc.SchemaVersion >= 6)
+        {
+            entries.AddRange(doc.ParentSets);
+        }
+        else
+        {
+            foreach (var person in doc.People.Where(person => person.FatherId is not null || person.MotherId is not null))
+            {
+                var members = new List<ParentSetMemberBackupEntry>();
+                if (person.FatherId is int father)
+                {
+                    members.Add(new ParentSetMemberBackupEntry { ParentPersonId = father, Role = ParentRole.Father });
+                }
+
+                if (person.MotherId is int mother)
+                {
+                    members.Add(new ParentSetMemberBackupEntry { ParentPersonId = mother, Role = ParentRole.Mother });
+                }
+
+                entries.Add(new ParentSetBackupEntry { ChildPersonId = person.Id, Type = ParentageType.Birth, IsPrimary = true, Members = members });
+            }
+        }
+
+        foreach (var entry in entries.Where(entry => restored.Contains(entry.ChildPersonId)))
+        {
+            var members = entry.Members
+                .Where(member => existingIds.Contains(member.ParentPersonId) && member.ParentPersonId != entry.ChildPersonId)
+                .GroupBy(member => member.Role)
+                .Select(group => group.First())
+                .ToList();
+            if (members.Count == 0)
+            {
+                continue;
+            }
+
+            db.ParentSets.Add(new ParentSet
+            {
+                ChildPersonId = entry.ChildPersonId,
+                Type = entry.Type,
+                IsPrimary = entry.IsPrimary,
+                Year = entry.Year,
+                Month = entry.Month,
+                Day = entry.Day,
+                Visibility = entry.Visibility,
+                CreatedAtUtc = DateTime.UtcNow,
+                Members = members.Select(member => new ParentSetMember { ParentPersonId = member.ParentPersonId, Role = member.Role }).ToList()
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }

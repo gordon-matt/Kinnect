@@ -37,6 +37,10 @@ public abstract class ApplicationDbContextBase(DbContextOptions options)
 
     public DbSet<PersonEvent> PersonEvents { get; set; }
 
+    public DbSet<ParentSet> ParentSets { get; set; }
+
+    public DbSet<ParentSetMember> ParentSetMembers { get; set; }
+
     public DbSet<PersonLink> PersonLinks { get; set; }
 
     public DbSet<PersonPhoto> PersonPhotos { get; set; }

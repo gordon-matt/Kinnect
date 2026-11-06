@@ -162,6 +162,7 @@ internal static class ServiceCollectionExtensions
             services.AddSingleton<ISettingsService, SettingsService>();
             services.AddScoped<IAccountIdResolver, IdentityAccountIdResolver>();
             services.AddScoped<IUserContextService, UserContextService>();
+            services.AddScoped<IParentSetService, ParentSetService>();
             services.AddScoped<IPersonService, PersonService>();
             services.AddScoped<IPersonEventService, PersonEventService>();
             services.AddScoped<IPostService, PostService>();

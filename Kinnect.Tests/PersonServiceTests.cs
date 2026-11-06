@@ -14,7 +14,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.CreateAsync(new PersonEditRequest
         {
@@ -51,7 +52,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.AddSpouseAsync(p.Id, p.Id);
 
@@ -99,7 +101,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.GetSpousesForPersonAsync(a.Id);
 
@@ -140,7 +143,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.LinkUserAccountAsync(p2.Id, "user-1");
 
@@ -190,7 +194,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.GetMapPinsAsync();
 
@@ -223,7 +228,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
         {
@@ -270,7 +276,8 @@ public class PersonServiceTests
             new EntityFrameworkRepository<PersonVersion>(factory),
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<PersonLink>(factory),
-            new EntityFrameworkRepository<Contact>(factory));
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.UpdateAsync(person.Id, new PersonEditRequest
         {
@@ -416,5 +423,6 @@ public class PersonServiceTests
         new EntityFrameworkRepository<PersonVersion>(factory),
         new EntityFrameworkRepository<PersonEvent>(factory),
         new EntityFrameworkRepository<PersonLink>(factory),
-        new EntityFrameworkRepository<Contact>(factory));
+        new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory));
 }

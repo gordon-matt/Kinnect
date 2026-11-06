@@ -53,11 +53,14 @@ Not imported on an event:
 ## Relationships
 
 - `HUSB` and `WIFE` become a spouse link. The original family xref is not stored
-- `CHIL` sets the child's father to the husband and mother to the wife
-
+- `CHIL` with the child's `FAMC` is a set of parents: the husband and wife of that family, one or two people. A child can have several sets, and each is a birth, adopted or foster link
+- `PEDI` chooses the type: `birth` (also the type when there is no `PEDI`), `adopted` or `foster`. The case does not matter, so 5.5.1 (`adopted`) and 7.0 (`ADOPTED`) both read
+- An `ADOP` event with a `FAMC` is an adoption into that family, with its date. When the same family also has a `FAMC` with `PEDI`, the two are one adopted set. Either one alone is enough. `FAMC` > `ADOP` (`HUSB`, `WIFE` or `BOTH`) on the event narrows the set to the parent who adopted. That event is the set, so it is not added to the timeline as well
+- Primary set: a child with more than one set has one that the tree draws. GEDCOM has no flag for it, so Kinnect reads `_PRIM Y` under a `FAMC`. Without it, the primary is the adopted set, then the birth set, then the foster set, and when a child already has a primary set from an earlier import, that one stays
+- Every set is checked as if it was added by hand: no loop that makes someone their own ancestor, nobody born before their parent, an adoption not dated before the birth. A set that fails is skipped and the import report says which one and why. New sets are visible to everyone
 Not imported:
 
-- `PEDI` (birth, adopted, foster, sealing) and which parent adopted the child
+- `PEDI` other than birth, adopted and foster (sealing, other, and any value a program makes up). That link is skipped and the import report lists it
 - Child order
 - `ASSO` (godparent, witness, friend)
 - LDS ordinances: `BAPL`, `CONL`, `ENDL`, `SLGC`, `SLGS`
@@ -112,7 +115,8 @@ A tree that was not imported is written as a new file in the chosen version. In 
 - Other timeline events, with date, place, the original tag (a custom tag such as `_MILT` is written as itself), `TYPE` from the description, and the event note
 - The person's notes
 - Email, phone, mobile, fax, website, and address
-- Families: husband and wife (a male spouse is written as `HUSB`), marriage date, divorce date, engagement, and children whose father and mother are that pair
-- Photos, videos and documents, including `_DATE` and `_TEXT` when Kinnect has them
+- Families: husband and wife (a male spouse is written as `HUSB`), marriage date, divorce date, engagement
+- Parents: one `FAM` for every set of parents, including a set with a single parent, with the child in `CHIL`. The child's `FAMC` has `PEDI` (`birth`, `adopted` or `foster` in 5.5.1 and 5.5.5, upper case in 7.0), and an adopted set also gets an `ADOP` event with its date and which parent adopted. The primary set is written first. A child with more than one set also gets `_PRIM Y` under the primary `FAMC`, which other programs ignore
+- Parents that only administrators, or only the child, can see are left out of the file. Ticking **Include private parent links** writes the ones the person exporting is allowed to see: an administrator gets the administrator-only sets, and a set only the child can see is written only when the child exports- Photos, videos and documents, including `_DATE` and `_TEXT` when Kinnect has them
 
 The stored original on the server is not edited. The download is a separate file.

@@ -13,6 +13,13 @@ public sealed class GedcomExportOptions
 
     public bool Families { get; set; } = true;
 
+    /// <summary>
+    /// Parents the person who exports may see but not everyone can: sets limited to administrators or to the child.
+    /// Off by default, so a file that gets shared does not carry a link somebody chose to keep private. The sets are
+    /// still only those the exporting user is allowed to see, whatever this says.
+    /// </summary>
+    public bool IncludeHiddenParentSets { get; set; }
+
     public bool Photos { get; set; } = true;
 
     public bool Videos { get; set; } = true;

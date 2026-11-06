@@ -3,7 +3,8 @@ namespace Kinnect.Services;
 public class PersonEventService(
     IRepository<PersonEvent> eventRepository,
     IRepository<Person> personRepository,
-    IRepository<PersonSpouse> spouseRepository) : IPersonEventService
+    IRepository<PersonSpouse> spouseRepository,
+    IParentSetService parentSets) : IPersonEventService
 {
     public async Task<Result<PersonEventDto>> CopyToPersonAsync(int sourceEventId, int targetPersonId)
     {
@@ -124,7 +125,14 @@ public class PersonEventService(
             : duplicates > 0 ? Result.Success(0) : (Result<int>)Result.Invalid(new ValidationError("Choose a spouse, parent, sibling, or child."));
     }
 
-    public async Task<Result<IReadOnlyList<CloseRelativeDto>>> GetCloseRelativesAsync(int personId)
+    /// <summary>
+    /// Spouses, parents, children and siblings the signed-in viewer can see. Parents and children are listed through
+    /// every set of parents by default, each labelled with how the link is recorded (Father, Adoptive mother, Foster
+    /// child), because a profile should show who the person's family is. Pass <see cref="ParentLineage.BirthOnly"/> for
+    /// blood relatives only, or <see cref="ParentLineage.Primary"/> to follow just the family the tree draws.
+    /// Hidden sets are not in the graph, so a hidden link never adds anybody here.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<CloseRelativeDto>>> GetCloseRelativesAsync(int personId, ParentLineage lineage = ParentLineage.Any)
     {
         var person = await personRepository.FindOneAsync(personId);
         if (person is null)
@@ -141,55 +149,55 @@ public class PersonEventService(
             .Select(link => link.PersonId == personId ? link.SpouseId : link.PersonId)
             .ToHashSet();
 
-        int? fatherId = person.FatherId;
-        int? motherId = person.MotherId;
-
-        var candidates = (await personRepository.FindAsync(new SearchOptions<Person>
+        var graph = await parentSets.LoadGraphAsync();
+        var labels = new Dictionary<int, string>();
+        foreach (int spouseId in spouseIds)
         {
-            Query = other => other.Id != personId && (
-                spouseIds.Contains(other.Id)
-                || (fatherId != null && other.Id == fatherId)
-                || (motherId != null && other.Id == motherId)
-                || other.FatherId == personId
-                || other.MotherId == personId
-                || (fatherId != null && other.FatherId == fatherId)
-                || (motherId != null && other.MotherId == motherId))
-        })).ToList();
+            labels[spouseId] = "Spouse";
+        }
 
-        string[] order = ["Spouse", "Father", "Mother", "Child", "Sibling"];
-        IReadOnlyList<CloseRelativeDto> relatives = candidates
-            .Select(other => (Person: other, Relationship: RelationshipOf(other)))
-            .Where(row => row.Relationship is not null)
-            .OrderBy(row => Array.IndexOf(order, row.Relationship))
-            .ThenBy(row => row.Person.GivenNames, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(row => row.Person.FamilyName, StringComparer.OrdinalIgnoreCase)
-            .Select(row => new CloseRelativeDto
+        foreach (int parentId in graph.ParentsOf(personId, lineage))
+        {
+            labels.TryAdd(parentId, graph.ParentLabel(personId, parentId, lineage) ?? "Parent");
+        }
+
+        foreach (int childId in graph.ChildrenOf(personId, lineage))
+        {
+            var type = graph.Followed(childId, lineage).First(set => set.Members.Any(member => member.PersonId == personId)).Type;
+            labels.TryAdd(childId, type switch
             {
-                PersonId = row.Person.Id,
-                FullName = $"{row.Person.GivenNames} {row.Person.FamilyName}",
-                Relationship = row.Relationship!
+                ParentageType.Adopted => "Adopted child",
+                ParentageType.Foster => "Foster child",
+                _ => "Child",
+            });
+        }
+
+        foreach (int siblingId in graph.SiblingsOf(personId, lineage))
+        {
+            labels.TryAdd(siblingId, "Sibling");
+        }
+
+        labels.Remove(personId);
+        var ids = labels.Keys.ToList();
+        var found = ids.Count == 0
+            ? []
+            : (await personRepository.FindAsync(new SearchOptions<Person> { Query = other => ids.Contains(other.Id) })).ToList();
+
+        string[] order = ["Spouse", "Father", "Mother", "Adoptive father", "Adoptive mother", "Foster father", "Foster mother", "Parent", "Child", "Adopted child", "Foster child", "Sibling"];
+        IReadOnlyList<CloseRelativeDto> relatives = found
+            .OrderBy(other => Array.IndexOf(order, labels[other.Id]))
+            .ThenBy(other => other.GivenNames, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(other => other.FamilyName, StringComparer.OrdinalIgnoreCase)
+            .Select(other => new CloseRelativeDto
+            {
+                PersonId = other.Id,
+                FullName = $"{other.GivenNames} {other.FamilyName}",
+                Relationship = labels[other.Id],
             })
             .ToList();
 
         return Result.Success(relatives);
-
-        string? RelationshipOf(Person other)
-        {
-            if (spouseIds.Contains(other.Id))
-            {
-                return "Spouse";
-            }
-
-            return other.Id == fatherId
-                ? "Father"
-                : other.Id == motherId
-                ? "Mother"
-                : other.FatherId == personId || other.MotherId == personId
-                ? "Child"
-                : (fatherId != null && other.FatherId == fatherId) || (motherId != null && other.MotherId == motherId) ? "Sibling" : null;
-        }
     }
-
     public async Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request)
     {
         string eventType = request.EventType.ToUpperInvariant();

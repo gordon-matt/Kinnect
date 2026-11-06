@@ -32,7 +32,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
         var request = new PersonEventRequest { EventType = PersonEventType.Birth, Year = 1991 };
 
         var result = await sut.CreateAsync(person.Id, request);
@@ -59,7 +60,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
         var request = new PersonEventRequest { EventType = PersonEventType.Marriage };
 
         var result = await sut.CreateAsync(person.Id, request);
@@ -103,7 +105,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.GetByPersonAsync(person.Id);
 
@@ -141,7 +144,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
 
         var del = await sut.DeleteAsync(evt.Id);
 
@@ -162,14 +166,12 @@ public class PersonEventServiceTests
 
         var child = Person("Jane", "Ward", false);
         var sibling = Person("John", "Ward", true);
-        child.FatherId = father.Id;
-        child.MotherId = mother.Id;
-        sibling.FatherId = father.Id;
-        sibling.MotherId = mother.Id;
         var spouse = Person("Sam", "Ward", true);
         var stranger = Person("Pat", "Other", false);
         db.People.AddRange(child, sibling, spouse, stranger);
         await db.SaveChangesAsync();
+        await TestParentSets.LinkAsync(db, child, father, mother);
+        await TestParentSets.LinkAsync(db, sibling, father, mother);
 
         int low = Math.Min(child.Id, spouse.Id);
         int high = Math.Max(child.Id, spouse.Id);
@@ -188,7 +190,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
 
         var birth = await AddBirth(db, child.Id);
         var birthCopy = await sut.CopyToCloseRelativesAsync(birth.Id, [spouse.Id], "editor", isAdmin: true);
@@ -250,7 +253,8 @@ public class PersonEventServiceTests
         var sut = new PersonEventService(
             new EntityFrameworkRepository<PersonEvent>(factory),
             new EntityFrameworkRepository<Person>(factory),
-            new EntityFrameworkRepository<PersonSpouse>(factory));
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            TestParentSets.Create(factory));
 
         var result = await sut.CopyToCloseRelativesAsync(residence.Id, [spouse.Id], "me");
 

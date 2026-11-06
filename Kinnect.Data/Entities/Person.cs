@@ -26,10 +26,6 @@ public class Person : BaseEntity<int>
 
     public double? Longitude { get; set; }
 
-    public int? FatherId { get; set; }
-
-    public int? MotherId { get; set; }
-
     public string? Occupation { get; set; }
 
     public string? Education { get; set; }
@@ -47,13 +43,11 @@ public class Person : BaseEntity<int>
 
     public DateTime UpdatedAtUtc { get; set; }
 
-    public virtual Person? Father { get; set; }
+    /// <summary>The sets of parents this person has, as the child. See <see cref="ParentSet"/>.</summary>
+    public virtual ICollection<ParentSet> ParentSets { get; set; } = [];
 
-    public virtual Person? Mother { get; set; }
-
-    public virtual ICollection<Person> ChildrenAsFather { get; set; } = [];
-
-    public virtual ICollection<Person> ChildrenAsMother { get; set; } = [];
+    /// <summary>The sets this person is a parent in.</summary>
+    public virtual ICollection<ParentSetMember> ParentSetMemberships { get; set; } = [];
 
     public virtual ICollection<PersonSpouse> Spouses { get; set; } = [];
 
@@ -87,16 +81,6 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.Property(m => m.Religion).HasMaxLength(200);
         builder.Property(m => m.Note).HasMaxLength(4000);
         builder.Property(m => m.GedcomId).HasMaxLength(50);
-
-        builder.HasOne(m => m.Father)
-            .WithMany(m => m.ChildrenAsFather)
-            .HasForeignKey(m => m.FatherId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(m => m.Mother)
-            .WithMany(m => m.ChildrenAsMother)
-            .HasForeignKey(m => m.MotherId)
-            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(m => m.UserId).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
     }

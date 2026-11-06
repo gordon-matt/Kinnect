@@ -17,6 +17,9 @@ public partial class GedcomService(
     IRepository<Video> videoRepository,
     IRepository<Contact> contactRepository,
     IRepository<GedcomFile> gedcomFileRepository,
+    IRepository<ParentSet> setRepository,
+    IRepository<ParentSetMember> memberRepository,
+    IParentSetService parentSets,
     IFileStorageService fileStorage,
     ILogger<GedcomService> logger) : IGedcomService
 {
@@ -209,6 +212,8 @@ public partial class GedcomService(
             {
                 await ImportFamilyAsync(family, xrefToPersonId, summary, context);
             }
+
+            await ImportParentSetsAsync(dataset, xrefToPersonId, summary, context);
 
             await RestoreFoldedTagsAsync(gedcomPath);
             context.AddSummaryWarnings();
@@ -442,31 +447,7 @@ public partial class GedcomService(
             }
         }
 
-        // Link children to their parents
-        foreach (string childXref in family.ChildXrefs)
-        {
-            if (!xrefToPersonId.TryGetValue(childXref, out int childId))
-            {
-                continue;
-            }
-
-            var child = await personRepository.FindOneAsync(childId);
-            if (child is null)
-            {
-                continue;
-            }
-
-            bool updated = false;
-            if (husbandId.HasValue && child.FatherId != husbandId) { child.FatherId = husbandId; updated = true; }
-            if (wifeId.HasValue && child.MotherId != wifeId) { child.MotherId = wifeId; updated = true; }
-
-            if (updated)
-            {
-                child.UpdatedAtUtc = DateTime.UtcNow;
-                await personRepository.UpdateAsync(child);
-                summary.RelationshipsImported++;
-            }
-        }
+        // Who the children's parents are comes from their own FAMC links and ADOP events. See ImportParentSetsAsync.
 
         await ImportFamilyMediaAsync(family, husbandId, wifeId, context);
         await ImportFamilyEventsAsync(family, husbandId, wifeId, summary);
@@ -747,7 +728,7 @@ public partial class GedcomService(
         // An address with no date or place is contact information, so it is not also stored as an event.
         foreach (var indEvent in PersonEvents(individual))
         {
-            if (IsContactOnly(indEvent))
+            if (IsContactOnly(indEvent) || IsAdoptionIntoFamily(indEvent, individual))
             {
                 continue;
             }

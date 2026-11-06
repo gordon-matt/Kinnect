@@ -18,8 +18,8 @@ Shared coding conventions live in Blueprint/.cursor/rules/conventions.mdc (absol
 | EasyChatz.Data.Npgsql | NuGet PackageReference | EasyChatz.Data.Npgsql 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
 | EasyChatz.Data.Sql | NuGet PackageReference | EasyChatz.Data.Sql 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
 | EasyChatz.Data.Sqlite | NuGet PackageReference | EasyChatz.Data.Sqlite 1.1.0 | `D:\Source\GitHub\Components\EasyChatz` (`..\..\Components\EasyChatz`) |
-| MyWebTree.Components | NuGet PackageReference | MyWebTree.Components 1.0.1 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
-| MyWebTree.Core | NuGet PackageReference | MyWebTree.Core 1.0.1 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
+| MyWebTree.Components | ProjectReference | commented-out package 1.1.0 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
+| MyWebTree.Core | ProjectReference | commented-out package 1.1.0 | `D:\Source\GitHub\Components\MyWebTree` (`..\..\Components\MyWebTree`) |
 | Extenso.Data.Entity | NuGet PackageReference | Extenso.Data.Entity 10.2.0 | `D:\Source\GitHub\Libraries\Extenso` (`..\..\Libraries\Extenso`) |
 | GedcomSharp | NuGet PackageReference | GedcomSharp 1.0.0 | `D:\Source\GitHub\Libraries\GedcomSharp` (`..\..\Libraries\GedcomSharp`) |
 | Heroicsoft.NetForge.Abstractions | ProjectReference | commented-out package 1.0.3 | `D:\Source\GitHub\Libraries\Heroicsoft.NetForge` (`..\..\Libraries\Heroicsoft.NetForge`) |

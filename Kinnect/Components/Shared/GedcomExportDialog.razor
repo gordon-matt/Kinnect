@@ -33,6 +33,7 @@
                 <label class="nf-check"><input type="checkbox" @bind="options.Events" disabled="@running" /> Events</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Contacts" disabled="@running" /> Contacts</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Families" disabled="@running" /> Families</label>
+                <label class="nf-check" title="Parents that only administrators, or only the child, can see. Left out unless you tick this."><input type="checkbox" @bind="options.IncludeHiddenParentSets" disabled="@(running || !options.Families)" /> Include private parent links</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Photos" disabled="@running" /> Photos</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Videos" disabled="@running" /> Videos</label>
                 <label class="nf-check"><input type="checkbox" @bind="options.Documents" disabled="@running" /> Documents</label>

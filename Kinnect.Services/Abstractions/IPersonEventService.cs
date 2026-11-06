@@ -11,7 +11,7 @@ public interface IPersonEventService
         bool isAdmin = false,
         bool isEditorOrAbove = false);
 
-    Task<Result<IReadOnlyList<CloseRelativeDto>>> GetCloseRelativesAsync(int personId);
+    Task<Result<IReadOnlyList<CloseRelativeDto>>> GetCloseRelativesAsync(int personId, ParentLineage lineage = ParentLineage.Any);
 
     Task<Result<PersonEventDto>> CreateAsync(int personId, PersonEventRequest request);
 

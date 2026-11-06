@@ -5,6 +5,7 @@
 
 @inject IPersonService People
 @inject IPersonEventService Events
+@inject IParentSetService ParentSets
 @inject IPostService Posts
 @inject IPhotoService Photos
 @inject IVideoService Videos
@@ -85,6 +86,7 @@ else
                             </label>
                         }
                     </EditForm>
+                    @ParentsCard
                     @SpouseRelationships
                 }
                 else
@@ -119,6 +121,7 @@ else
                             <p style="white-space: pre-wrap">@person.Note</p>
                         }
                     </div>
+                    @ParentsCard
                     @SpouseRelationships
                 }
             </div>
@@ -704,6 +707,7 @@ else
     private string? selectedAccountId;
     private int? myPersonId;
     private List<CloseRelativeDto> relatives = [];
+    private IReadOnlyList<ParentSetDto> parentSetRows = [];
     private int? copyingEventId;
     private readonly HashSet<int> rowCopyTargets = [];
 
@@ -850,6 +854,92 @@ else
 
             return rows.OrderBy(row => row.Sort);
         }
+    }
+
+    /// <summary>
+    /// The sets of parents this person has, as the signed-in user may see them, with how each is recorded. A set the
+    /// viewer cannot see is not in the list, and nothing here says one exists. Types, dates and members are edited in
+    /// the family tree. Who may see a set is chosen here, by an administrator or by the person themselves.
+    /// </summary>
+    private RenderFragment ParentsCard => @<div class="kinnect-card kinnect-stack kinnect-parents">
+        <h2>Parents</h2>
+        @if (parentSetRows.Count == 0)
+        {
+            <p class="kinnect-muted">No parents recorded.</p>
+        }
+        else
+        {
+            foreach (var set in parentSetRows)
+            {
+                <div class="kinnect-stack" data-parent-set="@set.Id">
+                    <div class="kinnect-row">
+                        <strong>@ParentSetTitle(set)</strong>
+                        @if (set.IsPrimary && parentSetRows.Count > 1)
+                        {
+                            <span class="nf-badge">Primary</span>
+                        }
+                        @if (set.Type != ParentageType.Birth && set.Year is not null)
+                        {
+                            <span class="kinnect-muted">@DateText(set.Year, set.Month, set.Day)</span>
+                        }
+                    </div>
+                    @foreach (var member in set.Members)
+                    {
+                        <div>
+                            <a href="@($"people/{member.PersonId}")">@RelativeName(member.PersonId)</a>
+                            <span class="nf-badge">@ParentageTypes.ParentLabel(set.Type, member.Role)</span>
+                        </div>
+                    }
+                    @if (canChangeVisibility)
+                    {
+                        <label class="kinnect-muted">
+                            Who can see this
+                            <select class="nf-select" value="@((int)set.Visibility)" @onchange="args => ChangeVisibilityAsync(set, args)">
+                                @foreach (var option in Enum.GetValues<LinkVisibility>())
+                                {
+                                    <option value="@((int)option)">@ParentageTypes.Label(option)</option>
+                                }
+                            </select>
+                        </label>
+                    }
+                </div>
+            }
+        }
+        <a href="@($"tree?person={PersonId}")">Open in the family tree</a>
+    </div>;
+
+    private static string ParentSetTitle(ParentSetDto set) => set.Type switch
+    {
+        ParentageType.Adopted => "Adoptive parents",
+        ParentageType.Foster => "Foster parents",
+        _ => "Birth parents",
+    };
+
+    private string RelativeName(int personId) => relatives.FirstOrDefault(relative => relative.PersonId == personId)?.FullName ?? "Family member";
+
+    /// <summary>Administrators and the person themselves choose who sees a set. The server checks it again.</summary>
+    private bool canChangeVisibility => mine || Users.IsAdmin();
+
+    private async Task ChangeVisibilityAsync(ParentSetDto set, ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out int value) || !Enum.IsDefined((LinkVisibility)value))
+        {
+            return;
+        }
+
+        var result = await ParentSets.UpdateAsync(set.Id, new ParentSetRequest
+        {
+            Type = set.Type,
+            FatherId = set.FatherId,
+            MotherId = set.MotherId,
+            Year = set.Year,
+            Month = set.Month,
+            Day = set.Day,
+            Visibility = (LinkVisibility)value,
+            MakePrimary = false,
+        });
+        Notify(result, "Saved who can see these parents.");
+        parentSetRows = await ParentSets.GetForChildAsync(PersonId);
     }
 
     private RenderFragment SpouseRelationships => @<div class="kinnect-card kinnect-stack kinnect-spouse">
@@ -1352,8 +1442,6 @@ else
             IsMale = person.IsMale,
             Latitude = person.Latitude,
             Longitude = person.Longitude,
-            FatherId = person.FatherId,
-            MotherId = person.MotherId,
             Occupation = person.Occupation,
             Education = person.Education,
             Religion = person.Religion,
@@ -1364,6 +1452,7 @@ else
         };
         var relativeResult = await Events.GetCloseRelativesAsync(PersonId);
         relatives = relativeResult.IsSuccess ? relativeResult.Value.ToList() : [];
+        parentSetRows = await ParentSets.GetForChildAsync(PersonId);
 
         posts = (await Posts.GetByPersonAsync(PersonId)).Value?.ToList() ?? [];
         events = (await Events.GetByPersonAsync(PersonId)).Value?.OrderBy(e => e.Year).ToList() ?? [];
