@@ -11,7 +11,7 @@
 		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
 		<PackageReference Include="Hangfire.NetCore" Version="1.8.25" />
 		<PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
-		<PackageReference Include="LogVue.Data.Npgsql" Version="1.1.2" />
+		<PackageReference Include="LogVue.Data.Npgsql" Version="1.1.5" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
