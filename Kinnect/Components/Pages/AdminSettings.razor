@@ -135,6 +135,15 @@ else
                 <small class="kinnect-muted">Applies to ancestors and to descendants. Each person still picks their own number up to this limit.</small>
             </ChildContent>
 </Field>
+            <label class="nf-check"><InputCheckbox @bind-Value="tree.CapitalizeFamilyNames" /> Show family names in capitals</label>
+            <small class="kinnect-muted">Used on the tree, profiles, messages, and the rest of Kinnect. Names stay as typed in the database, and a profile being edited shows them that way.</small>
+            <Field Label="Default name order">
+                <InputSelect class="nf-select" @bind-Value="tree.DefaultNameOrder">
+                    <option value="@NameOrder.GivenNamesFirst">Given names first</option>
+                    <option value="@NameOrder.FamilyNameFirst">Family name first</option>
+                </InputSelect>
+                <small class="kinnect-muted">Used for people added after this is saved, including a GEDCOM import. Each profile can still choose its own order.</small>
+            </Field>
             <ValidationSummary />
             <div><button class="nf-button nf-button-primary" type="submit">Save tree settings</button></div>
         </EditForm>

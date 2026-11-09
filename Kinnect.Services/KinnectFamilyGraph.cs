@@ -65,8 +65,9 @@ public sealed class KinnectFamilyGraph(
             {
                 Id = id,
                 Gender = person.IsMale switch { true => Gender.Male, false => Gender.Female, _ => Gender.Unknown },
-                FirstName = person.GivenNames,
-                LastName = person.FamilyName,
+                GivenNames = person.GivenNames,
+                FamilyName = person.FamilyName,
+                IsFamilyNameFirst = person.IsFamilyNameFirst,
                 BirthDate = ToPartial(birth),
                 DeathDate = ToPartial(death),
                 BirthPlace = birth?.Place,
@@ -349,8 +350,9 @@ public sealed class KinnectFamilyGraph(
         string? image = ImagePath(card.AvatarUrl) ?? existing.ProfileImagePath;
         var request = new PersonEditRequest
         {
-            FamilyName = card.LastName.Trim(),
-            GivenNames = string.IsNullOrWhiteSpace(card.FirstName) ? existing.GivenNames : card.FirstName.Trim(),
+            FamilyName = card.FamilyName.Trim(),
+            GivenNames = string.IsNullOrWhiteSpace(card.GivenNames) ? existing.GivenNames : card.GivenNames.Trim(),
+            IsFamilyNameFirst = card.IsFamilyNameFirst,
             IsMale = card.Gender switch { Gender.Male => true, Gender.Female => false, _ => existing.IsMale },
             Latitude = existing.Latitude,
             Longitude = existing.Longitude,
@@ -484,8 +486,9 @@ public sealed class KinnectFamilyGraph(
     {
         return new PersonEditRequest
         {
-            FamilyName = card.LastName.Trim(),
-            GivenNames = string.IsNullOrWhiteSpace(card.FirstName) ? "Unknown" : card.FirstName.Trim(),
+            FamilyName = card.FamilyName.Trim(),
+            GivenNames = string.IsNullOrWhiteSpace(card.GivenNames) ? "Unknown" : card.GivenNames.Trim(),
+            IsFamilyNameFirst = card.IsFamilyNameFirst,
             IsMale = card.Gender switch { Gender.Male => true, Gender.Female => false, _ => existing?.IsMale },
             Note = string.IsNullOrWhiteSpace(card.Notes) ? null : card.Notes.Trim(),
             IsDeceased = card.DeathDate is not null,

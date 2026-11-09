@@ -4,8 +4,12 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.2.1</Version>
+		<Version>1.2.2</Version>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="MyWebTree.Core" Version="1.1.2" />
+	</ItemGroup>
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Kinnect.Core\Kinnect.Core.csproj" />

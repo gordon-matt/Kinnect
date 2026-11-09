@@ -52,6 +52,8 @@ else
                     ActiveParentSets="@activeSets"
                     ActiveParentSetsChanged="OnActiveSetsChangedAsync"
                     MaxGenerations="@maxGenerations"
+                    CapitalizeFamilyNames="@capitalizeFamilyNames"
+                    DefaultFamilyNameFirst="@defaultFamilyNameFirst"
                     ViewChanged="OnViewChangedAsync"
                     Height="calc(100vh - 12rem)"
                     Changed="OnChanged"
@@ -59,7 +61,7 @@ else
                     OpenPersonText="View Profile" />
         <Drawer Inline Side="DrawerSide.Start" Persistent Open="showPeople" Title="People" OnClose="() => showPeople = false">
             <div class="kinnect-list">
-                @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.DisplayName, StringComparer.OrdinalIgnoreCase))
+                @foreach (var person in people.Where(person => !person.IsPlaceholder).OrderBy(person => person.FormatName(capitalizeFamilyNames), StringComparer.OrdinalIgnoreCase))
                 {
                     <button type="button" @onclick="() => CenterAsync(person.Id)">
                         <span class="kinnect-person-label">
@@ -72,7 +74,7 @@ else
                                     <path d="M4.5 4.5 19.5 19.5" />
                                 </svg>
                             }
-                            <span>@person.DisplayName</span>
+                            <span>@person.FormatName(capitalizeFamilyNames)</span>
                         </span>
                         @if (person.Lifespan.Length > 0)
                         {
@@ -107,6 +109,8 @@ else
     private const int DefaultDepth = 4;
     private TreeView view = new(DefaultDepth, DefaultDepth, false, LineageScope.Bilateral, TreeOrientation.Vertical);
     private int maxGenerations = TreeSettings.DefaultMaxGenerations;
+    private bool capitalizeFamilyNames = true;
+    private bool defaultFamilyNameFirst;
     private bool viewLoaded;
     private string? viewKey;
 
@@ -121,7 +125,10 @@ else
     protected override async Task OnInitializedAsync()
     {
         editable = Users.IsAdmin() || Users.IsEditor();
-        maxGenerations = (await Settings.GetAsync<TreeSettings>()).MaxGenerations;
+        var treeSettings = await Settings.GetAsync<TreeSettings>();
+        maxGenerations = treeSettings.MaxGenerations;
+        capitalizeFamilyNames = treeSettings.CapitalizeFamilyNames;
+        defaultFamilyNameFirst = treeSettings.DefaultNameOrder == NameOrder.FamilyNameFirst;
         viewKey = $"kinnect.tree.view.{Users.GetCurrentUserId() ?? "anonymous"}";
         setsKey = $"kinnect.tree.sets.{Users.GetCurrentUserId() ?? "anonymous"}";
         NoteRoutedPerson();

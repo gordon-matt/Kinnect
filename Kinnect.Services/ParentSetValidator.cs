@@ -35,7 +35,7 @@ public sealed class ParentSetValidator
 
         foreach (var person in people)
         {
-            names[person.Id] = $"{person.GivenNames} {person.FamilyName}".Trim();
+            names[person.Id] = PersonDisplay.Name(person);
         }
     }
 

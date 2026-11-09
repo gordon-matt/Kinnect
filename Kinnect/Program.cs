@@ -193,7 +193,10 @@ try
     await context.Database.MigrateAsync();
 
     // After the migration, because the video settings (tools path) now live in the database.
-    var videoSettings = await services.GetRequiredService<ISettingsService>().GetAsync<VideoSettings>();
+    var appSettings = services.GetRequiredService<ISettingsService>();
+    await appSettings.GetAsync<TreeSettings>();
+    PersonDisplay.Tree = () => appSettings.Peek<TreeSettings>();
+    var videoSettings = await appSettings.GetAsync<VideoSettings>();
     await FfmpegBootstrapper.EnsureConfiguredAsync(
         videoSettings.ToolsPath,
         services.GetRequiredService<IHostEnvironment>(),

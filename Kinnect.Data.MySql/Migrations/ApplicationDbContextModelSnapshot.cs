@@ -566,6 +566,11 @@ namespace Kinnect.Data.MySql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsMale")
                         .HasColumnType("tinyint(1)");
 
@@ -939,6 +944,16 @@ namespace Kinnect.Data.MySql.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    b.Property<bool>("CapitalizeFamilyNames")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("DefaultNameOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("MaxGenerations")
                         .HasColumnType("int");

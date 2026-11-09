@@ -191,7 +191,7 @@ public class PersonEventService(
             .Select(other => new CloseRelativeDto
             {
                 PersonId = other.Id,
-                FullName = $"{other.GivenNames} {other.FamilyName}",
+                FullName = PersonDisplay.Name(other),
                 Relationship = labels[other.Id],
             })
             .ToList();

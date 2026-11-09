@@ -10,6 +10,9 @@ public sealed class TestSettingsService(params AppSettings[] initial) : ISetting
     public Task<T> GetAsync<T>(CancellationToken cancellationToken = default) where T : AppSettings, new() =>
         Task.FromResult(store.TryGetValue(typeof(T), out var found) ? (T)found.Copy() : new T());
 
+    public T Peek<T>() where T : AppSettings, new() =>
+        store.TryGetValue(typeof(T), out var found) ? (T)found.Copy() : new T();
+
     public Task<Result<T>> SaveAsync<T>(T settings, CancellationToken cancellationToken = default) where T : AppSettings, new()
     {
         store[typeof(T)] = settings.Copy();

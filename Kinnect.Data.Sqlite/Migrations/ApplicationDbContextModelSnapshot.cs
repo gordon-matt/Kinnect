@@ -564,6 +564,11 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsMale")
                         .HasColumnType("INTEGER");
 
@@ -937,6 +942,16 @@ namespace Kinnect.Data.Sqlite.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CapitalizeFamilyNames")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("DefaultNameOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("MaxGenerations")
                         .HasColumnType("INTEGER");

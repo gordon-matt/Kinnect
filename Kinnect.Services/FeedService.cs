@@ -25,7 +25,7 @@ public class FeedService(IRepository<Post> postRepository, IRepository<Photo> ph
         {
             Type = "post",
             Id = p.Id,
-            AuthorName = $"{p.Author.GivenNames} {p.Author.FamilyName}",
+            AuthorName = PersonDisplay.Name(p.Author),
             AuthorProfileImage = p.Author.ProfileImagePath,
             AuthorPersonId = p.AuthorPersonId,
             Content = p.Content,
@@ -36,7 +36,7 @@ public class FeedService(IRepository<Post> postRepository, IRepository<Photo> ph
         {
             Type = "photo",
             Id = p.Id,
-            AuthorName = $"{p.UploadedBy.GivenNames} {p.UploadedBy.FamilyName}",
+            AuthorName = PersonDisplay.Name(p.UploadedBy),
             AuthorProfileImage = p.UploadedBy.ProfileImagePath,
             AuthorPersonId = p.UploadedByPersonId,
             Title = p.Title,
@@ -50,7 +50,7 @@ public class FeedService(IRepository<Post> postRepository, IRepository<Photo> ph
         {
             Type = "video",
             Id = v.Id,
-            AuthorName = $"{v.UploadedBy.GivenNames} {v.UploadedBy.FamilyName}",
+            AuthorName = PersonDisplay.Name(v.UploadedBy),
             AuthorProfileImage = v.UploadedBy.ProfileImagePath,
             AuthorPersonId = v.UploadedByPersonId,
             Title = v.Title,

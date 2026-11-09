@@ -417,6 +417,120 @@ public class PersonServiceTests
         Assert.Null((await assertDb.People.SingleAsync()).UserId);
     }
 
+    [Fact]
+    public async Task CreateAsync_NullNameOrder_UsesTheAdminDefault()
+    {
+        var (options, factory) = SqliteDb.Create();
+        var settings = new TestSettingsService(new TreeSettings { DefaultNameOrder = NameOrder.FamilyNameFirst });
+        var sut = new PersonService(
+            new EntityFrameworkRepository<Person>(factory),
+            new EntityFrameworkRepository<PersonSpouse>(factory),
+            new EntityFrameworkRepository<PersonVersion>(factory),
+            new EntityFrameworkRepository<PersonEvent>(factory),
+            new EntityFrameworkRepository<PersonLink>(factory),
+            new EntityFrameworkRepository<Contact>(factory),
+            TestParentSets.Create(factory),
+            settings: settings);
+
+        var result = await sut.CreateAsync(new PersonEditRequest { FamilyName = "Nguyen", GivenNames = "Thanh Ha" });
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.IsFamilyNameFirst);
+        await using var db = SqliteDb.CreateContext(options);
+        Assert.True((await db.People.SingleAsync()).IsFamilyNameFirst);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ApplyFamilyNameOrder_UpdatesTheDirectLineWithTheSameFamilyName()
+    {
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        var grandparent = Person("An", "Nguyen");
+        var father = Person("Binh", "Nguyen");
+        var mother = Person("Lan", "Tran");
+        var child = Person("Thanh", "Nguyen");
+        var sibling = Person("Hoa", "Nguyen");
+        var grandchild = Person("Minh", "Nguyen");
+        db.People.AddRange(grandparent, father, mother, child, sibling, grandchild);
+        await db.SaveChangesAsync();
+        await TestParentSets.LinkAsync(db, father, grandparent);
+        await TestParentSets.LinkAsync(db, child, father, mother);
+        await TestParentSets.LinkAsync(db, sibling, father, mother);
+        await TestParentSets.LinkAsync(db, grandchild, child);
+
+        var result = await CreateService(factory).UpdateAsync(
+            child.Id,
+            new PersonEditRequest
+            {
+                FamilyName = "Nguyen",
+                GivenNames = "Thanh",
+                IsFamilyNameFirst = true,
+                ApplyFamilyNameOrderToLine = true,
+            },
+            "admin",
+            isAdmin: true);
+
+        Assert.True(result.IsSuccess);
+        await using var assertDb = SqliteDb.CreateContext(options);
+        var saved = await assertDb.People.ToDictionaryAsync(person => person.GivenNames);
+        Assert.True(saved["An"].IsFamilyNameFirst);
+        Assert.True(saved["Binh"].IsFamilyNameFirst);
+        Assert.True(saved["Thanh"].IsFamilyNameFirst);
+        Assert.True(saved["Minh"].IsFamilyNameFirst);
+        Assert.False(saved["Lan"].IsFamilyNameFirst);
+        Assert.False(saved["Hoa"].IsFamilyNameFirst);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ClearFamilyNameOrder_ClearsOnlyTheDirectLineWithTheSameFamilyName()
+    {
+        var (options, factory) = SqliteDb.Create();
+        await using var db = SqliteDb.CreateContext(options);
+        var grandparent = Person("An", "Nguyen", familyNameFirst: true);
+        var father = Person("Binh", "Nguyen", familyNameFirst: true);
+        var mother = Person("Lan", "Tran");
+        var child = Person("Thanh", "Nguyen", familyNameFirst: true);
+        var sibling = Person("Hoa", "Nguyen", familyNameFirst: true);
+        var grandchild = Person("Minh", "Nguyen", familyNameFirst: true);
+        db.People.AddRange(grandparent, father, mother, child, sibling, grandchild);
+        await db.SaveChangesAsync();
+        await TestParentSets.LinkAsync(db, father, grandparent);
+        await TestParentSets.LinkAsync(db, child, father, mother);
+        await TestParentSets.LinkAsync(db, sibling, father, mother);
+        await TestParentSets.LinkAsync(db, grandchild, child);
+
+        var result = await CreateService(factory).UpdateAsync(
+            child.Id,
+            new PersonEditRequest
+            {
+                FamilyName = "Nguyen",
+                GivenNames = "Thanh",
+                IsFamilyNameFirst = false,
+                ApplyFamilyNameOrderToLine = true,
+            },
+            "admin",
+            isAdmin: true);
+
+        Assert.True(result.IsSuccess);
+        await using var assertDb = SqliteDb.CreateContext(options);
+        var saved = await assertDb.People.ToDictionaryAsync(person => person.GivenNames);
+        Assert.False(saved["An"].IsFamilyNameFirst);
+        Assert.False(saved["Binh"].IsFamilyNameFirst);
+        Assert.False(saved["Thanh"].IsFamilyNameFirst);
+        Assert.False(saved["Minh"].IsFamilyNameFirst);
+        Assert.False(saved["Lan"].IsFamilyNameFirst);
+        Assert.True(saved["Hoa"].IsFamilyNameFirst);
+    }
+
+    private static Person Person(string givenNames, string familyName, bool familyNameFirst = false) => new()
+    {
+        GivenNames = givenNames,
+        FamilyName = familyName,
+        IsFamilyNameFirst = familyNameFirst,
+        CreatedAtUtc = DateTime.UtcNow,
+        UpdatedAtUtc = DateTime.UtcNow,
+    };
+
     private static PersonService CreateService(TestDbContextFactory factory) => new(
         new EntityFrameworkRepository<Person>(factory),
         new EntityFrameworkRepository<PersonSpouse>(factory),

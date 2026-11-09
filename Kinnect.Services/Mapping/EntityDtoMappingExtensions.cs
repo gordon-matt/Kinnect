@@ -1,3 +1,5 @@
+using Kinnect.Services;
+
 namespace Kinnect.Services.Mapping;
 
 public static class EntityDtoMappingExtensions
@@ -8,7 +10,7 @@ public static class EntityDtoMappingExtensions
     {
         Id = p.Id,
         AuthorPersonId = p.AuthorPersonId,
-        AuthorName = p.Author is not null ? $"{p.Author.GivenNames} {p.Author.FamilyName}" : string.Empty,
+        AuthorName = PersonDisplay.Name(p.Author),
         AuthorProfileImage = p.Author?.ProfileImagePath,
         AuthorUserId = p.Author?.UserId,
         Content = p.Content,
@@ -35,6 +37,7 @@ public static class EntityDtoMappingExtensions
         UserId = p.UserId,
         FamilyName = p.FamilyName,
         GivenNames = p.GivenNames,
+        IsFamilyNameFirst = p.IsFamilyNameFirst,
         NamePrefix = p.NamePrefix,
         Nickname = p.Nickname,
         NameSuffix = p.NameSuffix,
@@ -56,6 +59,7 @@ public static class EntityDtoMappingExtensions
         UserId = dto.UserId,
         FamilyName = dto.FamilyName,
         GivenNames = dto.GivenNames,
+        IsFamilyNameFirst = dto.IsFamilyNameFirst,
         NamePrefix = dto.NamePrefix,
         Nickname = dto.Nickname,
         NameSuffix = dto.NameSuffix,
@@ -119,7 +123,7 @@ public static class EntityDtoMappingExtensions
         ThumbnailPath = p.ThumbnailPath,
         Description = p.Description,
         UploadedByPersonId = p.UploadedByPersonId,
-        UploadedByName = $"{p.UploadedBy.GivenNames} {p.UploadedBy.FamilyName}",
+        UploadedByName = PersonDisplay.Name(p.UploadedBy),
         CreatedAtUtc = p.CreatedAtUtc,
         YearTaken = p.YearTaken,
         MonthTaken = p.MonthTaken,
@@ -131,7 +135,7 @@ public static class EntityDtoMappingExtensions
         FolderId = p.FolderId,
         Tags = p.PhotoTags.Select(pt => pt.Tag.Name).ToList(),
         TaggedPeople = p.PersonPhotos
-            .Select(pp => new TaggedPersonInfo(pp.PersonId, $"{pp.Person.GivenNames} {pp.Person.FamilyName}"))
+            .Select(pp => new TaggedPersonInfo(pp.PersonId, PersonDisplay.Name(pp.Person)))
             .ToList()
     };
 
@@ -167,7 +171,7 @@ public static class EntityDtoMappingExtensions
         Description = v.Description,
         Duration = v.Duration,
         UploadedByPersonId = v.UploadedByPersonId,
-        UploadedByName = $"{v.UploadedBy.GivenNames} {v.UploadedBy.FamilyName}",
+        UploadedByName = PersonDisplay.Name(v.UploadedBy),
         CreatedAtUtc = v.CreatedAtUtc,
         Tags = v.VideoTags.Select(vt => vt.Tag.Name).ToList(),
         FolderId = v.FolderId,
@@ -201,7 +205,7 @@ public static class EntityDtoMappingExtensions
         ContentType = d.ContentType,
         FileSize = d.FileSize,
         UploadedByPersonId = d.UploadedByPersonId,
-        UploadedByName = $"{d.UploadedBy.GivenNames} {d.UploadedBy.FamilyName}",
+        UploadedByName = PersonDisplay.Name(d.UploadedBy),
         CreatedAtUtc = d.CreatedAtUtc,
         Tags = d.DocumentTags.Select(dt => dt.Tag.Name).ToList()
     };

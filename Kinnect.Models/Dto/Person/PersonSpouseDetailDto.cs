@@ -1,3 +1,5 @@
+using MyWebTree.Models;
+
 namespace Kinnect.Models.Dto;
 
 public class PersonSpouseDetailDto
@@ -8,7 +10,10 @@ public class PersonSpouseDetailDto
 
     public string FamilyName { get; set; } = null!;
 
-    public string FullName => $"{GivenNames} {FamilyName}";
+    public bool IsFamilyNameFirst { get; set; }
+
+    /// <summary>Given and family names in this person's order, without capitalization.</summary>
+    public string FullName => PersonName.Format(GivenNames, FamilyName, IsFamilyNameFirst, capitalizeFamilyName: false);
 
     public short? MarriageYear { get; set; }
 

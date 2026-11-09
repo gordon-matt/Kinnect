@@ -6,6 +6,14 @@ public class PersonEditRequest
 
     public string GivenNames { get; set; } = null!;
 
+    /// <summary>Null on create means use the admin's default name order. Null on update leaves the stored value.</summary>
+    public bool? IsFamilyNameFirst { get; set; }
+
+    /// <summary>
+    /// Also give direct ancestors and descendants who share the family name the name order saved on this person.
+    /// </summary>
+    public bool ApplyFamilyNameOrderToLine { get; set; }
+
     public string? NamePrefix { get; set; }
 
     public string? NameSuffix { get; set; }

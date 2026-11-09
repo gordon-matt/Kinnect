@@ -21,7 +21,8 @@ public partial class GedcomService(
     IRepository<ParentSetMember> memberRepository,
     IParentSetService parentSets,
     IFileStorageService fileStorage,
-    ILogger<GedcomService> logger) : IGedcomService
+    ILogger<GedcomService> logger,
+    ISettingsService? settings = null) : IGedcomService
 {
     public Task<string> ExportAsync() =>
         BuildGedcomAsync(GedcomExportOptions.WithoutMedia(), progress: null, staged: [], CancellationToken.None);
@@ -517,6 +518,7 @@ public partial class GedcomService(
 
             ApplyName(person, name);
             ApplyFacts(individual, person);
+            person.IsFamilyNameFirst = await DefaultFamilyNameFirstAsync();
             await personRepository.InsertAsync(person);
             summary.PeopleImported++;
             isNewPerson = true;
@@ -545,6 +547,17 @@ public partial class GedcomService(
             context.NewPersonIds.Add(person.Id);
             await ImportIndividualMediaAsync(individual, person, importedEvents, context);
         }
+    }
+
+    private async Task<bool> DefaultFamilyNameFirstAsync()
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        var tree = await settings.GetAsync<TreeSettings>();
+        return tree.DefaultNameOrder == NameOrder.FamilyNameFirst;
     }
 
     private static void ApplyName(Person person, PersonalName? name)

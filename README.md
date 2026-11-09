@@ -116,6 +116,11 @@ services:
       Smtp__FromAddress: smtp_email
       Smtp__FromName: Kinnect
 
+      # Read on every start. Rooms can be archived, people can block direct messages, and authors can delete a message.
+      Messaging__AllowRoomArchive: "true"
+      Messaging__AllowUserBlocks: "true"
+      Messaging__AllowMessageDelete: "true"
+
       # Optional. Sign in with Keycloak instead of built-in accounts.
       # Authentication__Provider: Keycloak
       # Authentication__Keycloak__Authority: https://keycloak.example.com/realms/home

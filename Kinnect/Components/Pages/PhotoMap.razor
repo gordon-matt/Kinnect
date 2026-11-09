@@ -35,7 +35,7 @@
         var person = await People.GetByIdAsync(PersonId);
         if (person.IsSuccess)
         {
-            title = person.Value.FullName + " — photos";
+            title = PersonDisplay.Name(person.Value) + " — photos";
         }
 
         var photos = await Photos.GetByPersonAsync(PersonId);

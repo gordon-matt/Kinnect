@@ -15,4 +15,7 @@ public interface ISettingsService
 
     /// <summary>Checks and saves the settings. Everyone sees the new values straight away.</summary>
     Task<Result<T>> SaveAsync<T>(T settings, CancellationToken cancellationToken = default) where T : AppSettings, new();
+
+    /// <summary>The cached settings, or the defaults when nothing has been read yet. Does not touch the database.</summary>
+    T Peek<T>() where T : AppSettings, new();
 }

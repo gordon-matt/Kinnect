@@ -12,7 +12,8 @@ public class PersonService(
     IRepository<PersonLink> linkRepository,
     IRepository<Contact> contactRepository,
     IParentSetService parentSets,
-    UserManager<ApplicationUser>? accounts = null) : IPersonService
+    UserManager<ApplicationUser>? accounts = null,
+    ISettingsService? settings = null) : IPersonService
 {
     private const int MaxContacts = 20;
 
@@ -50,6 +51,7 @@ public class PersonService(
             return Result<PersonDto>.Invalid(contacts.Errors);
         }
 
+        bool familyNameFirst = request.IsFamilyNameFirst ?? await DefaultFamilyNameFirstAsync();
         var person = await personRepository.InsertAsync(new Person
         {
             FamilyName = request.FamilyName,
@@ -65,6 +67,7 @@ public class PersonService(
             Religion = request.Religion,
             Note = request.Note,
             IsDeceased = request.IsDeceased,
+            IsFamilyNameFirst = familyNameFirst,
             UserId = userId,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
@@ -192,7 +195,7 @@ public class PersonService(
             .Select(p => new MapPinDto
             {
                 PersonId = p.Id,
-                FullName = $"{p.GivenNames} {p.FamilyName}",
+                FullName = PersonDisplay.Name(p),
                 ProfileImagePath = p.ProfileImagePath,
                 Latitude = p.Latitude!.Value,
                 Longitude = p.Longitude!.Value
@@ -240,6 +243,7 @@ public class PersonService(
                         SpousePersonId = otherId,
                         GivenNames = other.GivenNames,
                         FamilyName = other.FamilyName,
+                        IsFamilyNameFirst = other.IsFamilyNameFirst,
                         MarriageYear = link.MarriageYear,
                         MarriageMonth = link.MarriageMonth,
                         MarriageDay = link.MarriageDay,
@@ -354,6 +358,10 @@ public class PersonService(
 
         person.FamilyName = snapshot.FamilyName;
         person.GivenNames = snapshot.GivenNames;
+        if (snapshot.IsFamilyNameFirst is bool familyNameFirst)
+        {
+            person.IsFamilyNameFirst = familyNameFirst;
+        }
         person.NamePrefix = CleanNamePart(snapshot.NamePrefix);
         person.Nickname = CleanNamePart(snapshot.Nickname);
         person.NameSuffix = CleanNamePart(snapshot.NameSuffix);
@@ -450,6 +458,10 @@ public class PersonService(
 
         person.FamilyName = request.FamilyName;
         person.GivenNames = request.GivenNames;
+        if (request.IsFamilyNameFirst is bool familyNameFirst)
+        {
+            person.IsFamilyNameFirst = familyNameFirst;
+        }
         person.NamePrefix = CleanNamePart(request.NamePrefix);
         person.Nickname = CleanNamePart(request.Nickname);
         person.NameSuffix = CleanNamePart(request.NameSuffix);
@@ -464,6 +476,11 @@ public class PersonService(
         person.UpdatedAtUtc = DateTime.UtcNow;
 
         await personRepository.UpdateAsync(person);
+        if (request.ApplyFamilyNameOrderToLine)
+        {
+            await ApplyFamilyNameOrderAsync(person, currentUserId, isAdmin, isEditorOrAbove);
+        }
+
         if (Links is not null)
         {
             await ReplaceLinksAsync(person.Id, Links);
@@ -553,12 +570,94 @@ public class PersonService(
         return Result.Success();
     }
 
+    private async Task<bool> DefaultFamilyNameFirstAsync()
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        var tree = await settings.GetAsync<TreeSettings>();
+        return tree.DefaultNameOrder == NameOrder.FamilyNameFirst;
+    }
+
+    /// <summary>
+    /// Copies this person's name order onto direct ancestors and descendants who share the family name
+    /// and whom the current user may edit.
+    /// </summary>
+    private async Task ApplyFamilyNameOrderAsync(Person person, string currentUserId, bool isAdmin, bool isEditorOrAbove)
+    {
+        string familyName = person.FamilyName.Trim();
+        if (familyName.Length == 0)
+        {
+            return;
+        }
+
+        var graph = await parentSets.LoadGraphAsync();
+        var people = (await personRepository.FindAsync(new SearchOptions<Person>())).ToDictionary(relative => relative.Id);
+        foreach (int relativeId in DirectLine(graph, person.Id))
+        {
+            if (!people.TryGetValue(relativeId, out var relative)
+                || relative.IsFamilyNameFirst == person.IsFamilyNameFirst
+                || !string.Equals(relative.FamilyName.Trim(), familyName, StringComparison.OrdinalIgnoreCase)
+                || !CanEdit(relative, currentUserId, isAdmin, isEditorOrAbove))
+            {
+                continue;
+            }
+
+            await SaveVersionAsync(relative, currentUserId);
+            relative.IsFamilyNameFirst = person.IsFamilyNameFirst;
+            relative.UpdatedAtUtc = DateTime.UtcNow;
+            await personRepository.UpdateAsync(relative);
+        }
+    }
+
+    private static bool CanEdit(Person person, string currentUserId, bool isAdmin, bool isEditorOrAbove) =>
+        person.UserId == currentUserId || isAdmin || (isEditorOrAbove && person.UserId is null);
+
+    private static IEnumerable<int> DirectLine(ParentGraph graph, int personId)
+    {
+        var seen = new HashSet<int> { personId };
+        var next = new Queue<int>();
+        next.Enqueue(personId);
+        while (next.Count > 0)
+        {
+            int current = next.Dequeue();
+            foreach (int parentId in graph.ParentsOf(current, ParentLineage.Any))
+            {
+                if (seen.Add(parentId))
+                {
+                    next.Enqueue(parentId);
+                    yield return parentId;
+                }
+            }
+        }
+
+        seen.Clear();
+        seen.Add(personId);
+        next.Clear();
+        next.Enqueue(personId);
+        while (next.Count > 0)
+        {
+            int current = next.Dequeue();
+            foreach (int childId in graph.ChildrenOf(current, ParentLineage.Any))
+            {
+                if (seen.Add(childId))
+                {
+                    next.Enqueue(childId);
+                    yield return childId;
+                }
+            }
+        }
+    }
+
     private async Task SaveVersionAsync(Person person, string currentUserId)
     {
         var snapshot = new PersonEditRequest
         {
             FamilyName = person.FamilyName,
             GivenNames = person.GivenNames,
+            IsFamilyNameFirst = person.IsFamilyNameFirst,
             NamePrefix = person.NamePrefix,
             Nickname = person.Nickname,
             NameSuffix = person.NameSuffix,

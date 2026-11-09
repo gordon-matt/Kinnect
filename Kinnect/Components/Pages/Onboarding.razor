@@ -3,6 +3,7 @@
 @using System.Text.Json
 @using Kinnect.Data
 @using Kinnect.Models.FamilyTree
+@using MyWebTree.Models
 
 @inject ApplicationDbContextBase Database
 @inject IUserContextService Users
@@ -44,7 +45,7 @@
                     {
                         <li>
                             <span class="kinnect-person-label">
-                                <span>@person.GivenNames @person.FamilyName</span>
+                                <span>@PersonDisplay.Name(person)</span>
                                 @if (lifespans.TryGetValue(person.Id, out string? life) && life.Length > 0)
                                 {
                                     <small class="kinnect-muted">@life</small>
@@ -128,7 +129,7 @@
             ? unlinked
             : unlinked.Where(person =>
             {
-                string text = $"{person.GivenNames} {person.FamilyName}";
+                string text = PersonName.Format(person.GivenNames, person.FamilyName, person.IsFamilyNameFirst, capitalizeFamilyName: false);
                 if (lifespans.TryGetValue(person.Id, out string? life) && life.Length > 0)
                 {
                     text = $"{text} {life}";

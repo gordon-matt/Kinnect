@@ -52,7 +52,7 @@ else
                                     <option value="">Select a person</option>
                                     @foreach (var candidate in unlinked)
                                     {
-                                        <option value="@candidate.Id">@candidate.FullName</option>
+                                        <option value="@candidate.Id">@PersonDisplay.Name(candidate)</option>
                                     }
                                 </select>
                                 <button class="nf-button nf-button-sm" type="button" disabled="@(row.SelectedPersonId is null)" @onclick="() => LinkAsync(row)">Link</button>
@@ -103,7 +103,7 @@ else
                 Email = user.Email ?? "",
                 Role = roles.FirstOrDefault() ?? Constants.Roles.User,
                 PersonId = person?.Id,
-                PersonName = person?.FullName,
+                PersonName = person is null ? null : PersonDisplay.Name(person),
                 Locked = locked,
             });
         }

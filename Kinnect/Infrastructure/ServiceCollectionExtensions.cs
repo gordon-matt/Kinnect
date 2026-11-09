@@ -73,7 +73,12 @@ internal static class ServiceCollectionExtensions
                     break;
             }
 
-            services.AddEasyChatz(options => options.SystemDisplayName = "Kinnect");
+            services.AddEasyChatz(options =>
+            {
+                options.SystemDisplayName = "Kinnect";
+                // Bound here, after the library's own section, so Kinnect's settings use Messaging.
+                configuration.GetSection("Messaging").Bind(options);
+            });
             services.AddHostedService<ChatHistoryImporter>();
             return services;
         }

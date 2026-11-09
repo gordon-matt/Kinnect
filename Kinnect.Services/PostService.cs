@@ -19,7 +19,7 @@ public class PostService(IMappedRepository<PostDto, Post> postRepository, IRepos
             Content = request.Content,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
-            AuthorName = $"{author.GivenNames} {author.FamilyName}",
+            AuthorName = PersonDisplay.Name(author),
             AuthorProfileImage = author.ProfileImagePath,
             AuthorUserId = author.UserId
         });

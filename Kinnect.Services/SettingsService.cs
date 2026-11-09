@@ -36,6 +36,9 @@ public sealed class SettingsService(
         }
     }
 
+    public T Peek<T>() where T : AppSettings, new() =>
+        cache.TryGetValue(typeof(T), out var cached) ? (T)cached.Copy() : new T();
+
     public async Task<Result<T>> SaveAsync<T>(T settings, CancellationToken cancellationToken = default) where T : AppSettings, new()
     {
         var candidate = (T)settings.Copy();

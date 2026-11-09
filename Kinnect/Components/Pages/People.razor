@@ -1,6 +1,7 @@
 @page "/people"
 @attribute [Authorize]
 
+@using MyWebTree.Models
 @inject IPersonService PeopleService
 
 <PageTitle>People</PageTitle>
@@ -20,7 +21,7 @@ else
         @foreach (var person in matches)
         {
             <li>
-                <a href="@($"people/{person.Id}")">@person.FullName</a>
+                <a href="@($"people/{person.Id}")">@PersonDisplay.Name(person)</a>
                 @if (person.IsDeceased)
                 {
                     <span class="kinnect-muted"> · deceased</span>
@@ -41,7 +42,7 @@ else
         var all = await PeopleService.GetAllAsync();
         string q = Query?.Trim() ?? string.Empty;
         matches = all.IsSuccess
-            ? all.Value.Where(p => q.Length == 0 || p.FullName.Contains(q, StringComparison.OrdinalIgnoreCase)).OrderBy(p => p.FullName).ToList()
+            ? all.Value.Where(p => PersonName.Matches(q, p.GivenNames, p.FamilyName)).OrderBy(p => PersonDisplay.Name(p)).ToList()
             : [];
     }
 }

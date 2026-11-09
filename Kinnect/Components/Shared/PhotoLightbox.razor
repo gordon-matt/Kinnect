@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using MyWebTree.Models
 @inject IJSRuntime Js
 @inject IPhotoService Photos
 @inject IPersonService People
@@ -56,7 +57,7 @@
                                 <div class="kinnect-tag-results">
                                     @foreach (var person in tagResults)
                                     {
-                                        <button type="button" @onclick="() => TagAsync(person)">@person.FullName</button>
+                                        <button type="button" @onclick="() => TagAsync(person)">@PersonDisplay.Name(person)</button>
                                     }
                                 </div>
                             }
@@ -171,7 +172,7 @@
 
         var people = await People.GetAllAsync();
         everyone = people.IsSuccess
-            ? people.Value.OrderBy(person => person.FullName).ToList()
+            ? people.Value.OrderBy(person => PersonDisplay.Name(person)).ToList()
             : [];
     }
 
@@ -280,7 +281,7 @@
 
         var taken = tagged.Select(person => person.PersonId).ToHashSet();
         tagResults = everyone
-            .Where(person => !taken.Contains(person.Id) && person.FullName.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Where(person => !taken.Contains(person.Id) && PersonName.Matches(query, person.GivenNames, person.FamilyName))
             .Take(6)
             .ToList();
     }
@@ -305,7 +306,7 @@
             return;
         }
 
-        tagged.Add(new TaggedPersonInfo(person.Id, person.FullName));
+        tagged.Add(new TaggedPersonInfo(person.Id, PersonDisplay.Name(person)));
         tagQuery = string.Empty;
         tagResults = [];
         note = null;

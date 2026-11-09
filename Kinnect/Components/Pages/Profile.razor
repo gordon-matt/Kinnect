@@ -15,6 +15,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime Js
 @inject ToastService Toasts
+@inject DialogService Dialogs
 
 <PageTitle>@(person is null ? "Profile" : DisplayName)</PageTitle>
 
@@ -69,6 +70,11 @@ else
                             <Field Label="Given names"><InputText class="nf-input" @bind-Value="form.GivenNames" /></Field>
                             <Field Label="Family name"><InputText class="nf-input" @bind-Value="form.FamilyName" /></Field>
                         </div>
+                        <label class="nf-check">
+                            <InputCheckbox Value="FamilyNameFirst" ValueChanged="OnFamilyNameFirstChanged" ValueExpression="() => FamilyNameFirst" />
+                            Family name comes first
+                        </label>
+                        <small class="kinnect-muted">For names written family name first, such as Nguyen Thanh Ha.</small>
                         <Field Label="Nickname"><InputText class="nf-input" @bind-Value="form.Nickname" /></Field>
                         <div class="kinnect-switch" role="group" aria-label="Sex">
                             <button type="button" class="@(form.IsMale == true ? "is-active" : null)" aria-pressed="@(form.IsMale == true)" @onclick="() => form.IsMale = true">Male</button>
@@ -638,9 +644,16 @@ else
     public int PersonId { get; set; }
 
     private PersonDto? person;
-    private string DisplayName => person is null
-        ? string.Empty
-        : string.Join(" ", new[] { person.NamePrefix, person.GivenNames, person.FamilyName, person.NameSuffix }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    private bool applyNameOrderToRelatives;
+
+    private bool FamilyNameFirst
+    {
+        get => form.IsFamilyNameFirst == true;
+        set => form.IsFamilyNameFirst = value;
+    }
+
+    // Editing shows the stored name as typed. View mode capitalizes the family name when that setting is on.
+    private string DisplayName => person is null ? string.Empty : PersonDisplay.Name(person, editing: Editing);
 
     private string? NicknameLine => string.IsNullOrWhiteSpace(person?.Nickname) ? null : $"Known as {person.Nickname}";
 
@@ -734,7 +747,7 @@ else
                 new MapPinDto
                 {
                     PersonId = person.Id,
-                    FullName = person.FullName,
+                    FullName = PersonDisplay.Name(person, editing: Editing),
                     Latitude = latitude.Value,
                     Longitude = longitude.Value,
                 },
@@ -1447,6 +1460,7 @@ else
             Religion = person.Religion,
             Note = person.Note,
             IsDeceased = mine ? false : person.IsDeceased,
+            IsFamilyNameFirst = person.IsFamilyNameFirst,
             Links = person.Links.Select(link => new PersonLinkInput { Name = link.Name, Url = link.Url }).ToList(),
             Contacts = person.Contacts.Select(contact => new ContactInput { Type = contact.Type, Value = contact.Value }).ToList(),
         };
@@ -1570,7 +1584,7 @@ else
         public static SpouseForm From(PersonSpouseDetailDto spouse) => new()
         {
             SpousePersonId = spouse.SpousePersonId,
-            FullName = spouse.FullName,
+            FullName = PersonDisplay.Name(spouse.GivenNames, spouse.FamilyName, spouse.IsFamilyNameFirst),
             HasEngagement = spouse.HasEngagement,
             EngagementYear = spouse.EngagementYear?.ToString() ?? "",
             EngagementMonth = spouse.EngagementMonth?.ToString() ?? "",
@@ -1586,6 +1600,22 @@ else
         };
     }
 
+    private async Task OnFamilyNameFirstChanged(bool value)
+    {
+        form.IsFamilyNameFirst = value;
+        applyNameOrderToRelatives = false;
+        if (string.IsNullOrWhiteSpace(form.FamilyName))
+        {
+            return;
+        }
+
+        string familyName = form.FamilyName.Trim();
+        string message = value
+            ? $"Also show the family name first for direct ancestors and descendants with family name, '{familyName}'?"
+            : $"Also show the given names first for direct ancestors and descendants with family name, '{familyName}'?";
+        applyNameOrderToRelatives = await Dialogs.ConfirmAsync("Apply to relatives?", message, "Apply to relatives");
+    }
+
     private async Task SaveAsync()
     {
         string? userId = Users.GetCurrentUserId();
@@ -1594,6 +1624,7 @@ else
             return;
         }
 
+        form.ApplyFamilyNameOrderToLine = applyNameOrderToRelatives;
         var result = await People.UpdateAsync(PersonId, form, userId, Users.IsAdmin(), Users.IsAdmin() || Users.IsEditor());
         Notify(result, "Saved.");
         if (result.IsSuccess)

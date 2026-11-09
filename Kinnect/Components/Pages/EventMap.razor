@@ -116,7 +116,7 @@
         var person = await People.GetByIdAsync(PersonId);
         if (person.IsSuccess)
         {
-            title = person.Value.FullName + " — events";
+            title = PersonDisplay.Name(person.Value) + " — events";
         }
 
         var result = await Events.GetByPersonAsync(PersonId);

@@ -110,7 +110,7 @@ public sealed class KinnectChatUserDirectory(
         using var context = (ApplicationDbContextBase)factory.GetContext();
         var rows = await context.People.AsNoTracking()
             .Where(person => person.UserId != null && ids.Contains(person.UserId))
-            .Select(person => new { person.UserId, person.GivenNames, person.FamilyName })
+            .Select(person => new { person.UserId, person.GivenNames, person.FamilyName, person.IsFamilyNameFirst })
             .ToListAsync(cancellationToken);
 
         return rows
@@ -118,12 +118,9 @@ public sealed class KinnectChatUserDirectory(
             .GroupBy(row => row.UserId!, StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
-                group => PersonName(group.First().GivenNames, group.First().FamilyName),
+                group => PersonDisplay.Name(group.First().GivenNames, group.First().FamilyName, group.First().IsFamilyNameFirst),
                 StringComparer.Ordinal);
     }
-
-    private static string PersonName(string? givenNames, string? familyName) =>
-        string.Join(' ', new[] { givenNames, familyName }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private async Task<(bool Admin, bool Editor)> RolesAsync(string userId)
     {

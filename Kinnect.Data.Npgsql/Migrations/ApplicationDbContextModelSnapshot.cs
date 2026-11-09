@@ -597,6 +597,11 @@ namespace Kinnect.Data.Npgsql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsMale")
                         .HasColumnType("boolean");
 
@@ -984,6 +989,16 @@ namespace Kinnect.Data.Npgsql.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CapitalizeFamilyNames")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("DefaultNameOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("MaxGenerations")
                         .HasColumnType("integer");

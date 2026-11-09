@@ -76,6 +76,6 @@ public class DocumentServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Contains("Alex", result.Value.UploadedByName, StringComparison.Ordinal);
-        Assert.Contains("Smith", result.Value.UploadedByName, StringComparison.Ordinal);
+        Assert.Contains("Smith", result.Value.UploadedByName, StringComparison.OrdinalIgnoreCase);
     }
 }

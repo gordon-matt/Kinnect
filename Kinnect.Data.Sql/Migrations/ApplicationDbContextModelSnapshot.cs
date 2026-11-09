@@ -599,6 +599,11 @@ namespace Kinnect.Data.Sql.Migrations
                     b.Property<bool>("IsDeceased")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsMale")
                         .HasColumnType("bit");
 
@@ -986,6 +991,16 @@ namespace Kinnect.Data.Sql.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CapitalizeFamilyNames")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("DefaultNameOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("MaxGenerations")
                         .HasColumnType("int");

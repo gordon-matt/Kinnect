@@ -25,6 +25,9 @@ services:
       VideoProcessing__OutputVideoSize: "Hd720" # Possible values: https://ffmpeg.xabe.net/docs/Xabe.FFmpeg.VideoSize.html
       VideoProcessing__Crf: "28"
       VideoProcessing__AudioBitrate: "128000"
+      Messaging__AllowRoomArchive: "true"
+      Messaging__AllowUserBlocks: "true"
+      Messaging__AllowMessageDelete: "true"
       # ── SMTP (optional) ──────────────────────────────────────────────────────
       # Smtp__Host: smtp.example.com
       # Smtp__Port: "587"

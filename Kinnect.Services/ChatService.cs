@@ -191,9 +191,7 @@ public partial class ChatService(
             Query = p => p.UserId == currentUserId
         });
         var person = people.FirstOrDefault();
-        string fullName = person is not null
-            ? $"{person.GivenNames} {person.FamilyName}".Trim()
-            : userName;
+        string fullName = person is not null ? PersonDisplay.Name(person) : userName;
 
         return Result.Success(new ChatUserDto
         {
@@ -415,7 +413,7 @@ public partial class ChatService(
             .GroupBy(p => p.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => $"{g.First().GivenNames} {g.First().FamilyName}".Trim());
+                g => PersonDisplay.Name(g.First()));
     }
 
     private async Task<string?> GetUserNameAsync(string userId)

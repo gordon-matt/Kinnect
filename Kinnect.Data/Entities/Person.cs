@@ -8,6 +8,9 @@ public class Person : BaseEntity<int>
 
     public string GivenNames { get; set; } = null!;
 
+    /// <summary>When set, the family name is shown before the given names.</summary>
+    public bool IsFamilyNameFirst { get; set; }
+
     /// <summary>GEDCOM <c>NPFX</c>, such as Dr.</summary>
     public string? NamePrefix { get; set; }
 
@@ -72,6 +75,7 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.HasKey(m => m.Id);
         builder.Property(m => m.FamilyName).IsRequired().HasMaxLength(200);
         builder.Property(m => m.GivenNames).IsRequired().HasMaxLength(200);
+        builder.Property(m => m.IsFamilyNameFirst).HasDefaultValue(false);
         builder.Property(m => m.NamePrefix).HasMaxLength(100);
         builder.Property(m => m.NameSuffix).HasMaxLength(100);
         builder.Property(m => m.Nickname).HasMaxLength(100);
