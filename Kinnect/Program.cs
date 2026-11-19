@@ -177,6 +177,8 @@ RecurringJob.AddOrUpdate<UnreadMessageEmailJob>(
     Cron.Hourly());
 
 app.MapStaticAssets();
+
+app.MapNetForgeAssets();
 app.MapEasyChatzApi().RequireAuthorization();
 app.MapEasyChatzHub().RequireAuthorization();
 app.MapControllers();

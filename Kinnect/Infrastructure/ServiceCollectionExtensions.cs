@@ -78,6 +78,8 @@ internal static class ServiceCollectionExtensions
                 options.SystemDisplayName = "Kinnect";
                 // Bound here, after the library's own section, so Kinnect's settings use Messaging.
                 configuration.GetSection("Messaging").Bind(options);
+                // Kinnect is a private site. Anyone who has an account can message anyone.
+                options.RequireConnections = false;
             });
             services.AddHostedService<ChatHistoryImporter>();
             return services;

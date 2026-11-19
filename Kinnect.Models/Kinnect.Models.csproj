@@ -8,7 +8,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="MyWebTree.Core" Version="1.1.2" />
+	  <PackageReference Include="MyWebTree.Core" Version="1.1.3" />
 	</ItemGroup>
 
 	<ItemGroup>
