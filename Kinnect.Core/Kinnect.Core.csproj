@@ -5,11 +5,10 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<RootNamespace>Kinnect</RootNamespace>
-		<Version>1.2.2</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+		<PackageReference Include="Hangfire.PostgreSql" />
 	</ItemGroup>
 
 </Project>

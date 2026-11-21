@@ -4,16 +4,15 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Version>1.2.2</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Hangfire.Core" Version="1.8.25" />
-		<PackageReference Include="Hangfire.NetCore" Version="1.8.25" />
-		<PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.3" />
-		<PackageReference Include="LogVue.Data.Sqlite" Version="1.1.6" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+		<PackageReference Include="Hangfire.Core" />
+		<PackageReference Include="Hangfire.NetCore" />
+		<PackageReference Include="Hangfire.Storage.SQLite" />
+		<PackageReference Include="LogVue.Data.Sqlite" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>

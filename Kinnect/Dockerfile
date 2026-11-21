@@ -13,6 +13,9 @@ WORKDIR /src
 RUN dotnet tool install -g Microsoft.Web.LibraryManager.Cli
 ENV PATH="$PATH:/root/.dotnet/tools"
 
+# Package versions live in Directory.Packages.props. Restore cannot see them
+# until this file is in the image, and the project files no longer repeat them.
+COPY ["Directory.Packages.props", "Directory.Build.props", "./"]
 COPY ["Kinnect/Kinnect.csproj", "Kinnect/"]
 COPY ["Kinnect.Core/Kinnect.Core.csproj", "Kinnect.Core/"]
 COPY ["Kinnect.Data/Kinnect.Data.csproj", "Kinnect.Data/"]
